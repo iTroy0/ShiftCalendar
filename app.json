@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "ShiftCalendar",
+    "slug": "ShiftCalendar",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "scheme": "shiftcalendar",
+    "author": "Troy",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F0F0F"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0F0F0F",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "softwareKeyboardLayoutMode": "pan",
+      "navigationBarColor": "transparent",
+      "navigationBarHidden": true,
+      "package": "com.itroy0.ShiftCalendar"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "6d1188e5-bed3-45e9-82ec-4fb2f5856a1e"
+      }
+    }
+  }
+}
