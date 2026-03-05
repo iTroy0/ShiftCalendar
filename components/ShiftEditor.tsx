@@ -12,6 +12,7 @@ import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { ShiftType, AVAILABLE_COLORS, AVAILABLE_ICONS } from '../constants/shifts';
+import { TimePicker } from './TimePicker';
 
 interface Props {
   editingShift: ShiftType | null; // null = creating new
@@ -145,40 +146,20 @@ export const ShiftEditor = forwardRef<BottomSheet, Props>(
 
           {/* Times */}
           <View style={styles.timeRow}>
-            <View style={styles.timeField}>
-              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>START TIME</Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.surfaceVariant,
-                    color: colors.text,
-                    borderColor: colors.border,
-                  },
-                ]}
-                value={startTime}
-                onChangeText={setStartTime}
-                placeholder="e.g. 18:00"
-                placeholderTextColor={colors.textSecondary}
-              />
-            </View>
-            <View style={styles.timeField}>
-              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>END TIME</Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.surfaceVariant,
-                    color: colors.text,
-                    borderColor: colors.border,
-                  },
-                ]}
-                value={endTime}
-                onChangeText={setEndTime}
-                placeholder="e.g. 02:00"
-                placeholderTextColor={colors.textSecondary}
-              />
-            </View>
+            <TimePicker
+              label="START TIME"
+              value={startTime || '00:00'}
+              onChange={setStartTime}
+              accentColor={color}
+              colors={colors}
+            />
+            <TimePicker
+              label="END TIME"
+              value={endTime || '00:00'}
+              onChange={setEndTime}
+              accentColor={color}
+              colors={colors}
+            />
           </View>
 
           {/* Color picker */}
