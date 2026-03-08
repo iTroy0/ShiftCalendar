@@ -1,12 +1,12 @@
 import React, { useEffect, useCallback, useRef } from 'react';
-import { Platform, View, Text, Alert, ActivityIndicator, StyleSheet } from 'react-native';
+import { Platform, View, Text, Alert, ActivityIndicator, StyleSheet, NativeModules, DeviceEventEmitter } from 'react-native';
 import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import * as NavigationBar from 'expo-navigation-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Linking from 'expo-linking';
-import { readAsStringAsync } from 'expo-file-system/legacy';
+import { readAsStringAsync, cacheDirectory, copyAsync } from 'expo-file-system/legacy';
 import * as Haptics from 'expo-haptics';
 import { ThemeProvider, useAppTheme } from '../hooks/ThemeContext';
 import { ShiftProvider, useShifts } from '../hooks/ShiftContext';
@@ -32,7 +32,14 @@ function InnerLayout() {
     if (!url.startsWith('file://') && !url.startsWith('content://')) return;
 
     try {
-      const content = await readAsStringAsync(url);
+      // On Android, content:// URIs can't always be read directly — copy to cache first
+      let readableUri = url;
+      if (Platform.OS === 'android' && url.startsWith('content://')) {
+        const tempPath = cacheDirectory + 'incoming_file_' + Date.now();
+        await copyAsync({ from: url, to: tempPath });
+        readableUri = tempPath;
+      }
+      const content = await readAsStringAsync(readableUri);
 
       // Try JSON backup first
       try {
@@ -100,17 +107,38 @@ function InnerLayout() {
   useEffect(() => {
     if (loading) return; // Wait until data is loaded before handling URLs
 
-    // Handle initial URL (app was cold-launched from a file)
-    Linking.getInitialURL().then((url) => {
-      if (url) handleIncomingURL(url);
-    });
+    // Android: use native module to get file URIs (prevents expo-router from choking on content:// URLs)
+    if (Platform.OS === 'android' && NativeModules.FileIntentModule) {
+      NativeModules.FileIntentModule.getFileUri().then((uri: string | null) => {
+        if (uri) {
+          NativeModules.FileIntentModule.clearFileUri();
+          handleIncomingURL(uri);
+        }
+      });
+    } else {
+      // iOS: use Linking
+      Linking.getInitialURL().then((url) => {
+        if (url) handleIncomingURL(url);
+      });
+    }
 
-    // Handle URL while app is already running
-    const sub = Linking.addEventListener('url', (event) => {
+    // Android warm launch: listen for file intent events from native
+    const fileIntentSub = Platform.OS === 'android'
+      ? DeviceEventEmitter.addListener('onFileIntent', (uri: string) => {
+          NativeModules.FileIntentModule?.clearFileUri();
+          handleIncomingURL(uri);
+        })
+      : null;
+
+    // iOS + custom scheme URLs
+    const linkingSub = Linking.addEventListener('url', (event) => {
       handleIncomingURL(event.url);
     });
 
-    return () => sub.remove();
+    return () => {
+      linkingSub.remove();
+      fileIntentSub?.remove();
+    };
   }, [loading, handleIncomingURL]);
 
   useEffect(() => {

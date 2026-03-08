@@ -29,7 +29,8 @@
             "CFBundleTypeName": "JSON Backup",
             "LSHandlerRank": "Alternate",
             "LSItemContentTypes": [
-              "public.json"
+              "public.json",
+              "public.data"
             ]
           }
         ]
@@ -53,10 +54,14 @@
           "data": [
             { "scheme": "content", "mimeType": "text/csv" },
             { "scheme": "content", "mimeType": "text/comma-separated-values" },
+            { "scheme": "content", "mimeType": "text/plain" },
             { "scheme": "content", "mimeType": "application/json" },
+            { "scheme": "content", "mimeType": "application/octet-stream" },
             { "scheme": "file", "mimeType": "text/csv" },
             { "scheme": "file", "mimeType": "text/comma-separated-values" },
-            { "scheme": "file", "mimeType": "application/json" }
+            { "scheme": "file", "mimeType": "text/plain" },
+            { "scheme": "file", "mimeType": "application/json" },
+            { "scheme": "file", "mimeType": "application/octet-stream" }
           ]
         }
       ]
