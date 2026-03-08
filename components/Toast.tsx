@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Text, StyleSheet, View } from 'react-native';
+import { Animated, Text, StyleSheet, View, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 interface Props {
@@ -7,9 +7,10 @@ interface Props {
   visible: boolean;
   onHide: () => void;
   type?: 'success' | 'info';
+  onUndo?: () => void;
 }
 
-export function Toast({ message, visible, onHide, type = 'success' }: Props) {
+export function Toast({ message, visible, onHide, type = 'success', onUndo }: Props) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(-30)).current;
 
@@ -25,7 +26,7 @@ export function Toast({ message, visible, onHide, type = 'success' }: Props) {
           Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
           Animated.timing(translateY, { toValue: -30, duration: 300, useNativeDriver: true }),
         ]).start(() => onHide());
-      }, 2500);
+      }, onUndo ? 4000 : 2500);
 
       return () => clearTimeout(timer);
     }
@@ -39,10 +40,22 @@ export function Toast({ message, visible, onHide, type = 'success' }: Props) {
   return (
     <Animated.View
       style={[styles.container, { backgroundColor: bg, opacity, transform: [{ translateY }] }]}
-      pointerEvents="none"
+      pointerEvents="box-none"
     >
       <MaterialCommunityIcons name={icon} size={20} color="#FFF" />
       <Text style={styles.text}>{message}</Text>
+      {onUndo && (
+        <TouchableOpacity
+          style={styles.undoBtn}
+          onPress={() => {
+            onUndo();
+            onHide();
+          }}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.undoText}>Undo</Text>
+        </TouchableOpacity>
+      )}
     </Animated.View>
   );
 }
@@ -71,5 +84,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     flex: 1,
+  },
+  undoBtn: {
+    backgroundColor: '#FFFFFF30',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  undoText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '800',
   },
 });

@@ -5,12 +5,15 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { format, addMonths, subMonths, getDaysInMonth } from 'date-fns';
 import { useAppTheme } from '../../hooks/ThemeContext';
 import { useShifts } from '../../hooks/ShiftContext';
-import { HOURS_PER_SHIFT } from '../../constants/shifts';
+import { getShiftHours } from '../../constants/shifts';
+import { getCurrencySymbol } from '../../constants/currencies';
 import { MonthHeader } from '../../components/MonthHeader';
 import { CalendarSwitcher } from '../../components/CalendarSwitcher';
+import { YearlyOverview } from '../../components/YearlyOverview';
 
 export default function StatsScreen() {
-  const { colors } = useAppTheme();
+  const { colors, overtimeRate, currencyCode } = useAppTheme();
+  const currSymbol = getCurrencySymbol(currencyCode);
   const { shiftData, overtimeData, allShifts, calendars, activeCalendar, switchCalendar } = useShifts();
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
@@ -22,10 +25,15 @@ export default function StatsScreen() {
 
     let overtimeHours = 0;
     let overtimeDays = 0;
+    let regularHours = 0;
 
     Object.entries(shiftData).forEach(([date, code]) => {
       if (date.startsWith(monthKey)) {
         counts[code] = (counts[code] || 0) + 1;
+        const shift = allShifts.find((s) => s.code === code);
+        if (shift) {
+          regularHours += getShiftHours(shift);
+        }
       }
     });
 
@@ -40,15 +48,26 @@ export default function StatsScreen() {
     const workingDays = Object.entries(counts)
       .filter(([code]) => !offCodes.includes(code))
       .reduce((sum, [, count]) => sum + count, 0);
-    const regularHours = workingDays * HOURS_PER_SHIFT;
     const totalHours = regularHours + overtimeHours;
     const totalDays = getDaysInMonth(currentMonth);
     const assignedDays = Object.values(counts).reduce((s, c) => s + c, 0);
+    const overtimeEarnings = overtimeRate > 0 ? overtimeHours * overtimeRate : 0;
 
-    return { counts, workingDays, regularHours, overtimeHours, overtimeDays, totalHours, totalDays, assignedDays };
-  }, [shiftData, overtimeData, monthKey, currentMonth, allShifts]);
+    return {
+      counts, workingDays,
+      regularHours: Math.round(regularHours * 10) / 10,
+      overtimeHours, overtimeDays,
+      totalHours: Math.round(totalHours * 10) / 10,
+      totalDays, assignedDays,
+      overtimeEarnings: Math.round(overtimeEarnings * 100) / 100,
+    };
+  }, [shiftData, overtimeData, monthKey, currentMonth, allShifts, overtimeRate]);
 
   const maxCount = Math.max(...Object.values(stats.counts), 1);
+
+  const handleYearMonthPress = (month: number) => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), month, 1));
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -67,123 +86,161 @@ export default function StatsScreen() {
       />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Shift count cards */}
-        <View style={styles.grid}>
-          {allShifts.map((shift) => (
-            <View
-              key={shift.code}
-              style={[styles.card, { backgroundColor: shift.color + '12', borderColor: shift.color + '25' }]}
-            >
-              <MaterialCommunityIcons name={shift.icon as any} size={24} color={shift.color} />
-              <Text style={[styles.cardCount, { color: shift.color }]}>
-                {stats.counts[shift.code] || 0}
-              </Text>
-              <Text style={[styles.cardLabel, { color: shift.color + 'BB' }]}>{shift.label}</Text>
+        {stats.assignedDays === 0 ? (
+          <View style={styles.emptyState}>
+            <View style={[styles.emptyIconWrap, { backgroundColor: colors.surfaceVariant }]}>
+              <MaterialCommunityIcons name="chart-bar" size={48} color={colors.textSecondary + '50'} />
             </View>
-          ))}
-        </View>
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>No Shifts This Month</Text>
+            <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+              Assign shifts in the Calendar tab to see your stats here.
+            </Text>
+          </View>
+        ) : (
+          <>
+            {/* Shift count cards */}
+            <View style={styles.grid}>
+              {allShifts.map((shift) => (
+                <View
+                  key={shift.code}
+                  style={[styles.card, { backgroundColor: shift.color + '12', borderColor: shift.color + '25' }]}
+                >
+                  <MaterialCommunityIcons name={shift.icon as any} size={24} color={shift.color} />
+                  <Text style={[styles.cardCount, { color: shift.color }]}>
+                    {stats.counts[shift.code] || 0}
+                  </Text>
+                  <Text style={[styles.cardLabel, { color: shift.color + 'BB' }]}>{shift.label}</Text>
+                </View>
+              ))}
+            </View>
 
-        {/* Hours summary */}
-        <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.summaryTitle, { color: colors.text }]}>Hours Breakdown</Text>
+            {/* Hours summary */}
+            <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.summaryTitle, { color: colors.text }]}>Hours Breakdown</Text>
 
-          <SummaryRow
-            icon="briefcase-clock-outline"
-            label="Regular Hours"
-            value={`${stats.regularHours}h`}
-            iconColor={colors.primary}
-            colors={colors}
-          />
-          <View style={[styles.divider, { backgroundColor: colors.border }]} />
-          <SummaryRow
-            icon="clock-plus-outline"
-            label="Overtime Hours"
-            value={`${stats.overtimeHours}h`}
-            iconColor="#EF4444"
-            colors={colors}
-            highlight={stats.overtimeHours > 0}
-          />
-          <View style={[styles.divider, { backgroundColor: colors.border }]} />
-          <SummaryRow
-            icon="sigma"
-            label="Total Hours"
-            value={`${stats.totalHours}h`}
-            iconColor="#10B981"
-            colors={colors}
-            bold
-          />
-        </View>
+              <SummaryRow
+                icon="briefcase-clock-outline"
+                label="Regular Hours"
+                value={`${stats.regularHours}h`}
+                iconColor={colors.primary}
+                colors={colors}
+              />
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              <SummaryRow
+                icon="clock-plus-outline"
+                label="Overtime Hours"
+                value={`${stats.overtimeHours}h`}
+                iconColor="#EF4444"
+                colors={colors}
+                highlight={stats.overtimeHours > 0}
+              />
+              {stats.overtimeEarnings > 0 && (
+                <>
+                  <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                  <SummaryRow
+                    icon="cash"
+                    label="Overtime Earnings"
+                    value={`${currSymbol}${stats.overtimeEarnings.toFixed(2)}`}
+                    iconColor="#10B981"
+                    colors={colors}
+                    bold
+                  />
+                </>
+              )}
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              <SummaryRow
+                icon="sigma"
+                label="Total Hours"
+                value={`${stats.totalHours}h`}
+                iconColor="#10B981"
+                colors={colors}
+                bold
+              />
+            </View>
 
-        {/* Days summary */}
-        <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.summaryTitle, { color: colors.text }]}>Days Overview</Text>
+            {/* Days summary */}
+            <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.summaryTitle, { color: colors.text }]}>Days Overview</Text>
 
-          <SummaryRow
-            icon="briefcase-outline"
-            label="Working Days"
-            value={String(stats.workingDays)}
-            iconColor={colors.primary}
-            colors={colors}
-          />
-          <View style={[styles.divider, { backgroundColor: colors.border }]} />
-          <SummaryRow
-            icon="clock-alert-outline"
-            label="Overtime Days"
-            value={String(stats.overtimeDays)}
-            iconColor="#EF4444"
-            colors={colors}
-            highlight={stats.overtimeDays > 0}
-          />
-          <View style={[styles.divider, { backgroundColor: colors.border }]} />
-          <SummaryRow
-            icon="calendar-check"
-            label="Days Assigned"
-            value={`${stats.assignedDays} / ${stats.totalDays}`}
-            iconColor="#10B981"
-            colors={colors}
-          />
-        </View>
+              <SummaryRow
+                icon="briefcase-outline"
+                label="Working Days"
+                value={String(stats.workingDays)}
+                iconColor={colors.primary}
+                colors={colors}
+              />
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              <SummaryRow
+                icon="clock-alert-outline"
+                label="Overtime Days"
+                value={String(stats.overtimeDays)}
+                iconColor="#EF4444"
+                colors={colors}
+                highlight={stats.overtimeDays > 0}
+              />
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              <SummaryRow
+                icon="calendar-check"
+                label="Days Assigned"
+                value={`${stats.assignedDays} / ${stats.totalDays}`}
+                iconColor="#10B981"
+                colors={colors}
+              />
+            </View>
 
-        {/* Distribution bars */}
-        <View style={[styles.barContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.summaryTitle, { color: colors.text }]}>Shift Distribution</Text>
-          {allShifts
-            .filter((s) => s.startTime)
-            .map((shift) => {
-              const count = stats.counts[shift.code] || 0;
-              const pct = (count / maxCount) * 100;
-              return (
-                <View key={shift.code} style={styles.barRow}>
+            {/* Distribution bars */}
+            <View style={[styles.barContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.summaryTitle, { color: colors.text }]}>Shift Distribution</Text>
+              {allShifts
+                .filter((s) => s.startTime)
+                .map((shift) => {
+                  const count = stats.counts[shift.code] || 0;
+                  const pct = (count / maxCount) * 100;
+                  return (
+                    <View key={shift.code} style={styles.barRow}>
+                      <View style={styles.barLabelRow}>
+                        <View style={[styles.barDot, { backgroundColor: shift.color }]} />
+                        <Text style={[styles.barLabel, { color: colors.text }]}>{shift.label}</Text>
+                      </View>
+                      <View style={[styles.barTrack, { backgroundColor: colors.surfaceVariant }]}>
+                        <View style={[styles.barFill, { backgroundColor: shift.color, width: `${pct}%` }]} />
+                      </View>
+                      <Text style={[styles.barCount, { color: colors.textSecondary }]}>{count}</Text>
+                    </View>
+                  );
+                })}
+
+              {stats.overtimeHours > 0 && (
+                <View style={styles.barRow}>
                   <View style={styles.barLabelRow}>
-                    <View style={[styles.barDot, { backgroundColor: shift.color }]} />
-                    <Text style={[styles.barLabel, { color: colors.text }]}>{shift.label}</Text>
+                    <View style={[styles.barDot, { backgroundColor: '#EF4444' }]} />
+                    <Text style={[styles.barLabel, { color: colors.text }]}>Overtime</Text>
                   </View>
                   <View style={[styles.barTrack, { backgroundColor: colors.surfaceVariant }]}>
-                    <View style={[styles.barFill, { backgroundColor: shift.color, width: `${pct}%` }]} />
+                    <View
+                      style={[
+                        styles.barFill,
+                        { backgroundColor: '#EF4444', width: `${Math.min((stats.overtimeHours / (stats.regularHours || 1)) * 100, 100)}%` },
+                      ]}
+                    />
                   </View>
-                  <Text style={[styles.barCount, { color: colors.textSecondary }]}>{count}</Text>
+                  <Text style={[styles.barCount, { color: '#EF4444' }]}>{stats.overtimeHours}h</Text>
                 </View>
-              );
-            })}
-
-          {/* Overtime bar */}
-          {stats.overtimeHours > 0 && (
-            <View style={styles.barRow}>
-              <View style={styles.barLabelRow}>
-                <View style={[styles.barDot, { backgroundColor: '#EF4444' }]} />
-                <Text style={[styles.barLabel, { color: colors.text }]}>Overtime</Text>
-              </View>
-              <View style={[styles.barTrack, { backgroundColor: colors.surfaceVariant }]}>
-                <View
-                  style={[
-                    styles.barFill,
-                    { backgroundColor: '#EF4444', width: `${Math.min((stats.overtimeHours / (stats.regularHours || 1)) * 100, 100)}%` },
-                  ]}
-                />
-              </View>
-              <Text style={[styles.barCount, { color: '#EF4444' }]}>{stats.overtimeHours}h</Text>
+              )}
             </View>
-          )}
+          </>
+        )}
+
+        {/* Yearly Overview - always visible */}
+        <View style={{ marginTop: 14 }}>
+          <YearlyOverview
+            year={currentMonth.getFullYear()}
+            selectedMonth={currentMonth.getMonth()}
+            shiftData={shiftData}
+            allShifts={allShifts}
+            onMonthPress={handleYearMonthPress}
+            colors={colors}
+          />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -208,7 +265,7 @@ function SummaryRow({
   highlight?: boolean;
 }) {
   return (
-    <View style={sStyles.row}>
+    <View style={sStyles.row} accessibilityLabel={`${label}: ${value}`}>
       <MaterialCommunityIcons name={icon as any} size={20} color={iconColor} />
       <Text style={[sStyles.label, { color: colors.text }]}>{label}</Text>
       <Text
@@ -233,6 +290,30 @@ const sStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { padding: 16, paddingBottom: 40 },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 80,
+    paddingHorizontal: 40,
+  },
+  emptyIconWrap: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

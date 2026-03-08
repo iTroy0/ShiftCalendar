@@ -151,6 +151,21 @@ export const DaySheet = forwardRef<BottomSheet, Props>(
             </View>
           )}
 
+          {/* Add Note button (above overtime, only when note section is hidden) */}
+          {!showNote && !currentNote && (
+            <TouchableOpacity
+              style={[styles.addNoteBtn, { backgroundColor: '#F59E0B15', borderColor: '#F59E0B30' }]}
+              onPress={() => {
+                setShowNote(true);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+              activeOpacity={0.6}
+            >
+              <MaterialCommunityIcons name="note-plus-outline" size={20} color="#F59E0B" />
+              <Text style={[styles.addNoteBtnText, { color: '#F59E0B' }]}>Add Note</Text>
+            </TouchableOpacity>
+          )}
+
           {/* Note section */}
           {(currentNote || showNote) && (
             <View style={[styles.noteSection, { borderColor: '#F59E0B30' }]}>
@@ -241,17 +256,8 @@ export const DaySheet = forwardRef<BottomSheet, Props>(
           </View>
 
           {/* Bottom actions */}
-          <View style={styles.actionsRow}>
-            {!showNote && (
-              <TouchableOpacity
-                style={[styles.actionPill, { backgroundColor: '#F59E0B18' }]}
-                onPress={() => setShowNote(true)}
-              >
-                <MaterialCommunityIcons name="note-plus-outline" size={18} color="#F59E0B" />
-                <Text style={[styles.actionPillText, { color: '#F59E0B' }]}>Add Note</Text>
-              </TouchableOpacity>
-            )}
-            {currentShift && (
+          {currentShift && (
+            <View style={styles.actionsRow}>
               <TouchableOpacity
                 style={[styles.actionPill, { backgroundColor: colors.surfaceVariant }]}
                 onPress={() => {
@@ -260,10 +266,10 @@ export const DaySheet = forwardRef<BottomSheet, Props>(
                 }}
               >
                 <MaterialCommunityIcons name="close-circle-outline" size={18} color={colors.textSecondary} />
-                <Text style={[styles.actionPillText, { color: colors.textSecondary }]}>Clear</Text>
+                <Text style={[styles.actionPillText, { color: colors.textSecondary }]}>Clear Shift</Text>
               </TouchableOpacity>
-            )}
-          </View>
+            </View>
+          )}
 
           {/* Extra padding at bottom so inputs are never behind keyboard */}
           <View style={{ height: 120 }} />
@@ -295,6 +301,17 @@ const styles = StyleSheet.create({
   shiftCardInfo: { flex: 1, marginLeft: 12 },
   shiftCardLabel: { fontSize: 17, fontWeight: '800' },
   shiftCardTime: { fontSize: 13, marginTop: 1 },
+  addNoteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+    gap: 8,
+  },
+  addNoteBtnText: { fontSize: 14, fontWeight: '700' },
   noteSection: { marginBottom: 12, borderWidth: 1, borderRadius: 14, padding: 12 },
   noteHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
   noteTitle: { fontSize: 13, fontWeight: '700', flex: 1 },

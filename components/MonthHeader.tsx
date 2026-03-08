@@ -13,10 +13,16 @@ interface Props {
 export function MonthHeader({ currentDate, onPrev, onNext, textColor }: Props) {
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={onPrev} style={styles.arrow} activeOpacity={0.5}>
+      <TouchableOpacity
+        onPress={onPrev}
+        style={styles.arrow}
+        activeOpacity={0.5}
+        accessibilityLabel="Previous month"
+        accessibilityRole="button"
+      >
         <MaterialCommunityIcons name="chevron-left" size={26} color={textColor} />
       </TouchableOpacity>
-      <View style={styles.center}>
+      <View style={styles.center} accessibilityLabel={format(currentDate, 'MMMM yyyy')} accessibilityRole="header">
         <Text style={[styles.month, { color: textColor }]}>
           {format(currentDate, 'MMMM')}
         </Text>
@@ -24,7 +30,13 @@ export function MonthHeader({ currentDate, onPrev, onNext, textColor }: Props) {
           {format(currentDate, 'yyyy')}
         </Text>
       </View>
-      <TouchableOpacity onPress={onNext} style={styles.arrow} activeOpacity={0.5}>
+      <TouchableOpacity
+        onPress={onNext}
+        style={styles.arrow}
+        activeOpacity={0.5}
+        accessibilityLabel="Next month"
+        accessibilityRole="button"
+      >
         <MaterialCommunityIcons name="chevron-right" size={26} color={textColor} />
       </TouchableOpacity>
     </View>

@@ -33,6 +33,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="calendar-month" size={size} color={color} />
           ),
+          tabBarAccessibilityLabel: 'Calendar tab',
         }}
       />
       <Tabs.Screen
@@ -42,6 +43,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="chart-bar" size={size} color={color} />
           ),
+          tabBarAccessibilityLabel: 'Statistics tab',
         }}
       />
       <Tabs.Screen
@@ -51,6 +53,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="cog-outline" size={size} color={color} />
           ),
+          tabBarAccessibilityLabel: 'Settings tab',
         }}
       />
     </Tabs>

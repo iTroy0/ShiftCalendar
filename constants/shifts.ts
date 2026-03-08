@@ -49,6 +49,16 @@ export const DEFAULT_SHIFTS: ShiftType[] = [
 
 export const HOURS_PER_SHIFT = 8;
 
+export function getShiftHours(shift: ShiftType): number {
+  if (!shift.startTime || !shift.endTime) return 0;
+  const [sh, sm] = shift.startTime.split(':').map(Number);
+  const [eh, em] = shift.endTime.split(':').map(Number);
+  let startMin = sh * 60 + sm;
+  let endMin = eh * 60 + em;
+  if (endMin <= startMin) endMin += 24 * 60; // overnight shift
+  return (endMin - startMin) / 60;
+}
+
 export const AVAILABLE_COLORS = [
   '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#6366F1',
   '#8B5CF6', '#EC4899', '#F97316', '#14B8A6', '#6B7280',

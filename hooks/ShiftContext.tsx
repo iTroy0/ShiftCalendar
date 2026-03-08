@@ -18,7 +18,9 @@ interface ShiftContextType {
   addCustomShift: (shift: ShiftType) => void;
   updateCustomShift: (code: string, shift: ShiftType) => void;
   deleteCustomShift: (code: string) => void;
+  moveShift: (code: string, direction: 'up' | 'down') => void;
   getShiftByCode: (code: string) => ShiftType | undefined;
+  lastUsedShift: string | null;
   calendars: CalendarInfo[];
   activeCalendar: CalendarInfo;
   activeCalendarId: string;
@@ -44,7 +46,9 @@ const ShiftContext = createContext<ShiftContextType>({
   addCustomShift: () => {},
   updateCustomShift: () => {},
   deleteCustomShift: () => {},
+  moveShift: () => {},
   getShiftByCode: () => undefined,
+  lastUsedShift: null,
   calendars: [],
   activeCalendar: { id: 'default', name: 'My Shifts', color: '#6366F1' },
   activeCalendarId: 'default',

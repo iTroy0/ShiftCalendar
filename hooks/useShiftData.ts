@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ShiftType, DEFAULT_SHIFTS } from '../constants/shifts';
 
 const CUSTOM_SHIFTS_KEY = 'custom_shifts';
+const ALL_SHIFTS_KEY = 'all_shifts_v2';
 const CALENDARS_KEY = 'calendars_list';
 const ACTIVE_CALENDAR_KEY = 'active_calendar';
 
@@ -34,34 +35,55 @@ export function useShiftData() {
   const [shiftData, setShiftData] = useState<ShiftData>({});
   const [notesData, setNotesData] = useState<NotesData>({});
   const [overtimeData, setOvertimeData] = useState<OvertimeData>({});
-  const [customShifts, setCustomShiftsState] = useState<ShiftType[]>([]);
+  const [allShiftsState, setAllShiftsState] = useState<ShiftType[]>([...DEFAULT_SHIFTS]);
   const [loading, setLoading] = useState(true);
+  const [lastUsedShift, setLastUsedShift] = useState<string | null>(null);
 
-  const allShifts = [...DEFAULT_SHIFTS, ...customShifts];
+  const allShifts = allShiftsState;
+  const customShifts = allShiftsState.filter((s) => !s.isDefault);
 
   const getShiftByCode = useCallback(
     (code: string): ShiftType | undefined => {
-      return [...DEFAULT_SHIFTS, ...customShifts].find((s) => s.code === code);
+      return allShiftsState.find((s) => s.code === code);
     },
-    [customShifts]
+    [allShiftsState]
   );
 
   const activeCalendar = calendars.find((c) => c.id === activeCalendarId) || DEFAULT_CALENDAR;
+
+  // --- Persist helpers ---
+  const persist = useCallback((key: string, data: any) => {
+    AsyncStorage.setItem(key, JSON.stringify(data)).catch(console.error);
+  }, []);
+
+  const persistShifts = useCallback((shifts: ShiftType[]) => {
+    AsyncStorage.setItem(ALL_SHIFTS_KEY, JSON.stringify(shifts)).catch(console.error);
+  }, []);
 
   // --- Load everything on mount ---
   useEffect(() => {
     (async () => {
       try {
-        const [rawCals, rawActive, rawCustom] = await Promise.all([
+        const [rawCals, rawActive, rawAllShifts, rawCustom] = await Promise.all([
           AsyncStorage.getItem(CALENDARS_KEY),
           AsyncStorage.getItem(ACTIVE_CALENDAR_KEY),
+          AsyncStorage.getItem(ALL_SHIFTS_KEY),
           AsyncStorage.getItem(CUSTOM_SHIFTS_KEY),
         ]);
         const cals: CalendarInfo[] = rawCals ? JSON.parse(rawCals) : [DEFAULT_CALENDAR];
         const active = rawActive || 'default';
         setCalendars(cals);
         setActiveCalendarId(active);
-        if (rawCustom) setCustomShiftsState(JSON.parse(rawCustom));
+
+        if (rawAllShifts) {
+          setAllShiftsState(JSON.parse(rawAllShifts));
+        } else {
+          // Migration from old format (DEFAULT_SHIFTS + custom_shifts)
+          const customs: ShiftType[] = rawCustom ? JSON.parse(rawCustom) : [];
+          const merged = [...DEFAULT_SHIFTS, ...customs];
+          setAllShiftsState(merged);
+          await AsyncStorage.setItem(ALL_SHIFTS_KEY, JSON.stringify(merged));
+        }
 
         // Load data for active calendar
         const [rawShifts, rawNotes, rawOT] = await Promise.all([
@@ -82,7 +104,6 @@ export function useShiftData() {
 
   // --- Switch calendar ---
   const switchCalendar = useCallback(async (calId: string) => {
-    // Save current first (already saved incrementally, but just in case)
     setActiveCalendarId(calId);
     AsyncStorage.setItem(ACTIVE_CALENDAR_KEY, calId).catch(console.error);
     try {
@@ -108,17 +129,15 @@ export function useShiftData() {
   }, []);
 
   const deleteCalendar = useCallback(async (calId: string) => {
-    if (calId === 'default') return; // can't delete default
+    if (calId === 'default') return;
     setCalendars((prev) => {
       const next = prev.filter((c) => c.id !== calId);
       AsyncStorage.setItem(CALENDARS_KEY, JSON.stringify(next)).catch(console.error);
       return next;
     });
-    // Clean up data
     AsyncStorage.removeItem(dataKey(calId)).catch(console.error);
     AsyncStorage.removeItem(notesKey(calId)).catch(console.error);
     AsyncStorage.removeItem(overtimeKey(calId)).catch(console.error);
-    // Switch to default if we deleted the active one
     if (calId === activeCalendarId) {
       switchCalendar('default');
     }
@@ -133,11 +152,8 @@ export function useShiftData() {
   }, []);
 
   // --- Shift operations ---
-  const persist = useCallback((key: string, data: any) => {
-    AsyncStorage.setItem(key, JSON.stringify(data)).catch(console.error);
-  }, []);
-
   const setShift = useCallback((date: string, code: string) => {
+    setLastUsedShift(code);
     setShiftData((prev) => {
       const next = { ...prev, [date]: code };
       persist(dataKey(activeCalendarId), next);
@@ -199,29 +215,31 @@ export function useShiftData() {
     });
   }, [activeCalendarId, persist]);
 
-  // --- Custom shift operations ---
+  // --- Shift type operations (unified list) ---
   const addCustomShift = useCallback((shift: ShiftType) => {
-    setCustomShiftsState((prev) => {
-      const next = [...prev, { ...shift, isDefault: false }];
-      AsyncStorage.setItem(CUSTOM_SHIFTS_KEY, JSON.stringify(next)).catch(console.error);
+    setAllShiftsState((prev) => {
+      const next = [...prev, shift];
+      persistShifts(next);
       return next;
     });
-  }, []);
+  }, [persistShifts]);
 
   const updateCustomShift = useCallback((code: string, shift: ShiftType) => {
-    setCustomShiftsState((prev) => {
-      const next = prev.map((s) => (s.code === code ? { ...shift, isDefault: false } : s));
-      AsyncStorage.setItem(CUSTOM_SHIFTS_KEY, JSON.stringify(next)).catch(console.error);
+    setAllShiftsState((prev) => {
+      const next = prev.map((s) => (s.code === code ? { ...shift } : s));
+      persistShifts(next);
       return next;
     });
-  }, []);
+  }, [persistShifts]);
 
   const deleteCustomShift = useCallback((code: string) => {
-    setCustomShiftsState((prev) => {
+    setAllShiftsState((prev) => {
+      if (prev.length <= 1) return prev; // prevent deleting last shift
       const next = prev.filter((s) => s.code !== code);
-      AsyncStorage.setItem(CUSTOM_SHIFTS_KEY, JSON.stringify(next)).catch(console.error);
+      persistShifts(next);
       return next;
     });
+    // Clean up shift assignments
     setShiftData((prev) => {
       const next = { ...prev };
       Object.keys(next).forEach((date) => {
@@ -230,7 +248,20 @@ export function useShiftData() {
       persist(dataKey(activeCalendarId), next);
       return next;
     });
-  }, [activeCalendarId, persist]);
+  }, [activeCalendarId, persist, persistShifts]);
+
+  const moveShift = useCallback((code: string, direction: 'up' | 'down') => {
+    setAllShiftsState((prev) => {
+      const idx = prev.findIndex((s) => s.code === code);
+      if (idx < 0) return prev;
+      const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+      if (targetIdx < 0 || targetIdx >= prev.length) return prev;
+      const next = [...prev];
+      [next[idx], next[targetIdx]] = [next[targetIdx], next[idx]];
+      persistShifts(next);
+      return next;
+    });
+  }, [persistShifts]);
 
   return {
     shiftData,
@@ -248,7 +279,9 @@ export function useShiftData() {
     addCustomShift,
     updateCustomShift,
     deleteCustomShift,
+    moveShift,
     getShiftByCode,
+    lastUsedShift,
     // Calendar management
     calendars,
     activeCalendar,

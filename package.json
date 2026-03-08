@@ -1,6 +1,6 @@
 {
   "name": "shiftcalendar",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
@@ -9,7 +9,6 @@
     "web": "expo start --web"
   },
   "dependencies": {
-    "@expo-google-fonts/nunito": "^0.4.2",
     "@expo/vector-icons": "^15.1.1",
     "@gorhom/bottom-sheet": "^5.2.8",
     "@react-native-async-storage/async-storage": "^1.23.1",
@@ -22,9 +21,11 @@
     "expo-haptics": "^55.0.8",
     "expo-linking": "^55.0.7",
     "expo-navigation-bar": "^55.0.8",
+    "expo-notifications": "~55.0.11",
     "expo-print": "~55.0.8",
     "expo-router": "^55.0.3",
     "expo-sharing": "~55.0.11",
+    "expo-splash-screen": "~55.0.10",
     "expo-status-bar": "~55.0.4",
     "expo-system-ui": "^55.0.9",
     "expo-web-browser": "^55.0.9",

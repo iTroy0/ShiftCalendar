@@ -2,7 +2,7 @@
   "expo": {
     "name": "ShiftCalendar",
     "slug": "ShiftCalendar",
-    "version": "1.0.1",
+    "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -14,7 +14,26 @@
       "backgroundColor": "#0F0F0F"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "CFBundleDocumentTypes": [
+          {
+            "CFBundleTypeName": "CSV File",
+            "LSHandlerRank": "Alternate",
+            "LSItemContentTypes": [
+              "public.comma-separated-values-text",
+              "public.plain-text"
+            ]
+          },
+          {
+            "CFBundleTypeName": "JSON Backup",
+            "LSHandlerRank": "Alternate",
+            "LSItemContentTypes": [
+              "public.json"
+            ]
+          }
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -26,7 +45,21 @@
       "softwareKeyboardLayoutMode": "pan",
       "navigationBarColor": "transparent",
       "navigationBarHidden": true,
-      "package": "com.itroy0.ShiftCalendar"
+      "package": "com.itroy0.ShiftCalendar",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "category": ["DEFAULT", "BROWSABLE"],
+          "data": [
+            { "scheme": "content", "mimeType": "text/csv" },
+            { "scheme": "content", "mimeType": "text/comma-separated-values" },
+            { "scheme": "content", "mimeType": "application/json" },
+            { "scheme": "file", "mimeType": "text/csv" },
+            { "scheme": "file", "mimeType": "text/comma-separated-values" },
+            { "scheme": "file", "mimeType": "application/json" }
+          ]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -34,7 +67,8 @@
     },
     "plugins": [
       "expo-router",
-      "expo-sharing"
+      "expo-sharing",
+      "expo-notifications"
     ],
     "extra": {
       "eas": {

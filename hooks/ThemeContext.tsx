@@ -9,6 +9,16 @@ interface ThemeContextType {
   colors: typeof Colors.dark;
   weekStart: 0 | 1;
   setWeekStart: (day: 0 | 1) => void;
+  overtimeRate: number;
+  setOvertimeRate: (rate: number) => void;
+  currencyCode: string;
+  setCurrencyCode: (code: string) => void;
+  notificationsEnabled: boolean;
+  setNotificationsEnabled: (enabled: boolean) => void;
+  notificationHour: number;
+  setNotificationHour: (hour: number) => void;
+  onboardingComplete: boolean;
+  completeOnboarding: () => void;
 }
 
 const ThemeContext = createContext<ThemeContextType>({
@@ -18,6 +28,16 @@ const ThemeContext = createContext<ThemeContextType>({
   colors: Colors.dark,
   weekStart: 1,
   setWeekStart: () => {},
+  overtimeRate: 0,
+  setOvertimeRate: () => {},
+  currencyCode: 'USD',
+  setCurrencyCode: () => {},
+  notificationsEnabled: false,
+  setNotificationsEnabled: () => {},
+  notificationHour: 20,
+  setNotificationHour: () => {},
+  onboardingComplete: true,
+  completeOnboarding: () => {},
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {

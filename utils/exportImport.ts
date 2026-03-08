@@ -1,10 +1,51 @@
 import { File, Paths } from 'expo-file-system';
+import {
+  readAsStringAsync,
+  writeAsStringAsync,
+  EncodingType,
+  StorageAccessFramework,
+} from 'expo-file-system/legacy';
+import { Platform } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
 import * as DocumentPicker from 'expo-document-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { format, getDaysInMonth } from 'date-fns';
 import { ShiftData, NotesData, OvertimeData } from '../hooks/useShiftData';
 import { ShiftType, HOURS_PER_SHIFT } from '../constants/shifts';
+
+// ---------- SAVE TO DEVICE HELPER ----------
+
+async function saveToDevice(
+  cacheUri: string,
+  fileName: string,
+  mimeType: string,
+  uti?: string,
+): Promise<void> {
+  if (Platform.OS === 'android') {
+    const permissions = await StorageAccessFramework.requestDirectoryPermissionsAsync();
+    if (!permissions.granted) {
+      // User cancelled the folder picker — fall back to share sheet
+      await Sharing.shareAsync(cacheUri, { mimeType, UTI: uti });
+      return;
+    }
+    const isBinary = mimeType === 'application/pdf';
+    const destUri = await StorageAccessFramework.createFileAsync(
+      permissions.directoryUri,
+      fileName,
+      mimeType,
+    );
+    const content = await readAsStringAsync(cacheUri, {
+      encoding: isBinary ? EncodingType.Base64 : EncodingType.UTF8,
+    });
+    await writeAsStringAsync(destUri, content, {
+      encoding: isBinary ? EncodingType.Base64 : EncodingType.UTF8,
+    });
+  } else {
+    // iOS — share sheet includes "Save to Files"
+    await Sharing.shareAsync(cacheUri, { mimeType, UTI: uti });
+  }
+}
 
 // ---------- CSV EXPORT ----------
 
@@ -60,7 +101,7 @@ export async function exportCSV(
   const file = new File(Paths.cache, fileName);
   file.write(csv);
 
-  await Sharing.shareAsync(file.uri, { mimeType: 'text/csv', UTI: 'public.comma-separated-values-text' });
+  await saveToDevice(file.uri, fileName, 'text/csv', 'public.comma-separated-values-text');
 }
 
 // ---------- CSV IMPORT ----------
@@ -82,8 +123,12 @@ export async function importCSV(allShifts: ShiftType[]): Promise<ImportResult | 
 
   const pickedFile = new File(result.assets[0].uri);
   const content = await pickedFile.text();
-  const lines = content.split(/\r?\n/).filter((l) => l.trim());
+  return parseCSVContent(content, allShifts);
+}
 
+/** Parse CSV content string into an ImportResult. Usable from both file-picker and deep-link flows. */
+export function parseCSVContent(content: string, allShifts: ShiftType[]): ImportResult | null {
+  const lines = content.split(/\r?\n/).filter((l) => l.trim());
   if (lines.length < 2) return null;
 
   const validCodes = new Set(allShifts.map((s) => s.code));
@@ -355,5 +400,56 @@ export async function exportPDF(
   const srcFile = new File(uri);
   const destFile = new File(Paths.cache, fileName);
   srcFile.move(destFile);
-  await Sharing.shareAsync(destFile.uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf' });
+  await saveToDevice(destFile.uri, fileName, 'application/pdf', 'com.adobe.pdf');
+}
+
+// ---------- FULL BACKUP ----------
+
+export async function backupAll() {
+  const keys = await AsyncStorage.getAllKeys();
+  const pairs = await AsyncStorage.multiGet(keys);
+  const data: Record<string, string | null> = {};
+  pairs.forEach(([key, value]) => {
+    data[key] = value;
+  });
+  const json = JSON.stringify({ version: 2, timestamp: new Date().toISOString(), data }, null, 2);
+  const fileName = `ShiftCalendar_Backup_${format(new Date(), 'yyyy-MM-dd')}.json`;
+  const file = new File(Paths.cache, fileName);
+  file.write(json);
+  await saveToDevice(file.uri, fileName, 'application/json', 'public.json');
+}
+
+export interface RestoreResult {
+  keyCount: number;
+}
+
+export async function restoreBackup(): Promise<RestoreResult | null> {
+  const result = await DocumentPicker.getDocumentAsync({
+    type: ['application/json', 'text/plain', 'application/octet-stream'],
+    copyToCacheDirectory: true,
+  });
+
+  if (result.canceled || !result.assets?.length) return null;
+
+  const pickedFile = new File(result.assets[0].uri);
+  const content = await pickedFile.text();
+  return restoreBackupFromContent(content);
+}
+
+/** Restore from a JSON backup string. Usable from both file-picker and deep-link flows. */
+export function restoreBackupFromContent(content: string): Promise<RestoreResult> {
+  const parsed = JSON.parse(content);
+
+  if (!parsed.data || typeof parsed.data !== 'object') {
+    throw new Error('Invalid backup file format');
+  }
+
+  const entries: [string, string][] = [];
+  Object.entries(parsed.data).forEach(([key, value]) => {
+    if (typeof value === 'string') {
+      entries.push([key, value]);
+    }
+  });
+
+  return AsyncStorage.multiSet(entries).then(() => ({ keyCount: entries.length }));
 }

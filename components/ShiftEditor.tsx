@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
-  ScrollView,
 } from 'react-native';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -220,7 +219,7 @@ export const ShiftEditor = forwardRef<BottomSheet, Props>(
             <Text style={styles.saveButtonText}>{isEditing ? 'Save Changes' : 'Create Shift'}</Text>
           </TouchableOpacity>
 
-          {isEditing && !editingShift?.isDefault && onDelete && (
+          {isEditing && onDelete && (
             <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
               <MaterialCommunityIcons name="delete-outline" size={20} color="#EF4444" />
               <Text style={styles.deleteButtonText}>Delete Shift</Text>

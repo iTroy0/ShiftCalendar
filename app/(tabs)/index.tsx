@@ -14,7 +14,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { format, addMonths, subMonths, parseISO } from 'date-fns';
+import { format, addMonths, subMonths, addWeeks, subWeeks, parseISO } from 'date-fns';
 import { useAppTheme } from '../../hooks/ThemeContext';
 import { useShifts } from '../../hooks/ShiftContext';
 import { MonthHeader } from '../../components/MonthHeader';
@@ -23,9 +23,14 @@ import { RepeatSheet } from '../../components/RepeatSheet';
 import { CalendarDay } from '../../components/CalendarDay';
 import { Toast } from '../../components/Toast';
 import { CalendarSwitcher } from '../../components/CalendarSwitcher';
+import { WeekView } from '../../components/WeekView';
 
 const SWIPE_THRESHOLD = 50;
 const SCREEN_WIDTH = Dimensions.get('window').width;
+
+function isSameMonth(a: Date, b: Date) {
+  return a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+}
 
 export default function CalendarScreen() {
   const { colors, weekStart } = useAppTheme();
@@ -40,6 +45,7 @@ export default function CalendarScreen() {
     setOvertime,
     allShifts,
     getShiftByCode,
+    lastUsedShift,
     calendars,
     activeCalendar,
     switchCalendar,
@@ -51,11 +57,25 @@ export default function CalendarScreen() {
   const [patternEnd, setPatternEnd] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState('');
   const [toastVisible, setToastVisible] = useState(false);
+  const [toastUndo, setToastUndo] = useState<(() => void) | undefined>(undefined);
+  const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const daySheetRef = useRef<BottomSheet>(null);
   const repeatSheetRef = useRef<BottomSheet>(null);
 
   const monthKey = format(currentMonth, 'yyyy-MM');
   const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const isCurrentMonth = isSameMonth(currentMonth, new Date());
+
+  const goToToday = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setCurrentMonth(new Date());
+  }, []);
+
+  const showToast = useCallback((msg: string, undoFn?: () => void) => {
+    setToastMsg(msg);
+    setToastUndo(() => undoFn);
+    setToastVisible(true);
+  }, []);
 
   // Animation shared values
   const translateX = useSharedValue(0);
@@ -65,10 +85,13 @@ export default function CalendarScreen() {
 
   const changeMonth = useCallback((dir: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setCurrentMonth((d) => (dir > 0 ? addMonths(d, 1) : subMonths(d, 1)));
-  }, []);
+    if (viewMode === 'week') {
+      setCurrentMonth((d) => (dir > 0 ? addWeeks(d, 1) : subWeeks(d, 1)));
+    } else {
+      setCurrentMonth((d) => (dir > 0 ? addMonths(d, 1) : subMonths(d, 1)));
+    }
+  }, [viewMode]);
 
-  // Button handlers – spring animation runs on UI thread before heavy re-render
   const handlePrev = useCallback(() => {
     translateX.value = -SCREEN_WIDTH * 0.35;
     animOpacity.value = 0.15;
@@ -85,7 +108,7 @@ export default function CalendarScreen() {
     changeMonth(1);
   }, [changeMonth]);
 
-  // Swipe gesture for month navigation
+  // Swipe gesture
   const panGesture = Gesture.Pan()
     .activeOffsetX([-20, 20])
     .onUpdate((e) => {
@@ -172,6 +195,31 @@ export default function CalendarScreen() {
     [repeatMode, patternStart, patternEnd]
   );
 
+  // Long-press quick-assign
+  const handleDayLongPress = useCallback(
+    (dateString: string) => {
+      if (repeatMode) return;
+      if (!lastUsedShift) {
+        showToast('No recent shift. Tap a day to assign one first.');
+        return;
+      }
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      const prevCode = shiftData[dateString];
+      setShift(dateString, lastUsedShift);
+      const shift = getShiftByCode(lastUsedShift);
+      const label = shift?.label || lastUsedShift;
+      showToast(`${label} assigned`, () => {
+        // Undo: restore previous state
+        if (prevCode) {
+          setShift(dateString, prevCode);
+        } else {
+          clearShift(dateString);
+        }
+      });
+    },
+    [repeatMode, lastUsedShift, shiftData, setShift, clearShift, getShiftByCode, showToast]
+  );
+
   const handleSelectShift = useCallback(
     (code: string) => {
       if (selectedDate) setShift(selectedDate, code);
@@ -180,8 +228,15 @@ export default function CalendarScreen() {
   );
 
   const handleClear = useCallback(() => {
-    if (selectedDate) clearShift(selectedDate);
-  }, [selectedDate, clearShift]);
+    if (!selectedDate) return;
+    const prevCode = shiftData[selectedDate];
+    clearShift(selectedDate);
+    if (prevCode) {
+      showToast('Shift cleared', () => {
+        setShift(selectedDate, prevCode);
+      });
+    }
+  }, [selectedDate, shiftData, clearShift, setShift, showToast]);
 
   const handleSaveNote = useCallback(
     (note: string) => {
@@ -199,16 +254,31 @@ export default function CalendarScreen() {
 
   const handleApplyPattern = useCallback(
     (entries: Record<string, string>) => {
+      // Save previous state for undo
+      const prevEntries: Record<string, string | undefined> = {};
+      Object.keys(entries).forEach((date) => {
+        prevEntries[date] = shiftData[date];
+      });
+
       setShiftsBulk(entries);
       const count = Object.keys(entries).length;
-      setToastMsg(`Pattern applied to ${count} days`);
-      setToastVisible(true);
+      showToast(`Pattern applied to ${count} days`, () => {
+        // Undo: restore previous entries
+        const restore: Record<string, string> = {};
+        const toClear: string[] = [];
+        Object.entries(prevEntries).forEach(([date, code]) => {
+          if (code) restore[date] = code;
+          else toClear.push(date);
+        });
+        if (Object.keys(restore).length > 0) setShiftsBulk(restore);
+        toClear.forEach((d) => clearShift(d));
+      });
       setRepeatMode(false);
       setPatternStart(null);
       setPatternEnd(null);
       repeatSheetRef.current?.close();
     },
-    [setShiftsBulk]
+    [shiftData, setShiftsBulk, clearShift, showToast]
   );
 
   const toggleRepeatMode = useCallback(() => {
@@ -266,11 +336,12 @@ export default function CalendarScreen() {
           isPatternEnd={repeatMode && ds === patternEnd}
           isInPattern={repeatMode && inPattern}
           onPress={handleDayPress}
+          onLongPress={handleDayLongPress}
           colors={colors}
         />
       );
     },
-    [shiftData, notesData, overtimeData, getShiftByCode, todayStr, selectedDate, patternDates, repeatMode, patternStart, patternEnd, handleDayPress, colors]
+    [shiftData, notesData, overtimeData, getShiftByCode, todayStr, selectedDate, patternDates, repeatMode, patternStart, patternEnd, handleDayPress, handleDayLongPress, colors]
   );
 
   return (
@@ -282,6 +353,45 @@ export default function CalendarScreen() {
         textColor={colors.text}
       />
 
+      {/* Top row: Today pill + View mode toggle */}
+      <View style={styles.topRow}>
+        {!isCurrentMonth ? (
+          <TouchableOpacity
+            style={[styles.todayPill, { backgroundColor: colors.primary }]}
+            onPress={goToToday}
+            activeOpacity={0.7}
+            accessibilityLabel="Go to today"
+            accessibilityRole="button"
+          >
+            <MaterialCommunityIcons name="calendar-today" size={14} color="#FFF" />
+            <Text style={styles.todayPillText}>Today</Text>
+          </TouchableOpacity>
+        ) : <View />}
+
+        <View style={[styles.viewToggle, { backgroundColor: colors.surfaceVariant, borderColor: colors.border }]}>
+          <TouchableOpacity
+            style={[styles.viewToggleBtn, viewMode === 'month' && { backgroundColor: colors.primary }]}
+            onPress={() => setViewMode('month')}
+          >
+            <MaterialCommunityIcons
+              name="calendar-month-outline"
+              size={16}
+              color={viewMode === 'month' ? '#FFF' : colors.textSecondary}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.viewToggleBtn, viewMode === 'week' && { backgroundColor: colors.primary }]}
+            onPress={() => setViewMode('week')}
+          >
+            <MaterialCommunityIcons
+              name="view-week-outline"
+              size={16}
+              color={viewMode === 'week' ? '#FFF' : colors.textSecondary}
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <CalendarSwitcher
         calendars={calendars}
         activeCalendarId={activeCalendar.id}
@@ -289,31 +399,33 @@ export default function CalendarScreen() {
         colors={colors}
       />
 
-      {/* Repeat toggle */}
-      <View style={styles.toolbar}>
-        <TouchableOpacity
-          style={[
-            styles.repeatToggle,
-            {
-              backgroundColor: repeatMode ? colors.primary : colors.surface,
-              borderColor: repeatMode ? colors.primary : colors.border,
-            },
-          ]}
-          onPress={toggleRepeatMode}
-          activeOpacity={0.7}
-        >
-          <MaterialCommunityIcons
-            name={repeatMode ? 'close' : 'repeat'}
-            size={16}
-            color={repeatMode ? '#FFF' : colors.textSecondary}
-          />
-          <Text style={[styles.repeatToggleText, { color: repeatMode ? '#FFF' : colors.textSecondary }]}>
-            {repeatMode ? 'Cancel' : 'Repeat'}
-          </Text>
-        </TouchableOpacity>
-      </View>
+      {/* Repeat toggle - only in month view */}
+      {viewMode === 'month' && (
+        <View style={styles.toolbar}>
+          <TouchableOpacity
+            style={[
+              styles.repeatToggle,
+              {
+                backgroundColor: repeatMode ? colors.primary : colors.surface,
+                borderColor: repeatMode ? colors.primary : colors.border,
+              },
+            ]}
+            onPress={toggleRepeatMode}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons
+              name={repeatMode ? 'close' : 'repeat'}
+              size={16}
+              color={repeatMode ? '#FFF' : colors.textSecondary}
+            />
+            <Text style={[styles.repeatToggleText, { color: repeatMode ? '#FFF' : colors.textSecondary }]}>
+              {repeatMode ? 'Cancel' : 'Repeat'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
-      {repeatMode && (
+      {repeatMode && viewMode === 'month' && (
         <View style={[styles.hintBar, { backgroundColor: colors.primary + '0C' }]}>
           <View style={[styles.hintDot, { backgroundColor: colors.primary }]} />
           <Text style={[styles.hintText, { color: colors.primary }]}>
@@ -326,21 +438,35 @@ export default function CalendarScreen() {
         </View>
       )}
 
-      {/* Swipeable calendar with animation */}
+      {/* Swipeable calendar / week view */}
       <GestureDetector gesture={panGesture}>
         <Animated.View style={[styles.calendarWrap, calendarAnimStyle]}>
-          <Calendar
-            key={monthKey + weekStart + activeCalendar.id}
-            current={monthKey + '-01'}
-            markingType="custom"
-            markedDates={markedDates}
-            dayComponent={({ date, state }: any) => renderDay(date, state)}
-            hideArrows
-            hideExtraDays
-            firstDay={weekStart}
-            theme={calendarTheme}
-            style={styles.calendar}
-          />
+          {viewMode === 'month' ? (
+            <Calendar
+              key={monthKey + weekStart + activeCalendar.id}
+              current={monthKey + '-01'}
+              markingType="custom"
+              markedDates={markedDates}
+              dayComponent={({ date, state }: any) => renderDay(date, state)}
+              hideArrows
+              hideExtraDays
+              firstDay={weekStart}
+              theme={calendarTheme}
+              style={styles.calendar}
+            />
+          ) : (
+            <WeekView
+              currentDate={currentMonth}
+              weekStart={weekStart}
+              shiftData={shiftData}
+              notesData={notesData}
+              overtimeData={overtimeData}
+              getShiftByCode={getShiftByCode}
+              onDayPress={handleDayPress}
+              selectedDate={selectedDate}
+              colors={colors}
+            />
+          )}
         </Animated.View>
       </GestureDetector>
 
@@ -372,15 +498,51 @@ export default function CalendarScreen() {
         colors={colors}
       />
 
-      <Toast message={toastMsg} visible={toastVisible} onHide={() => setToastVisible(false)} />
+      <Toast
+        message={toastMsg}
+        visible={toastVisible}
+        onHide={() => { setToastVisible(false); setToastUndo(undefined); }}
+        onUndo={toastUndo}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 4,
+  },
+  todayPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    gap: 5,
+  },
+  todayPillText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  viewToggle: {
+    flexDirection: 'row',
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 2,
+  },
+  viewToggleBtn: {
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
   calendarWrap: { flex: 1, overflow: 'hidden' },
-  calendar: { marginHorizontal: 4 },
+  calendar: { marginHorizontal: 6 },
   toolbar: { paddingHorizontal: 16, marginBottom: 4 },
   repeatToggle: {
     flexDirection: 'row',
