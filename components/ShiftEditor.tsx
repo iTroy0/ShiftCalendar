@@ -55,7 +55,10 @@ export const ShiftEditor = forwardRef<BottomSheet, Props>(
         Alert.alert('Error', 'Shift label is required');
         return;
       }
-      if (!isEditing && existingCodes.includes(code.trim().toUpperCase())) {
+      const trimmedCode = code.trim().toUpperCase();
+      const isDuplicate = existingCodes.includes(trimmedCode);
+      const isOwnCode = isEditing && editingShift?.code === trimmedCode;
+      if (isDuplicate && !isOwnCode) {
         Alert.alert('Error', 'This shift code already exists');
         return;
       }
@@ -123,7 +126,6 @@ export const ShiftEditor = forwardRef<BottomSheet, Props>(
             placeholderTextColor={colors.textSecondary}
             maxLength={3}
             autoCapitalize="characters"
-            editable={!isEditing}
           />
 
           {/* Label */}

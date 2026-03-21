@@ -230,7 +230,18 @@ export function useShiftData() {
       persistShifts(next);
       return next;
     });
-  }, [persistShifts]);
+    // If code changed, update all shift data references
+    if (code !== shift.code) {
+      setShiftData((prev) => {
+        const next = { ...prev };
+        Object.keys(next).forEach((date) => {
+          if (next[date] === code) next[date] = shift.code;
+        });
+        persist(dataKey(activeCalendarId), next);
+        return next;
+      });
+    }
+  }, [persistShifts, activeCalendarId, persist]);
 
   const deleteCustomShift = useCallback((code: string) => {
     setAllShiftsState((prev) => {

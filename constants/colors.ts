@@ -9,12 +9,12 @@ export const Colors = {
     primary: '#6366F1',
   },
   light: {
-    background: '#F8F8F8',
-    surface: '#FFFFFF',
-    surfaceVariant: '#F0F0F0',
+    background: '#F2F3F5',
+    surface: '#FAFAFA',
+    surfaceVariant: '#ECEDF0',
     text: '#1A1A1A',
     textSecondary: '#6B7280',
-    border: '#E5E5E5',
+    border: '#DDDFE3',
     primary: '#6366F1',
   },
 };

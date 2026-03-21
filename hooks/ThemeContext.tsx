@@ -9,6 +9,8 @@ interface ThemeContextType {
   colors: typeof Colors.dark;
   weekStart: 0 | 1;
   setWeekStart: (day: 0 | 1) => void;
+  baseRate: number;
+  setBaseRate: (rate: number) => void;
   overtimeRate: number;
   setOvertimeRate: (rate: number) => void;
   currencyCode: string;
@@ -28,6 +30,8 @@ const ThemeContext = createContext<ThemeContextType>({
   colors: Colors.dark,
   weekStart: 1,
   setWeekStart: () => {},
+  baseRate: 0,
+  setBaseRate: () => {},
   overtimeRate: 0,
   setOvertimeRate: () => {},
   currencyCode: 'USD',

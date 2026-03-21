@@ -12,7 +12,7 @@ import { CalendarSwitcher } from '../../components/CalendarSwitcher';
 import { YearlyOverview } from '../../components/YearlyOverview';
 
 export default function StatsScreen() {
-  const { colors, overtimeRate, currencyCode } = useAppTheme();
+  const { colors, baseRate, overtimeRate, currencyCode } = useAppTheme();
   const currSymbol = getCurrencySymbol(currencyCode);
   const { shiftData, overtimeData, allShifts, calendars, activeCalendar, switchCalendar } = useShifts();
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -51,7 +51,9 @@ export default function StatsScreen() {
     const totalHours = regularHours + overtimeHours;
     const totalDays = getDaysInMonth(currentMonth);
     const assignedDays = Object.values(counts).reduce((s, c) => s + c, 0);
+    const basePay = baseRate > 0 ? regularHours * baseRate : 0;
     const overtimeEarnings = overtimeRate > 0 ? overtimeHours * overtimeRate : 0;
+    const totalPay = basePay + overtimeEarnings;
 
     return {
       counts, workingDays,
@@ -59,9 +61,11 @@ export default function StatsScreen() {
       overtimeHours, overtimeDays,
       totalHours: Math.round(totalHours * 10) / 10,
       totalDays, assignedDays,
+      basePay: Math.round(basePay * 100) / 100,
       overtimeEarnings: Math.round(overtimeEarnings * 100) / 100,
+      totalPay: Math.round(totalPay * 100) / 100,
     };
-  }, [shiftData, overtimeData, monthKey, currentMonth, allShifts, overtimeRate]);
+  }, [shiftData, overtimeData, monthKey, currentMonth, allShifts, baseRate, overtimeRate]);
 
   const maxCount = Math.max(...Object.values(stats.counts), 1);
 
@@ -134,19 +138,6 @@ export default function StatsScreen() {
                 colors={colors}
                 highlight={stats.overtimeHours > 0}
               />
-              {stats.overtimeEarnings > 0 && (
-                <>
-                  <View style={[styles.divider, { backgroundColor: colors.border }]} />
-                  <SummaryRow
-                    icon="cash"
-                    label="Overtime Earnings"
-                    value={`${currSymbol}${stats.overtimeEarnings.toFixed(2)}`}
-                    iconColor="#10B981"
-                    colors={colors}
-                    bold
-                  />
-                </>
-              )}
               <View style={[styles.divider, { backgroundColor: colors.border }]} />
               <SummaryRow
                 icon="sigma"
@@ -157,6 +148,51 @@ export default function StatsScreen() {
                 bold
               />
             </View>
+
+            {/* Pay Estimate */}
+            {(baseRate > 0 || overtimeRate > 0) && (
+              <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <View style={styles.payHeader}>
+                  <Text style={[styles.summaryTitle, { color: colors.text }]}>Pay Estimate</Text>
+                  <View style={[styles.payBadge, { backgroundColor: colors.primary + '18' }]}>
+                    <MaterialCommunityIcons name="calculator-variant-outline" size={14} color={colors.primary} />
+                    <Text style={[styles.payBadgeText, { color: colors.primary }]}>Monthly</Text>
+                  </View>
+                </View>
+
+                {baseRate > 0 && (
+                  <SummaryRow
+                    icon="briefcase-clock-outline"
+                    label={`Base Pay (${stats.regularHours}h × ${currSymbol}${baseRate})`}
+                    value={`${currSymbol}${stats.basePay.toFixed(2)}`}
+                    iconColor={colors.primary}
+                    colors={colors}
+                  />
+                )}
+                {baseRate > 0 && overtimeRate > 0 && (
+                  <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                )}
+                {overtimeRate > 0 && (
+                  <SummaryRow
+                    icon="clock-plus-outline"
+                    label={`Overtime (${stats.overtimeHours}h × ${currSymbol}${overtimeRate})`}
+                    value={`${currSymbol}${stats.overtimeEarnings.toFixed(2)}`}
+                    iconColor="#EF4444"
+                    colors={colors}
+                    highlight={stats.overtimeEarnings > 0}
+                  />
+                )}
+                <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                <SummaryRow
+                  icon="cash-multiple"
+                  label="Total Estimated"
+                  value={`${currSymbol}${stats.totalPay.toFixed(2)}`}
+                  iconColor="#10B981"
+                  colors={colors}
+                  bold
+                />
+              </View>
+            )}
 
             {/* Days summary */}
             <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -337,6 +373,9 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   summaryTitle: { fontSize: 16, fontWeight: '700', marginBottom: 6 },
+  payHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  payBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  payBadgeText: { fontSize: 11, fontWeight: '700' },
   divider: { height: 1 },
   barContainer: {
     borderRadius: 16,

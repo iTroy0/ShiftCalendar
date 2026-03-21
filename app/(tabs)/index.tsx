@@ -24,6 +24,8 @@ import { CalendarDay } from '../../components/CalendarDay';
 import { Toast } from '../../components/Toast';
 import { CalendarSwitcher } from '../../components/CalendarSwitcher';
 import { WeekView } from '../../components/WeekView';
+import { TemplateSheet } from '../../components/TemplateSheet';
+import { ShiftTemplate } from '../../constants/templates';
 
 const SWIPE_THRESHOLD = 50;
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -59,8 +61,12 @@ export default function CalendarScreen() {
   const [toastVisible, setToastVisible] = useState(false);
   const [toastUndo, setToastUndo] = useState<(() => void) | undefined>(undefined);
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
+  const [templateMode, setTemplateMode] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<ShiftTemplate | null>(null);
+  const [templateStart, setTemplateStart] = useState<string | null>(null);
   const daySheetRef = useRef<BottomSheet>(null);
   const repeatSheetRef = useRef<BottomSheet>(null);
+  const templateSheetRef = useRef<BottomSheet>(null);
 
   const monthKey = format(currentMonth, 'yyyy-MM');
   const todayStr = format(new Date(), 'yyyy-MM-dd');
@@ -172,6 +178,12 @@ export default function CalendarScreen() {
 
   const handleDayPress = useCallback(
     (dateString: string) => {
+      if (templateMode && selectedTemplate) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setTemplateStart(dateString);
+        templateSheetRef.current?.snapToIndex(1);
+        return;
+      }
       if (repeatMode) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         if (!patternStart || (patternStart && patternEnd)) {
@@ -192,13 +204,13 @@ export default function CalendarScreen() {
       setSelectedDate(dateString);
       daySheetRef.current?.snapToIndex(0);
     },
-    [repeatMode, patternStart, patternEnd]
+    [repeatMode, patternStart, patternEnd, templateMode, selectedTemplate]
   );
 
   // Long-press quick-assign
   const handleDayLongPress = useCallback(
     (dateString: string) => {
-      if (repeatMode) return;
+      if (repeatMode || templateMode) return;
       if (!lastUsedShift) {
         showToast('No recent shift. Tap a day to assign one first.');
         return;
@@ -217,7 +229,7 @@ export default function CalendarScreen() {
         }
       });
     },
-    [repeatMode, lastUsedShift, shiftData, setShift, clearShift, getShiftByCode, showToast]
+    [repeatMode, templateMode, lastUsedShift, shiftData, setShift, clearShift, getShiftByCode, showToast]
   );
 
   const handleSelectShift = useCallback(
@@ -291,10 +303,75 @@ export default function CalendarScreen() {
       setRepeatMode(true);
       setPatternStart(null);
       setPatternEnd(null);
+      setTemplateMode(false);
+      setSelectedTemplate(null);
+      setTemplateStart(null);
+      templateSheetRef.current?.close();
       daySheetRef.current?.close();
       repeatSheetRef.current?.snapToIndex(0);
     }
   }, [repeatMode]);
+
+  const toggleTemplateMode = useCallback(() => {
+    if (templateMode) {
+      setTemplateMode(false);
+      setSelectedTemplate(null);
+      setTemplateStart(null);
+      templateSheetRef.current?.close();
+    } else {
+      setTemplateMode(true);
+      setSelectedTemplate(null);
+      setTemplateStart(null);
+      setRepeatMode(false);
+      setPatternStart(null);
+      setPatternEnd(null);
+      repeatSheetRef.current?.close();
+      daySheetRef.current?.close();
+      templateSheetRef.current?.snapToIndex(0);
+    }
+  }, [templateMode]);
+
+  const handleSelectTemplate = useCallback((template: ShiftTemplate) => {
+    setSelectedTemplate(template);
+    setTemplateStart(null);
+  }, []);
+
+  const handleApplyTemplate = useCallback(
+    (entries: Record<string, string>) => {
+      const prevEntries: Record<string, string | undefined> = {};
+      Object.keys(entries).forEach((date) => {
+        prevEntries[date] = shiftData[date];
+      });
+      setShiftsBulk(entries);
+      const count = Object.keys(entries).length;
+      showToast(`Template applied to ${count} days`, () => {
+        const restore: Record<string, string> = {};
+        const toClear: string[] = [];
+        Object.entries(prevEntries).forEach(([date, code]) => {
+          if (code) restore[date] = code;
+          else toClear.push(date);
+        });
+        if (Object.keys(restore).length > 0) setShiftsBulk(restore);
+        toClear.forEach((d) => clearShift(d));
+      });
+      setTemplateMode(false);
+      setSelectedTemplate(null);
+      setTemplateStart(null);
+      templateSheetRef.current?.close();
+    },
+    [shiftData, setShiftsBulk, clearShift, showToast]
+  );
+
+  const handleTemplateBack = useCallback(() => {
+    setSelectedTemplate(null);
+    setTemplateStart(null);
+  }, []);
+
+  const handleTemplateClose = useCallback(() => {
+    setTemplateMode(false);
+    setSelectedTemplate(null);
+    setTemplateStart(null);
+  }, []);
 
   const clearPattern = useCallback(() => {
     setPatternStart(null);
@@ -368,6 +445,48 @@ export default function CalendarScreen() {
           </TouchableOpacity>
         ) : <View />}
 
+        <View style={styles.topRowRight}>
+        {viewMode === 'month' && (
+          <TouchableOpacity
+            style={[
+              styles.templatePill,
+              {
+                backgroundColor: templateMode ? colors.primary : colors.surface,
+                borderColor: templateMode ? colors.primary : colors.border,
+              },
+            ]}
+            onPress={toggleTemplateMode}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons
+              name={templateMode ? 'close' : 'view-grid-outline'}
+              size={14}
+              color={templateMode ? '#FFF' : colors.textSecondary}
+            />
+          </TouchableOpacity>
+        )}
+        {viewMode === 'month' && (
+          <TouchableOpacity
+            style={[
+              styles.repeatPill,
+              {
+                backgroundColor: repeatMode ? colors.primary : colors.surface,
+                borderColor: repeatMode ? colors.primary : colors.border,
+              },
+            ]}
+            onPress={toggleRepeatMode}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons
+              name={repeatMode ? 'close' : 'repeat'}
+              size={14}
+              color={repeatMode ? '#FFF' : colors.textSecondary}
+            />
+            <Text style={[styles.repeatPillText, { color: repeatMode ? '#FFF' : colors.textSecondary }]}>
+              {repeatMode ? 'Cancel' : 'Repeat'}
+            </Text>
+          </TouchableOpacity>
+        )}
         <View style={[styles.viewToggle, { backgroundColor: colors.surfaceVariant, borderColor: colors.border }]}>
           <TouchableOpacity
             style={[styles.viewToggleBtn, viewMode === 'month' && { backgroundColor: colors.primary }]}
@@ -390,6 +509,7 @@ export default function CalendarScreen() {
             />
           </TouchableOpacity>
         </View>
+        </View>
       </View>
 
       <CalendarSwitcher
@@ -399,29 +519,16 @@ export default function CalendarScreen() {
         colors={colors}
       />
 
-      {/* Repeat toggle - only in month view */}
-      {viewMode === 'month' && (
-        <View style={styles.toolbar}>
-          <TouchableOpacity
-            style={[
-              styles.repeatToggle,
-              {
-                backgroundColor: repeatMode ? colors.primary : colors.surface,
-                borderColor: repeatMode ? colors.primary : colors.border,
-              },
-            ]}
-            onPress={toggleRepeatMode}
-            activeOpacity={0.7}
-          >
-            <MaterialCommunityIcons
-              name={repeatMode ? 'close' : 'repeat'}
-              size={16}
-              color={repeatMode ? '#FFF' : colors.textSecondary}
-            />
-            <Text style={[styles.repeatToggleText, { color: repeatMode ? '#FFF' : colors.textSecondary }]}>
-              {repeatMode ? 'Cancel' : 'Repeat'}
-            </Text>
-          </TouchableOpacity>
+      {templateMode && viewMode === 'month' && (
+        <View style={[styles.hintBar, { backgroundColor: colors.primary + '0C' }]}>
+          <View style={[styles.hintDot, { backgroundColor: colors.primary }]} />
+          <Text style={[styles.hintText, { color: colors.primary }]}>
+            {!selectedTemplate
+              ? 'Pick a template from the sheet below'
+              : !templateStart
+              ? 'Now tap a start date on the calendar'
+              : 'Choose how far to apply'}
+          </Text>
         </View>
       )}
 
@@ -498,6 +605,19 @@ export default function CalendarScreen() {
         colors={colors}
       />
 
+      <TemplateSheet
+        ref={templateSheetRef}
+        getShiftByCode={getShiftByCode}
+        selectedTemplate={selectedTemplate}
+        templateStart={templateStart}
+        onSelectTemplate={handleSelectTemplate}
+        onApply={handleApplyTemplate}
+        onClose={handleTemplateClose}
+        onBack={handleTemplateBack}
+        currentMonth={currentMonth}
+        colors={colors}
+      />
+
       <Toast
         message={toastMsg}
         visible={toastVisible}
@@ -543,17 +663,29 @@ const styles = StyleSheet.create({
   },
   calendarWrap: { flex: 1, overflow: 'hidden' },
   calendar: { marginHorizontal: 6 },
-  toolbar: { paddingHorizontal: 16, marginBottom: 4 },
-  repeatToggle: {
+  topRowRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
+    gap: 8,
+  },
+  templatePill: {
+    width: 34,
+    height: 30,
     borderRadius: 10,
     borderWidth: 1,
-    gap: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  repeatToggleText: { fontSize: 13, fontWeight: '700' },
+  repeatPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: 4,
+  },
+  repeatPillText: { fontSize: 12, fontWeight: '700' },
   hintBar: {
     flexDirection: 'row',
     alignItems: 'center',

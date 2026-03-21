@@ -8,6 +8,7 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 
 const THEME_KEY = 'theme_mode';
 const WEEK_START_KEY = 'week_start';
+const BASE_RATE_KEY = 'base_rate';
 const OT_RATE_KEY = 'overtime_rate';
 const NOTIF_ENABLED_KEY = 'notif_enabled';
 const NOTIF_HOUR_KEY = 'notif_hour';
@@ -17,7 +18,8 @@ const ONBOARDING_KEY = 'onboarding_complete';
 export function useTheme() {
   const systemScheme = useColorScheme();
   const [themeMode, setThemeModeState] = useState<ThemeMode>('system');
-  const [weekStart, setWeekStartState] = useState<0 | 1>(1);
+  const [weekStart, setWeekStartState] = useState<0 | 1>(0);
+  const [baseRate, setBaseRateState] = useState(0);
   const [overtimeRate, setOvertimeRateState] = useState(0);
   const [notificationsEnabled, setNotifEnabledState] = useState(false);
   const [notificationHour, setNotifHourState] = useState(20); // 8 PM default
@@ -28,14 +30,16 @@ export function useTheme() {
     Promise.all([
       AsyncStorage.getItem(THEME_KEY),
       AsyncStorage.getItem(WEEK_START_KEY),
+      AsyncStorage.getItem(BASE_RATE_KEY),
       AsyncStorage.getItem(OT_RATE_KEY),
       AsyncStorage.getItem(NOTIF_ENABLED_KEY),
       AsyncStorage.getItem(NOTIF_HOUR_KEY),
       AsyncStorage.getItem(CURRENCY_KEY),
       AsyncStorage.getItem(ONBOARDING_KEY),
-    ]).then(([theme, week, rate, notif, notifHr, currency, onboard]) => {
+    ]).then(([theme, week, base, rate, notif, notifHr, currency, onboard]) => {
       if (theme === 'light' || theme === 'dark' || theme === 'system') setThemeModeState(theme);
       if (week === '0' || week === '1') setWeekStartState(Number(week) as 0 | 1);
+      if (base) setBaseRateState(parseFloat(base) || 0);
       if (rate) setOvertimeRateState(parseFloat(rate) || 0);
       if (notif === 'true') setNotifEnabledState(true);
       if (notifHr) setNotifHourState(parseInt(notifHr, 10) || 20);
@@ -52,6 +56,11 @@ export function useTheme() {
   const setWeekStart = useCallback((day: 0 | 1) => {
     setWeekStartState(day);
     AsyncStorage.setItem(WEEK_START_KEY, String(day)).catch(console.error);
+  }, []);
+
+  const setBaseRate = useCallback((rate: number) => {
+    setBaseRateState(rate);
+    AsyncStorage.setItem(BASE_RATE_KEY, String(rate)).catch(console.error);
   }, []);
 
   const setOvertimeRate = useCallback((rate: number) => {
@@ -90,6 +99,7 @@ export function useTheme() {
     themeMode, setThemeMode,
     isDark, colors,
     weekStart, setWeekStart,
+    baseRate, setBaseRate,
     overtimeRate, setOvertimeRate,
     currencyCode, setCurrencyCode,
     notificationsEnabled, setNotificationsEnabled,

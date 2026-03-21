@@ -29,6 +29,7 @@ import { requestNotificationPermissions, scheduleShiftReminder, cancelAllReminde
 export default function SettingsScreen() {
   const {
     colors, themeMode, setThemeMode, weekStart, setWeekStart,
+    baseRate, setBaseRate,
     overtimeRate, setOvertimeRate,
     currencyCode, setCurrencyCode,
     notificationsEnabled, setNotificationsEnabled,
@@ -73,8 +74,13 @@ export default function SettingsScreen() {
   ];
   const selectedLabel = selectedMonth !== null ? `${monthNames[selectedMonth]} ${currentYear}` : `Whole Year ${currentYear}`;
 
+  const [baseRateText, setBaseRateText] = useState(baseRate > 0 ? String(baseRate) : '');
   const [otRateText, setOtRateText] = useState(overtimeRate > 0 ? String(overtimeRate) : '');
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
+
+  useEffect(() => {
+    setBaseRateText(baseRate > 0 ? String(baseRate) : '');
+  }, [baseRate]);
 
   useEffect(() => {
     setOtRateText(overtimeRate > 0 ? String(overtimeRate) : '');
@@ -395,8 +401,8 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Overtime Earnings */}
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>OVERTIME EARNINGS</Text>
+        {/* Pay & Earnings */}
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>PAY & EARNINGS</Text>
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.label, { color: colors.text }]}>Currency</Text>
           <TouchableOpacity
@@ -435,9 +441,36 @@ export default function SettingsScreen() {
             </View>
           )}
 
-          <Text style={[styles.label, { color: colors.text }]}>Hourly Overtime Rate</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Base Hourly Rate</Text>
           <Text style={[styles.hint, { color: colors.textSecondary }]}>
-            Set your overtime hourly rate to see earnings in Stats.
+            Your regular hourly pay rate for pay estimates.
+          </Text>
+          <View style={styles.rateRow}>
+            <Text style={[styles.rateSymbol, { color: colors.primary }]}>{getCurrencySymbol(currencyCode)}</Text>
+            <TextInput
+              style={[styles.rateInput, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
+              value={baseRateText}
+              onChangeText={(t) => {
+                const cleaned = t.replace(/[^0-9.]/g, '');
+                setBaseRateText(cleaned);
+              }}
+              onBlur={() => {
+                const val = parseFloat(baseRateText);
+                setBaseRate(!isNaN(val) && val >= 0 ? val : 0);
+              }}
+              placeholder="0.00"
+              placeholderTextColor={colors.textSecondary}
+              keyboardType="numeric"
+              maxLength={8}
+            />
+            <Text style={[styles.rateUnit, { color: colors.textSecondary }]}>/hour</Text>
+          </View>
+
+          <View style={[styles.divider, { backgroundColor: colors.border, marginVertical: 14 }]} />
+
+          <Text style={[styles.label, { color: colors.text }]}>Overtime Hourly Rate</Text>
+          <Text style={[styles.hint, { color: colors.textSecondary }]}>
+            Overtime hourly rate for extra hours logged.
           </Text>
           <View style={styles.rateRow}>
             <Text style={[styles.rateSymbol, { color: colors.primary }]}>{getCurrencySymbol(currencyCode)}</Text>

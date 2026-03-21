@@ -1,10 +1,11 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform, Dimensions } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ShiftType } from '../constants/shifts';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CELL_WIDTH = Math.floor((SCREEN_WIDTH - 20) / 7);
-const CELL_HEIGHT = CELL_WIDTH + 14;
+const CELL_HEIGHT = CELL_WIDTH + 18;
 
 interface Props {
   date: any;
@@ -98,7 +99,11 @@ export function CalendarDay({
       accessibilityRole="button"
     >
       {/* Overtime indicator */}
-      {hasOvertime && <View style={styles.otDot} />}
+      {hasOvertime && (
+        <View style={styles.otBadge}>
+          <MaterialCommunityIcons name="plus-thick" size={7} color="#FFF" />
+        </View>
+      )}
 
       <Text
         style={[
@@ -119,11 +124,12 @@ export function CalendarDay({
       </Text>
 
       {shift ? (
-        <View style={[styles.badge, { backgroundColor: shift.color }]}>
-          <Text style={styles.badgeText}>{shift.code}</Text>
+        <View style={[styles.shiftPill, { backgroundColor: shift.color }]}>
+          <MaterialCommunityIcons name={shift.icon as any} size={11} color="#FFFFFFDD" />
+          <Text style={styles.pillCode}>{shift.code}</Text>
         </View>
       ) : (
-        <View style={styles.badgePlaceholder} />
+        <View style={styles.pillPlaceholder} />
       )}
 
       {/* Note indicator */}
@@ -142,34 +148,37 @@ const styles = StyleSheet.create({
     marginVertical: 2,
     position: 'relative',
   },
-  otDot: {
+  otBadge: {
     position: 'absolute',
-    top: 4,
-    right: 4,
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
+    top: 3,
+    right: 3,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dayNumber: {
-    fontSize: 16,
-    lineHeight: 20,
+    fontSize: 14,
+    lineHeight: 18,
   },
-  badge: {
-    marginTop: 4,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 7,
-    minWidth: 24,
+  shiftPill: {
+    flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 8,
+    gap: 3,
   },
-  badgePlaceholder: {
-    height: 18,
+  pillPlaceholder: {
+    height: 22,
     marginTop: 4,
   },
-  badgeText: {
+  pillCode: {
     color: '#FFFFFF',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
