@@ -1,11 +1,12 @@
 import React, { createContext, useContext } from 'react';
-import { useShiftData, ShiftData, NotesData, OvertimeData, CalendarInfo } from './useShiftData';
+import { useShiftData, ShiftData, NotesData, OvertimeData, SwapsData, SwapRequest, CalendarInfo } from './useShiftData';
 import { ShiftType } from '../constants/shifts';
 
 interface ShiftContextType {
   shiftData: ShiftData;
   notesData: NotesData;
   overtimeData: OvertimeData;
+  swapsData: SwapsData;
   loading: boolean;
   setShift: (date: string, code: string) => void;
   clearShift: (date: string) => void;
@@ -21,6 +22,9 @@ interface ShiftContextType {
   moveShift: (code: string, direction: 'up' | 'down') => void;
   getShiftByCode: (code: string) => ShiftType | undefined;
   lastUsedShift: string | null;
+  offerSwap: (swap: SwapRequest) => void;
+  cancelSwap: (date: string) => void;
+  acceptSwap: (date: string) => void;
   calendars: CalendarInfo[];
   activeCalendar: CalendarInfo;
   activeCalendarId: string;
@@ -34,6 +38,7 @@ const ShiftContext = createContext<ShiftContextType>({
   shiftData: {},
   notesData: {},
   overtimeData: {},
+  swapsData: {},
   loading: true,
   setShift: () => {},
   clearShift: () => {},
@@ -49,6 +54,9 @@ const ShiftContext = createContext<ShiftContextType>({
   moveShift: () => {},
   getShiftByCode: () => undefined,
   lastUsedShift: null,
+  offerSwap: () => {},
+  cancelSwap: () => {},
+  acceptSwap: () => {},
   calendars: [],
   activeCalendar: { id: 'default', name: 'My Shifts', color: '#6366F1' },
   activeCalendarId: 'default',

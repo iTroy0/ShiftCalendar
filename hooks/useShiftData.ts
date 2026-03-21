@@ -16,10 +16,23 @@ function notesKey(calId: string) {
 function overtimeKey(calId: string) {
   return `shift_overtime_${calId}`;
 }
+function swapsKey(calId: string) {
+  return `shift_swaps_${calId}`;
+}
 
 export type ShiftData = Record<string, string>;
 export type NotesData = Record<string, string>;
 export type OvertimeData = Record<string, number>; // date -> overtime hours
+
+export interface SwapRequest {
+  date: string;
+  shiftCode: string;
+  wantCode: string; // desired shift code or 'any'
+  note: string;
+  status: 'offered' | 'accepted' | 'cancelled';
+  createdAt: string;
+}
+export type SwapsData = Record<string, SwapRequest>; // date -> swap
 
 export interface CalendarInfo {
   id: string;
@@ -35,6 +48,7 @@ export function useShiftData() {
   const [shiftData, setShiftData] = useState<ShiftData>({});
   const [notesData, setNotesData] = useState<NotesData>({});
   const [overtimeData, setOvertimeData] = useState<OvertimeData>({});
+  const [swapsData, setSwapsData] = useState<SwapsData>({});
   const [allShiftsState, setAllShiftsState] = useState<ShiftType[]>([...DEFAULT_SHIFTS]);
   const [loading, setLoading] = useState(true);
   const [lastUsedShift, setLastUsedShift] = useState<string | null>(null);
@@ -86,14 +100,16 @@ export function useShiftData() {
         }
 
         // Load data for active calendar
-        const [rawShifts, rawNotes, rawOT] = await Promise.all([
+        const [rawShifts, rawNotes, rawOT, rawSwaps] = await Promise.all([
           AsyncStorage.getItem(dataKey(active)),
           AsyncStorage.getItem(notesKey(active)),
           AsyncStorage.getItem(overtimeKey(active)),
+          AsyncStorage.getItem(swapsKey(active)),
         ]);
         if (rawShifts) setShiftData(JSON.parse(rawShifts));
         if (rawNotes) setNotesData(JSON.parse(rawNotes));
         if (rawOT) setOvertimeData(JSON.parse(rawOT));
+        if (rawSwaps) setSwapsData(JSON.parse(rawSwaps));
       } catch (e) {
         console.error('Failed to load data', e);
       } finally {
@@ -107,14 +123,16 @@ export function useShiftData() {
     setActiveCalendarId(calId);
     AsyncStorage.setItem(ACTIVE_CALENDAR_KEY, calId).catch(console.error);
     try {
-      const [rawShifts, rawNotes, rawOT] = await Promise.all([
+      const [rawShifts, rawNotes, rawOT, rawSwaps] = await Promise.all([
         AsyncStorage.getItem(dataKey(calId)),
         AsyncStorage.getItem(notesKey(calId)),
         AsyncStorage.getItem(overtimeKey(calId)),
+        AsyncStorage.getItem(swapsKey(calId)),
       ]);
       setShiftData(rawShifts ? JSON.parse(rawShifts) : {});
       setNotesData(rawNotes ? JSON.parse(rawNotes) : {});
       setOvertimeData(rawOT ? JSON.parse(rawOT) : {});
+      setSwapsData(rawSwaps ? JSON.parse(rawSwaps) : {});
     } catch (e) {
       console.error('Failed to switch calendar', e);
     }
@@ -138,6 +156,7 @@ export function useShiftData() {
     AsyncStorage.removeItem(dataKey(calId)).catch(console.error);
     AsyncStorage.removeItem(notesKey(calId)).catch(console.error);
     AsyncStorage.removeItem(overtimeKey(calId)).catch(console.error);
+    AsyncStorage.removeItem(swapsKey(calId)).catch(console.error);
     if (calId === activeCalendarId) {
       switchCalendar('default');
     }
@@ -274,10 +293,38 @@ export function useShiftData() {
     });
   }, [persistShifts]);
 
+  // --- Swap operations ---
+  const offerSwap = useCallback((swap: SwapRequest) => {
+    setSwapsData((prev) => {
+      const next = { ...prev, [swap.date]: swap };
+      persist(swapsKey(activeCalendarId), next);
+      return next;
+    });
+  }, [activeCalendarId, persist]);
+
+  const cancelSwap = useCallback((date: string) => {
+    setSwapsData((prev) => {
+      const next = { ...prev };
+      delete next[date];
+      persist(swapsKey(activeCalendarId), next);
+      return next;
+    });
+  }, [activeCalendarId, persist]);
+
+  const acceptSwap = useCallback((date: string) => {
+    setSwapsData((prev) => {
+      if (!prev[date]) return prev;
+      const next = { ...prev, [date]: { ...prev[date], status: 'accepted' as const } };
+      persist(swapsKey(activeCalendarId), next);
+      return next;
+    });
+  }, [activeCalendarId, persist]);
+
   return {
     shiftData,
     notesData,
     overtimeData,
+    swapsData,
     loading,
     setShift,
     clearShift,
@@ -293,6 +340,9 @@ export function useShiftData() {
     moveShift,
     getShiftByCode,
     lastUsedShift,
+    offerSwap,
+    cancelSwap,
+    acceptSwap,
     // Calendar management
     calendars,
     activeCalendar,

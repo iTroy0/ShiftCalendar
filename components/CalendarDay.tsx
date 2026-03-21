@@ -13,6 +13,7 @@ interface Props {
   shift?: ShiftType;
   hasNote: boolean;
   hasOvertime: boolean;
+  hasSwap: boolean;
   isToday: boolean;
   isSelected: boolean;
   isPatternStart: boolean;
@@ -35,6 +36,7 @@ export function CalendarDay({
   shift,
   hasNote,
   hasOvertime,
+  hasSwap,
   isToday,
   isSelected,
   isPatternStart,
@@ -54,7 +56,7 @@ export function CalendarDay({
 
   const isPatternEdge = isPatternStart || isPatternEnd;
 
-  const accessLabel = `${dayNum}${shift ? `, ${shift.label}` : ''}${isToday ? ', today' : ''}${hasNote ? ', has note' : ''}${hasOvertime ? ', has overtime' : ''}`;
+  const accessLabel = `${dayNum}${shift ? `, ${shift.label}` : ''}${isToday ? ', today' : ''}${hasNote ? ', has note' : ''}${hasOvertime ? ', has overtime' : ''}${hasSwap ? ', swap offered' : ''}`;
 
   return (
     <TouchableOpacity
@@ -105,6 +107,13 @@ export function CalendarDay({
         </View>
       )}
 
+      {/* Swap indicator */}
+      {hasSwap && (
+        <View style={styles.swapBadge}>
+          <MaterialCommunityIcons name="swap-horizontal" size={8} color="#FFF" />
+        </View>
+      )}
+
       <Text
         style={[
           styles.dayNumber,
@@ -147,6 +156,17 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     marginVertical: 2,
     position: 'relative',
+  },
+  swapBadge: {
+    position: 'absolute',
+    top: 3,
+    left: 3,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#8B5CF6',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   otBadge: {
     position: 'absolute',

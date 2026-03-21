@@ -25,7 +25,9 @@ import { Toast } from '../../components/Toast';
 import { CalendarSwitcher } from '../../components/CalendarSwitcher';
 import { WeekView } from '../../components/WeekView';
 import { TemplateSheet } from '../../components/TemplateSheet';
+import { NotesSearchSheet } from '../../components/NotesSearchSheet';
 import { ShiftTemplate } from '../../constants/templates';
+import { SwapRequest } from '../../hooks/useShiftData';
 
 const SWIPE_THRESHOLD = 50;
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -40,6 +42,7 @@ export default function CalendarScreen() {
     shiftData,
     notesData,
     overtimeData,
+    swapsData,
     setShift,
     clearShift,
     setShiftsBulk,
@@ -48,6 +51,8 @@ export default function CalendarScreen() {
     allShifts,
     getShiftByCode,
     lastUsedShift,
+    offerSwap,
+    cancelSwap,
     calendars,
     activeCalendar,
     switchCalendar,
@@ -67,6 +72,7 @@ export default function CalendarScreen() {
   const daySheetRef = useRef<BottomSheet>(null);
   const repeatSheetRef = useRef<BottomSheet>(null);
   const templateSheetRef = useRef<BottomSheet>(null);
+  const notesSearchRef = useRef<BottomSheet>(null);
 
   const monthKey = format(currentMonth, 'yyyy-MM');
   const todayStr = format(new Date(), 'yyyy-MM-dd');
@@ -373,6 +379,21 @@ export default function CalendarScreen() {
     setTemplateStart(null);
   }, []);
 
+  const allShiftCodes = useMemo(
+    () => allShifts.map((s) => ({ code: s.code, label: s.label })),
+    [allShifts]
+  );
+
+  const handleNotesSearchSelect = useCallback((date: string) => {
+    setSelectedDate(date);
+    daySheetRef.current?.snapToIndex(0);
+  }, []);
+
+  const openNotesSearch = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    notesSearchRef.current?.snapToIndex(0);
+  }, []);
+
   const clearPattern = useCallback(() => {
     setPatternStart(null);
     setPatternEnd(null);
@@ -398,6 +419,7 @@ export default function CalendarScreen() {
       const shift = code ? getShiftByCode(code) : undefined;
       const hasNote = ds ? !!notesData[ds] : false;
       const hasOvertime = ds ? (overtimeData[ds] || 0) > 0 : false;
+      const hasSwap = ds ? !!swapsData[ds] : false;
       const inPattern = ds ? patternDates.has(ds) : false;
 
       return (
@@ -407,6 +429,7 @@ export default function CalendarScreen() {
           shift={shift}
           hasNote={hasNote}
           hasOvertime={hasOvertime}
+          hasSwap={hasSwap}
           isToday={ds === todayStr}
           isSelected={!repeatMode && ds === selectedDate}
           isPatternStart={repeatMode && ds === patternStart}
@@ -418,7 +441,7 @@ export default function CalendarScreen() {
         />
       );
     },
-    [shiftData, notesData, overtimeData, getShiftByCode, todayStr, selectedDate, patternDates, repeatMode, patternStart, patternEnd, handleDayPress, handleDayLongPress, colors]
+    [shiftData, notesData, overtimeData, swapsData, getShiftByCode, todayStr, selectedDate, patternDates, repeatMode, patternStart, patternEnd, handleDayPress, handleDayLongPress, colors]
   );
 
   return (
@@ -446,6 +469,13 @@ export default function CalendarScreen() {
         ) : <View />}
 
         <View style={styles.topRowRight}>
+        <TouchableOpacity
+          style={[styles.templatePill, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          onPress={openNotesSearch}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons name="note-search-outline" size={14} color={colors.textSecondary} />
+        </TouchableOpacity>
         {viewMode === 'month' && (
           <TouchableOpacity
             style={[
@@ -590,6 +620,10 @@ export default function CalendarScreen() {
         onClear={handleClear}
         onSaveNote={handleSaveNote}
         onSetOvertime={handleSetOvertime}
+        currentSwap={selectedDate ? swapsData[selectedDate] : undefined}
+        allShiftCodes={allShiftCodes}
+        onOfferSwap={offerSwap}
+        onCancelSwap={cancelSwap}
         colors={colors}
       />
 
@@ -615,6 +649,13 @@ export default function CalendarScreen() {
         onClose={handleTemplateClose}
         onBack={handleTemplateBack}
         currentMonth={currentMonth}
+        colors={colors}
+      />
+
+      <NotesSearchSheet
+        ref={notesSearchRef}
+        notesData={notesData}
+        onSelectDate={handleNotesSearchSelect}
         colors={colors}
       />
 
