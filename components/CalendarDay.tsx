@@ -31,7 +31,7 @@ interface Props {
   };
 }
 
-export function CalendarDay({
+export const CalendarDay = React.memo(function CalendarDay({
   date,
   state,
   shift,
@@ -152,7 +152,7 @@ export function CalendarDay({
       )}
     </TouchableOpacity>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

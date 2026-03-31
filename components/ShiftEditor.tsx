@@ -1,4 +1,4 @@
-import React, { useState, useMemo, forwardRef } from 'react';
+import React, { useState, useMemo, useEffect, forwardRef } from 'react';
 import {
   View,
   Text,
@@ -41,6 +41,15 @@ export const ShiftEditor = forwardRef<BottomSheet, Props>(
     const [icon, setIcon] = useState(editingShift?.icon || AVAILABLE_ICONS[0]);
     const [startTime, setStartTime] = useState(editingShift?.startTime || '');
     const [endTime, setEndTime] = useState(editingShift?.endTime || '');
+
+    useEffect(() => {
+      setCode(editingShift?.code || '');
+      setLabel(editingShift?.label || '');
+      setColor(editingShift?.color || AVAILABLE_COLORS[0]);
+      setIcon(editingShift?.icon || AVAILABLE_ICONS[0]);
+      setStartTime(editingShift?.startTime || '');
+      setEndTime(editingShift?.endTime || '');
+    }, [editingShift]);
 
     const handleSave = () => {
       if (!code.trim()) {

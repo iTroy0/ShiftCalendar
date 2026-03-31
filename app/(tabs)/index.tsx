@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Dimensions } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -79,8 +79,18 @@ export default function CalendarScreen() {
   const notesSearchRef = useRef<BottomSheet>(null);
 
   const monthKey = format(currentMonth, 'yyyy-MM');
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const [todayStr, setTodayStr] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const isCurrentMonth = isSameMonth(currentMonth, new Date());
+
+  // Refresh todayStr across midnight
+  useEffect(() => {
+    const check = () => {
+      const now = format(new Date(), 'yyyy-MM-dd');
+      if (now !== todayStr) setTodayStr(now);
+    };
+    const id = setInterval(check, 60000);
+    return () => clearInterval(id);
+  }, [todayStr]);
 
   const goToToday = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

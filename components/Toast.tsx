@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { Animated, Text, StyleSheet, View, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -13,6 +13,10 @@ interface Props {
 export function Toast({ message, visible, onHide, type = 'success', onUndo }: Props) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(-30)).current;
+  const onHideRef = useRef(onHide);
+  const onUndoRef = useRef(onUndo);
+  onHideRef.current = onHide;
+  onUndoRef.current = onUndo;
 
   useEffect(() => {
     if (visible) {
@@ -25,8 +29,8 @@ export function Toast({ message, visible, onHide, type = 'success', onUndo }: Pr
         Animated.parallel([
           Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
           Animated.timing(translateY, { toValue: -30, duration: 300, useNativeDriver: true }),
-        ]).start(() => onHide());
-      }, onUndo ? 4000 : 2500);
+        ]).start(() => onHideRef.current());
+      }, onUndoRef.current ? 4000 : 2500);
 
       return () => clearTimeout(timer);
     }

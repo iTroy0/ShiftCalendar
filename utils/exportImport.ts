@@ -12,7 +12,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { format, getDaysInMonth } from 'date-fns';
 import { ShiftData, NotesData, OvertimeData } from '../hooks/useShiftData';
-import { ShiftType, HOURS_PER_SHIFT } from '../constants/shifts';
+import { ShiftType, getShiftHours } from '../constants/shifts';
 
 // ---------- SAVE TO DEVICE HELPER ----------
 
@@ -75,9 +75,9 @@ function buildCSVRows(
       const note = notesData[dateStr] || '';
       const overtime = overtimeData[dateStr] || 0;
 
-      const escapedNote = note ? `"${note.replace(/"/g, '""')}"` : '';
+      const escapedNote = note ? `"${sanitizeCSV(note.replace(/"/g, '""'))}"` : '';
       rows.push(
-        `${dateStr},${dayName},${code},${shift?.label || ''},${shift?.startTime || ''},${shift?.endTime || ''},${overtime || ''},${escapedNote}`
+        `${sanitizeCSV(dateStr)},${dayName},${sanitizeCSV(code)},${sanitizeCSV(shift?.label || '')},${shift?.startTime || ''},${shift?.endTime || ''},${overtime || ''},${escapedNote}`
       );
     }
   }
@@ -225,6 +225,7 @@ function buildPDFHtml(
     allShifts.forEach((s) => (counts[s.code] = 0));
     let otTotal = 0;
     let workDays = 0;
+    let regularHours = 0;
     const offCodes = new Set(allShifts.filter((s) => !s.startTime).map((s) => s.code));
 
     let tableRows = '';
@@ -242,7 +243,7 @@ function buildPDFHtml(
       const note = notesData[dateStr] || '';
 
       if (code && counts[code] !== undefined) counts[code]++;
-      if (code && !offCodes.has(code)) workDays++;
+      if (code && !offCodes.has(code)) { workDays++; if (shift) regularHours += getShiftHours(shift); }
       if (overtime > 0) otTotal += overtime;
 
       const bgColor = isWeekend ? '#f8f9fa' : '#fff';
@@ -253,9 +254,9 @@ function buildPDFHtml(
           <td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;font-weight:600;width:26px">${d}</td>
           <td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;color:#6B7280;width:34px">${dayName}</td>
           <td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;text-align:center;width:50px">
-            ${shift ? `<span style="background:${shift.color}20;color:${shiftTextColor};padding:1px 8px;border-radius:4px;font-weight:700;font-size:11px">${code}</span>` : '<span style="color:#d1d5db">-</span>'}
+            ${shift ? `<span style="background:${escapeHtml(shift.color)}20;color:${escapeHtml(shiftTextColor)};padding:1px 8px;border-radius:4px;font-weight:700;font-size:11px">${escapeHtml(code)}</span>` : '<span style="color:#d1d5db">-</span>'}
           </td>
-          <td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;color:${shiftTextColor}">${shift?.label || ''}</td>
+          <td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;color:${escapeHtml(shiftTextColor)}">${escapeHtml(shift?.label || '')}</td>
           <td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;color:#6B7280;font-size:11px">${shift?.startTime ? `${shift.startTime} - ${shift.endTime}` : ''}</td>
           <td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;text-align:center;color:${overtime > 0 ? '#EF4444' : '#d1d5db'};font-weight:${overtime > 0 ? '700' : '400'};font-size:11px">${overtime > 0 ? `+${overtime}h` : '-'}</td>
         </tr>`;
@@ -270,17 +271,16 @@ function buildPDFHtml(
       }
     }
 
-    const regularHours = workDays * HOURS_PER_SHIFT;
-    const totalHours = regularHours + otTotal;
+    const totalHours = Math.round((regularHours + otTotal) * 10) / 10;
 
     let shiftBadges = '';
     allShifts.forEach((s) => {
       if (counts[s.code] > 0) {
         shiftBadges += `
-          <div style="display:inline-flex;align-items:center;gap:6px;margin:3px 6px 3px 0;background:${s.color}15;padding:4px 12px;border-radius:8px;border:1px solid ${s.color}30">
-            <span style="background:${s.color};color:#fff;width:22px;height:22px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800">${s.code}</span>
-            <span style="color:${s.color};font-weight:700;font-size:13px">${counts[s.code]}</span>
-            <span style="color:${s.color}99;font-size:11px">${s.label}</span>
+          <div style="display:inline-flex;align-items:center;gap:6px;margin:3px 6px 3px 0;background:${escapeHtml(s.color)}15;padding:4px 12px;border-radius:8px;border:1px solid ${escapeHtml(s.color)}30">
+            <span style="background:${escapeHtml(s.color)};color:#fff;width:22px;height:22px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800">${escapeHtml(s.code)}</span>
+            <span style="color:${escapeHtml(s.color)};font-weight:700;font-size:13px">${counts[s.code]}</span>
+            <span style="color:${escapeHtml(s.color)}99;font-size:11px">${escapeHtml(s.label)}</span>
           </div>`;
       }
     });
@@ -384,6 +384,11 @@ function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function sanitizeCSV(value: string): string {
+  if (/^[=+\-@\t\r]/.test(value)) return "'" + value;
+  return value;
+}
+
 export async function exportPDF(
   year: number,
   month: number | null,
@@ -436,6 +441,18 @@ export async function restoreBackup(): Promise<RestoreResult | null> {
   return restoreBackupFromContent(content);
 }
 
+const ALLOWED_KEY_PREFIXES = [
+  'shift_data_', 'shift_notes_', 'shift_overtime_', 'shift_swaps_',
+  'leave_data_', 'leave_balances_', 'calendars_list', 'active_calendar',
+  'all_shifts_v2', 'custom_shifts', 'theme_mode', 'week_start',
+  'base_rate', 'overtime_rate', 'notif_enabled', 'notif_hour',
+  'currency_code', 'onboarding_complete',
+];
+
+function isAllowedKey(key: string): boolean {
+  return ALLOWED_KEY_PREFIXES.some((p) => key === p || key.startsWith(p));
+}
+
 /** Restore from a JSON backup string. Usable from both file-picker and deep-link flows. */
 export function restoreBackupFromContent(content: string): Promise<RestoreResult> {
   const parsed = JSON.parse(content);
@@ -446,10 +463,14 @@ export function restoreBackupFromContent(content: string): Promise<RestoreResult
 
   const entries: [string, string][] = [];
   Object.entries(parsed.data).forEach(([key, value]) => {
-    if (typeof value === 'string') {
+    if (typeof value === 'string' && isAllowedKey(key)) {
       entries.push([key, value]);
     }
   });
+
+  if (entries.length === 0) {
+    throw new Error('No valid data found in backup');
+  }
 
   return AsyncStorage.multiSet(entries).then(() => ({ keyCount: entries.length }));
 }

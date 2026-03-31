@@ -73,10 +73,6 @@
               "mimeType": "application/json"
             },
             {
-              "scheme": "content",
-              "mimeType": "application/octet-stream"
-            },
-            {
               "scheme": "file",
               "mimeType": "text/csv"
             },
@@ -92,10 +88,6 @@
               "scheme": "file",
               "mimeType": "application/json"
             },
-            {
-              "scheme": "file",
-              "mimeType": "application/octet-stream"
-            }
           ]
         }
       ]

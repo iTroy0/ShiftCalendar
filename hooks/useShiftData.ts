@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ShiftType, DEFAULT_SHIFTS } from '../constants/shifts';
 import { LeaveType, DEFAULT_LEAVE_TYPES } from '../constants/leaveTypes';
@@ -54,6 +54,7 @@ const DEFAULT_CALENDAR: CalendarInfo = { id: 'default', name: 'My Shifts', color
 export function useShiftData() {
   const [calendars, setCalendars] = useState<CalendarInfo[]>([DEFAULT_CALENDAR]);
   const [activeCalendarId, setActiveCalendarId] = useState('default');
+  const calIdRef = useRef('default');
   const [shiftData, setShiftData] = useState<ShiftData>({});
   const [notesData, setNotesData] = useState<NotesData>({});
   const [overtimeData, setOvertimeData] = useState<OvertimeData>({});
@@ -102,6 +103,7 @@ export function useShiftData() {
         const active = rawActive || 'default';
         setCalendars(cals);
         setActiveCalendarId(active);
+        calIdRef.current = active;
 
         if (rawAllShifts) {
           setAllShiftsState(JSON.parse(rawAllShifts));
@@ -139,6 +141,7 @@ export function useShiftData() {
   // --- Switch calendar ---
   const switchCalendar = useCallback(async (calId: string) => {
     setActiveCalendarId(calId);
+    calIdRef.current = calId;
     AsyncStorage.setItem(ACTIVE_CALENDAR_KEY, calId).catch(console.error);
     try {
       const [rawShifts, rawNotes, rawOT, rawSwaps, rawLeave, rawLeaveBal] = await Promise.all([
@@ -199,27 +202,27 @@ export function useShiftData() {
     setLastUsedShift(code);
     setShiftData((prev) => {
       const next = { ...prev, [date]: code };
-      persist(dataKey(activeCalendarId), next);
+      persist(dataKey(calIdRef.current), next);
       return next;
     });
-  }, [activeCalendarId, persist]);
+  }, [persist]);
 
   const clearShift = useCallback((date: string) => {
     setShiftData((prev) => {
       const next = { ...prev };
       delete next[date];
-      persist(dataKey(activeCalendarId), next);
+      persist(dataKey(calIdRef.current), next);
       return next;
     });
-  }, [activeCalendarId, persist]);
+  }, [persist]);
 
   const setShiftsBulk = useCallback((entries: Record<string, string>) => {
     setShiftData((prev) => {
       const next = { ...prev, ...entries };
-      persist(dataKey(activeCalendarId), next);
+      persist(dataKey(calIdRef.current), next);
       return next;
     });
-  }, [activeCalendarId, persist]);
+  }, [persist]);
 
   // --- Note operations ---
   const setNote = useCallback((date: string, note: string) => {
@@ -230,19 +233,19 @@ export function useShiftData() {
       } else {
         delete next[date];
       }
-      persist(notesKey(activeCalendarId), next);
+      persist(notesKey(calIdRef.current), next);
       return next;
     });
-  }, [activeCalendarId, persist]);
+  }, [persist]);
 
   const clearNote = useCallback((date: string) => {
     setNotesData((prev) => {
       const next = { ...prev };
       delete next[date];
-      persist(notesKey(activeCalendarId), next);
+      persist(notesKey(calIdRef.current), next);
       return next;
     });
-  }, [activeCalendarId, persist]);
+  }, [persist]);
 
   // --- Overtime operations ---
   const setOvertime = useCallback((date: string, hours: number) => {
@@ -253,10 +256,10 @@ export function useShiftData() {
       } else {
         delete next[date];
       }
-      persist(overtimeKey(activeCalendarId), next);
+      persist(overtimeKey(calIdRef.current), next);
       return next;
     });
-  }, [activeCalendarId, persist]);
+  }, [persist]);
 
   // --- Shift type operations (unified list) ---
   const addCustomShift = useCallback((shift: ShiftType) => {
@@ -273,36 +276,54 @@ export function useShiftData() {
       persistShifts(next);
       return next;
     });
-    // If code changed, update all shift data references
+    // If code changed, update shift data references across ALL calendars
     if (code !== shift.code) {
+      // Update active calendar in memory
       setShiftData((prev) => {
         const next = { ...prev };
         Object.keys(next).forEach((date) => {
           if (next[date] === code) next[date] = shift.code;
         });
-        persist(dataKey(activeCalendarId), next);
+        persist(dataKey(calIdRef.current), next);
         return next;
       });
+      // Update other calendars in storage
+      calendars.forEach(async (cal) => {
+        if (cal.id === calIdRef.current) return;
+        try {
+          const raw = await AsyncStorage.getItem(dataKey(cal.id));
+          if (!raw) return;
+          const data = JSON.parse(raw);
+          let changed = false;
+          Object.keys(data).forEach((date) => {
+            if (data[date] === code) { data[date] = shift.code; changed = true; }
+          });
+          if (changed) await AsyncStorage.setItem(dataKey(cal.id), JSON.stringify(data));
+        } catch (e) { console.error('Failed to update calendar', cal.id, e); }
+      });
     }
-  }, [persistShifts, activeCalendarId, persist]);
+  }, [persistShifts, persist, calendars]);
 
   const deleteCustomShift = useCallback((code: string) => {
+    let didDelete = false;
     setAllShiftsState((prev) => {
       if (prev.length <= 1) return prev; // prevent deleting last shift
+      didDelete = true;
       const next = prev.filter((s) => s.code !== code);
       persistShifts(next);
       return next;
     });
-    // Clean up shift assignments
+    if (!didDelete) return;
+    // Clean up shift assignments only if deletion actually happened
     setShiftData((prev) => {
       const next = { ...prev };
       Object.keys(next).forEach((date) => {
         if (next[date] === code) delete next[date];
       });
-      persist(dataKey(activeCalendarId), next);
+      persist(dataKey(calIdRef.current), next);
       return next;
     });
-  }, [activeCalendarId, persist, persistShifts]);
+  }, [persist, persistShifts]);
 
   const moveShift = useCallback((code: string, direction: 'up' | 'down') => {
     setAllShiftsState((prev) => {
@@ -321,54 +342,54 @@ export function useShiftData() {
   const setLeave = useCallback((date: string, leaveTypeId: string) => {
     setLeaveData((prev) => {
       const next = { ...prev, [date]: leaveTypeId };
-      persist(leaveKey(activeCalendarId), next);
+      persist(leaveKey(calIdRef.current), next);
       return next;
     });
-  }, [activeCalendarId, persist]);
+  }, [persist]);
 
   const clearLeave = useCallback((date: string) => {
     setLeaveData((prev) => {
       const next = { ...prev };
       delete next[date];
-      persist(leaveKey(activeCalendarId), next);
+      persist(leaveKey(calIdRef.current), next);
       return next;
     });
-  }, [activeCalendarId, persist]);
+  }, [persist]);
 
   const setLeaveBalance = useCallback((leaveTypeId: string, days: number) => {
     setLeaveBalancesState((prev) => {
       const next = { ...prev, [leaveTypeId]: days };
-      persist(leaveBalancesKey(activeCalendarId), next);
+      persist(leaveBalancesKey(calIdRef.current), next);
       return next;
     });
-  }, [activeCalendarId, persist]);
+  }, [persist]);
 
   // --- Swap operations ---
   const offerSwap = useCallback((swap: SwapRequest) => {
     setSwapsData((prev) => {
       const next = { ...prev, [swap.date]: swap };
-      persist(swapsKey(activeCalendarId), next);
+      persist(swapsKey(calIdRef.current), next);
       return next;
     });
-  }, [activeCalendarId, persist]);
+  }, [persist]);
 
   const cancelSwap = useCallback((date: string) => {
     setSwapsData((prev) => {
       const next = { ...prev };
       delete next[date];
-      persist(swapsKey(activeCalendarId), next);
+      persist(swapsKey(calIdRef.current), next);
       return next;
     });
-  }, [activeCalendarId, persist]);
+  }, [persist]);
 
   const acceptSwap = useCallback((date: string) => {
     setSwapsData((prev) => {
       if (!prev[date]) return prev;
       const next = { ...prev, [date]: { ...prev[date], status: 'accepted' as const } };
-      persist(swapsKey(activeCalendarId), next);
+      persist(swapsKey(calIdRef.current), next);
       return next;
     });
-  }, [activeCalendarId, persist]);
+  }, [persist]);
 
   return {
     shiftData,

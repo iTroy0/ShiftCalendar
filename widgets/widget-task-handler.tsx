@@ -58,7 +58,8 @@ async function getWidgetData() {
 
   const weekStart = weekStartStr === '1' ? 1 : 0;
   const calId = activeCalId || 'default';
-  const allShifts: ShiftType[] = allShiftsJson ? JSON.parse(allShiftsJson) : [];
+  let allShifts: ShiftType[] = [];
+  try { if (allShiftsJson) allShifts = JSON.parse(allShiftsJson); } catch {}
 
   // Resolve theme: respect user preference, fall back to system
   let isDark = true;
@@ -72,7 +73,8 @@ async function getWidgetData() {
   }
 
   const shiftDataJson = await AsyncStorage.getItem(`shift_data_${calId}`);
-  const shiftData: Record<string, string> = shiftDataJson ? JSON.parse(shiftDataJson) : {};
+  let shiftData: Record<string, string> = {};
+  try { if (shiftDataJson) shiftData = JSON.parse(shiftDataJson); } catch {}
 
   return { weekStart, shiftData, allShifts, isDark };
 }
