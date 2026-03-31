@@ -23,7 +23,9 @@ function swapsKey(calId: string) {
 function leaveKey(calId: string) {
   return `leave_data_${calId}`;
 }
-const LEAVE_BALANCES_KEY = 'leave_balances';
+function leaveBalancesKey(calId: string) {
+  return `leave_balances_${calId}`;
+}
 
 export type ShiftData = Record<string, string>;
 export type NotesData = Record<string, string>;
@@ -118,7 +120,7 @@ export function useShiftData() {
           AsyncStorage.getItem(overtimeKey(active)),
           AsyncStorage.getItem(swapsKey(active)),
           AsyncStorage.getItem(leaveKey(active)),
-          AsyncStorage.getItem(LEAVE_BALANCES_KEY),
+          AsyncStorage.getItem(leaveBalancesKey(active)),
         ]);
         if (rawShifts) setShiftData(JSON.parse(rawShifts));
         if (rawNotes) setNotesData(JSON.parse(rawNotes));
@@ -139,18 +141,20 @@ export function useShiftData() {
     setActiveCalendarId(calId);
     AsyncStorage.setItem(ACTIVE_CALENDAR_KEY, calId).catch(console.error);
     try {
-      const [rawShifts, rawNotes, rawOT, rawSwaps, rawLeave] = await Promise.all([
+      const [rawShifts, rawNotes, rawOT, rawSwaps, rawLeave, rawLeaveBal] = await Promise.all([
         AsyncStorage.getItem(dataKey(calId)),
         AsyncStorage.getItem(notesKey(calId)),
         AsyncStorage.getItem(overtimeKey(calId)),
         AsyncStorage.getItem(swapsKey(calId)),
         AsyncStorage.getItem(leaveKey(calId)),
+        AsyncStorage.getItem(leaveBalancesKey(calId)),
       ]);
       setShiftData(rawShifts ? JSON.parse(rawShifts) : {});
       setNotesData(rawNotes ? JSON.parse(rawNotes) : {});
       setOvertimeData(rawOT ? JSON.parse(rawOT) : {});
       setSwapsData(rawSwaps ? JSON.parse(rawSwaps) : {});
       setLeaveData(rawLeave ? JSON.parse(rawLeave) : {});
+      setLeaveBalancesState(rawLeaveBal ? JSON.parse(rawLeaveBal) : Object.fromEntries(DEFAULT_LEAVE_TYPES.map((t) => [t.id, t.defaultDays])));
     } catch (e) {
       console.error('Failed to switch calendar', e);
     }
@@ -176,6 +180,7 @@ export function useShiftData() {
     AsyncStorage.removeItem(overtimeKey(calId)).catch(console.error);
     AsyncStorage.removeItem(swapsKey(calId)).catch(console.error);
     AsyncStorage.removeItem(leaveKey(calId)).catch(console.error);
+    AsyncStorage.removeItem(leaveBalancesKey(calId)).catch(console.error);
     if (calId === activeCalendarId) {
       switchCalendar('default');
     }
@@ -333,10 +338,10 @@ export function useShiftData() {
   const setLeaveBalance = useCallback((leaveTypeId: string, days: number) => {
     setLeaveBalancesState((prev) => {
       const next = { ...prev, [leaveTypeId]: days };
-      AsyncStorage.setItem(LEAVE_BALANCES_KEY, JSON.stringify(next)).catch(console.error);
+      persist(leaveBalancesKey(activeCalendarId), next);
       return next;
     });
-  }, []);
+  }, [activeCalendarId, persist]);
 
   // --- Swap operations ---
   const offerSwap = useCallback((swap: SwapRequest) => {

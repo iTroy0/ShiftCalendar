@@ -244,21 +244,27 @@ export default function CalendarScreen() {
 
   const handleSelectShift = useCallback(
     (code: string) => {
-      if (selectedDate) setShift(selectedDate, code);
+      if (selectedDate) {
+        setShift(selectedDate, code);
+        clearLeave(selectedDate);
+      }
     },
-    [selectedDate, setShift]
+    [selectedDate, setShift, clearLeave]
   );
 
   const handleClear = useCallback(() => {
     if (!selectedDate) return;
     const prevCode = shiftData[selectedDate];
+    const prevLeaveId = leaveData[selectedDate];
     clearShift(selectedDate);
-    if (prevCode) {
-      showToast('Shift cleared', () => {
-        setShift(selectedDate, prevCode);
+    clearLeave(selectedDate);
+    if (prevCode || prevLeaveId) {
+      showToast('Day cleared', () => {
+        if (prevCode) setShift(selectedDate, prevCode);
+        if (prevLeaveId) setLeave(selectedDate, prevLeaveId);
       });
     }
-  }, [selectedDate, shiftData, clearShift, setShift, showToast]);
+  }, [selectedDate, shiftData, leaveData, clearShift, clearLeave, setShift, setLeave, showToast]);
 
   const handleSaveNote = useCallback(
     (note: string) => {
@@ -633,7 +639,7 @@ export default function CalendarScreen() {
         onCancelSwap={cancelSwap}
         currentLeaveId={selectedDate ? leaveData[selectedDate] : undefined}
         leaveTypes={leaveTypes}
-        onSetLeave={(id) => { if (selectedDate) setLeave(selectedDate, id); }}
+        onSetLeave={(id) => { if (selectedDate) { setLeave(selectedDate, id); clearShift(selectedDate); } }}
         onClearLeave={clearLeave}
         colors={colors}
       />
