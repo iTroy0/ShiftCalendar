@@ -14,6 +14,7 @@ interface Props {
   hasNote: boolean;
   hasOvertime: boolean;
   hasSwap: boolean;
+  leaveColor: string | undefined;
   isToday: boolean;
   isSelected: boolean;
   isPatternStart: boolean;
@@ -37,6 +38,7 @@ export function CalendarDay({
   hasNote,
   hasOvertime,
   hasSwap,
+  leaveColor,
   isToday,
   isSelected,
   isPatternStart,
@@ -143,6 +145,11 @@ export function CalendarDay({
 
       {/* Note indicator */}
       {hasNote && <View style={styles.noteLine} />}
+
+      {/* Leave indicator */}
+      {leaveColor && (
+        <View style={[styles.leaveDot, { backgroundColor: leaveColor }]} />
+      )}
     </TouchableOpacity>
   );
 }
@@ -209,5 +216,13 @@ const styles = StyleSheet.create({
     height: 3,
     borderRadius: 1.5,
     backgroundColor: '#F59E0B',
+  },
+  leaveDot: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
   },
 });

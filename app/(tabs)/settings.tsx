@@ -47,6 +47,9 @@ export default function SettingsScreen() {
     setShiftsBulk,
     setNote,
     setOvertime,
+    leaveBalances,
+    leaveTypes,
+    setLeaveBalance,
     calendars,
     activeCalendar,
     addCalendar,
@@ -494,6 +497,34 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* Leave Balance */}
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>LEAVE BALANCE</Text>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.hint, { color: colors.textSecondary }]}>
+            Set your annual leave allocation for each leave type.
+          </Text>
+          {leaveTypes.map((lt, i) => (
+            <View key={lt.id}>
+              {i > 0 && <View style={[styles.divider, { backgroundColor: colors.border, marginVertical: 12 }]} />}
+              <View style={styles.leaveBalanceRow}>
+                <MaterialCommunityIcons name={lt.icon as any} size={20} color={lt.color} />
+                <Text style={[styles.leaveBalanceLabel, { color: colors.text }]}>{lt.label}</Text>
+                <TextInput
+                  style={[styles.leaveBalanceInput, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
+                  value={String(leaveBalances[lt.id] ?? lt.defaultDays)}
+                  onChangeText={(t) => {
+                    const val = parseInt(t.replace(/[^0-9]/g, ''), 10);
+                    setLeaveBalance(lt.id, isNaN(val) ? 0 : val);
+                  }}
+                  keyboardType="numeric"
+                  maxLength={3}
+                />
+                <Text style={[styles.rateUnit, { color: colors.textSecondary }]}>days</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+
         {/* Notifications */}
         <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>NOTIFICATIONS</Text>
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -918,6 +949,9 @@ const styles = StyleSheet.create({
   rateSymbol: { fontSize: 20, fontWeight: '800' },
   rateInput: { flex: 1, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 18, fontWeight: '700' },
   rateUnit: { fontSize: 14, fontWeight: '600' },
+  leaveBalanceRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  leaveBalanceLabel: { flex: 1, fontSize: 14, fontWeight: '600' },
+  leaveBalanceInput: { width: 60, borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, fontSize: 16, fontWeight: '700', textAlign: 'center' },
   // Notifications
   notifRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   notifInfo: { flex: 1 },

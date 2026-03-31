@@ -1,5 +1,6 @@
 import React, { createContext, useContext } from 'react';
-import { useShiftData, ShiftData, NotesData, OvertimeData, SwapsData, SwapRequest, CalendarInfo } from './useShiftData';
+import { useShiftData, ShiftData, NotesData, OvertimeData, SwapsData, SwapRequest, LeaveData, LeaveBalances, CalendarInfo } from './useShiftData';
+import { LeaveType } from '../constants/leaveTypes';
 import { ShiftType } from '../constants/shifts';
 
 interface ShiftContextType {
@@ -22,6 +23,12 @@ interface ShiftContextType {
   moveShift: (code: string, direction: 'up' | 'down') => void;
   getShiftByCode: (code: string) => ShiftType | undefined;
   lastUsedShift: string | null;
+  leaveData: LeaveData;
+  leaveBalances: LeaveBalances;
+  leaveTypes: LeaveType[];
+  setLeave: (date: string, leaveTypeId: string) => void;
+  clearLeave: (date: string) => void;
+  setLeaveBalance: (leaveTypeId: string, days: number) => void;
   offerSwap: (swap: SwapRequest) => void;
   cancelSwap: (date: string) => void;
   acceptSwap: (date: string) => void;
@@ -54,6 +61,12 @@ const ShiftContext = createContext<ShiftContextType>({
   moveShift: () => {},
   getShiftByCode: () => undefined,
   lastUsedShift: null,
+  leaveData: {},
+  leaveBalances: {},
+  leaveTypes: [],
+  setLeave: () => {},
+  clearLeave: () => {},
+  setLeaveBalance: () => {},
   offerSwap: () => {},
   cancelSwap: () => {},
   acceptSwap: () => {},

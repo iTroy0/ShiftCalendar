@@ -14,7 +14,7 @@ import { YearlyOverview } from '../../components/YearlyOverview';
 export default function StatsScreen() {
   const { colors, baseRate, overtimeRate, currencyCode } = useAppTheme();
   const currSymbol = getCurrencySymbol(currencyCode);
-  const { shiftData, overtimeData, allShifts, calendars, activeCalendar, switchCalendar } = useShifts();
+  const { shiftData, overtimeData, allShifts, leaveData, leaveBalances, leaveTypes, calendars, activeCalendar, switchCalendar } = useShifts();
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
   const monthKey = format(currentMonth, 'yyyy-MM');
@@ -68,6 +68,17 @@ export default function StatsScreen() {
   }, [shiftData, overtimeData, monthKey, currentMonth, allShifts, baseRate, overtimeRate]);
 
   const maxCount = Math.max(...Object.values(stats.counts), 1);
+
+  const yearKey = String(currentMonth.getFullYear());
+  const leaveUsed = useMemo(() => {
+    const used: Record<string, number> = {};
+    Object.entries(leaveData).forEach(([date, typeId]) => {
+      if (date.startsWith(yearKey)) {
+        used[typeId] = (used[typeId] || 0) + 1;
+      }
+    });
+    return used;
+  }, [leaveData, yearKey]);
 
   const handleYearMonthPress = (month: number) => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), month, 1));
@@ -224,6 +235,45 @@ export default function StatsScreen() {
               />
             </View>
 
+            {/* Leave Balance */}
+            <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={styles.payHeader}>
+                <Text style={[styles.summaryTitle, { color: colors.text }]}>Leave Balance</Text>
+                <View style={[styles.payBadge, { backgroundColor: colors.primary + '18' }]}>
+                  <MaterialCommunityIcons name="calendar-clock" size={14} color={colors.primary} />
+                  <Text style={[styles.payBadgeText, { color: colors.primary }]}>{yearKey}</Text>
+                </View>
+              </View>
+              {leaveTypes.map((lt, i) => {
+                const allocated = leaveBalances[lt.id] ?? lt.defaultDays;
+                const used = leaveUsed[lt.id] || 0;
+                const remaining = Math.max(allocated - used, 0);
+                const pct = allocated > 0 ? Math.min(used / allocated, 1) : 0;
+                return (
+                  <View key={lt.id}>
+                    {i > 0 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
+                    <View style={styles.leaveBalanceRow}>
+                      <MaterialCommunityIcons name={lt.icon as any} size={18} color={lt.color} />
+                      <View style={styles.leaveBalanceInfo}>
+                        <View style={styles.leaveBalanceLabelRow}>
+                          <Text style={[styles.leaveBalanceLabel, { color: colors.text }]}>{lt.label}</Text>
+                          <Text style={[styles.leaveBalanceNums, { color: lt.color }]}>
+                            {used} / {allocated} days
+                          </Text>
+                        </View>
+                        <View style={[styles.leaveBarTrack, { backgroundColor: colors.surfaceVariant }]}>
+                          <View style={[styles.leaveBarFill, { backgroundColor: lt.color, width: `${pct * 100}%` }]} />
+                        </View>
+                        <Text style={[styles.leaveRemaining, { color: colors.textSecondary }]}>
+                          {remaining} day{remaining !== 1 ? 's' : ''} remaining
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+
             {/* Distribution bars */}
             <View style={[styles.barContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <Text style={[styles.summaryTitle, { color: colors.text }]}>Shift Distribution</Text>
@@ -377,6 +427,14 @@ const styles = StyleSheet.create({
   payBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   payBadgeText: { fontSize: 11, fontWeight: '700' },
   divider: { height: 1 },
+  leaveBalanceRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 10, gap: 10 },
+  leaveBalanceInfo: { flex: 1 },
+  leaveBalanceLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  leaveBalanceLabel: { fontSize: 13, fontWeight: '700' },
+  leaveBalanceNums: { fontSize: 13, fontWeight: '800' },
+  leaveBarTrack: { height: 6, borderRadius: 3, overflow: 'hidden', marginBottom: 4 },
+  leaveBarFill: { height: '100%', borderRadius: 3 },
+  leaveRemaining: { fontSize: 11, fontWeight: '600' },
   barContainer: {
     borderRadius: 16,
     borderWidth: 1,

@@ -43,11 +43,15 @@ export default function CalendarScreen() {
     notesData,
     overtimeData,
     swapsData,
+    leaveData,
+    leaveTypes,
     setShift,
     clearShift,
     setShiftsBulk,
     setNote,
     setOvertime,
+    setLeave,
+    clearLeave,
     allShifts,
     getShiftByCode,
     lastUsedShift,
@@ -420,6 +424,8 @@ export default function CalendarScreen() {
       const hasNote = ds ? !!notesData[ds] : false;
       const hasOvertime = ds ? (overtimeData[ds] || 0) > 0 : false;
       const hasSwap = ds ? !!swapsData[ds] : false;
+      const leaveId = ds ? leaveData[ds] : undefined;
+      const leaveColor = leaveId ? (leaveTypes.find((t) => t.id === leaveId)?.color) : undefined;
       const inPattern = ds ? patternDates.has(ds) : false;
 
       return (
@@ -430,6 +436,7 @@ export default function CalendarScreen() {
           hasNote={hasNote}
           hasOvertime={hasOvertime}
           hasSwap={hasSwap}
+          leaveColor={leaveColor}
           isToday={ds === todayStr}
           isSelected={!repeatMode && ds === selectedDate}
           isPatternStart={repeatMode && ds === patternStart}
@@ -441,7 +448,7 @@ export default function CalendarScreen() {
         />
       );
     },
-    [shiftData, notesData, overtimeData, swapsData, getShiftByCode, todayStr, selectedDate, patternDates, repeatMode, patternStart, patternEnd, handleDayPress, handleDayLongPress, colors]
+    [shiftData, notesData, overtimeData, swapsData, leaveData, leaveTypes, getShiftByCode, todayStr, selectedDate, patternDates, repeatMode, patternStart, patternEnd, handleDayPress, handleDayLongPress, colors]
   );
 
   return (
@@ -624,6 +631,10 @@ export default function CalendarScreen() {
         allShiftCodes={allShiftCodes}
         onOfferSwap={offerSwap}
         onCancelSwap={cancelSwap}
+        currentLeaveId={selectedDate ? leaveData[selectedDate] : undefined}
+        leaveTypes={leaveTypes}
+        onSetLeave={(id) => { if (selectedDate) setLeave(selectedDate, id); }}
+        onClearLeave={clearLeave}
         colors={colors}
       />
 

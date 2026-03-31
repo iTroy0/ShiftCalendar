@@ -6,6 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { format } from 'date-fns';
 import { ShiftType } from '../constants/shifts';
 import { SwapRequest } from '../hooks/useShiftData';
+import { LeaveType } from '../constants/leaveTypes';
 import { ShiftButton } from './ShiftButton';
 
 interface Props {
@@ -22,6 +23,10 @@ interface Props {
   allShiftCodes: { code: string; label: string }[];
   onOfferSwap: (swap: SwapRequest) => void;
   onCancelSwap: (date: string) => void;
+  currentLeaveId: string | undefined;
+  leaveTypes: LeaveType[];
+  onSetLeave: (leaveTypeId: string) => void;
+  onClearLeave: (date: string) => void;
   colors: {
     surface: string;
     surfaceVariant: string;
@@ -49,6 +54,10 @@ export const DaySheet = forwardRef<BottomSheet, Props>(
       allShiftCodes,
       onOfferSwap,
       onCancelSwap,
+      currentLeaveId,
+      leaveTypes,
+      onSetLeave,
+      onClearLeave,
       colors,
     },
     ref
@@ -300,6 +309,40 @@ export const DaySheet = forwardRef<BottomSheet, Props>(
             )}
           </View>
 
+          {/* Leave section */}
+          {currentLeaveId ? (
+            (() => {
+              const lt = leaveTypes.find((t) => t.id === currentLeaveId);
+              return lt ? (
+                <View style={[styles.leaveSection, { borderColor: lt.color + '40', backgroundColor: lt.color + '08' }]}>
+                  <MaterialCommunityIcons name={lt.icon as any} size={18} color={lt.color} />
+                  <Text style={[styles.leaveName, { color: lt.color }]}>{lt.label}</Text>
+                  <TouchableOpacity
+                    onPress={() => { if (selectedDate) onClearLeave(selectedDate); }}
+                    style={[styles.leaveClearBtn, { backgroundColor: lt.color + '20' }]}
+                    activeOpacity={0.6}
+                  >
+                    <MaterialCommunityIcons name="close" size={14} color={lt.color} />
+                  </TouchableOpacity>
+                </View>
+              ) : null;
+            })()
+          ) : (
+            <View style={styles.leaveRow}>
+              {leaveTypes.map((lt) => (
+                <TouchableOpacity
+                  key={lt.id}
+                  style={[styles.leaveChip, { backgroundColor: lt.color + '15', borderColor: lt.color + '40' }]}
+                  onPress={() => { onSetLeave(lt.id); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                  activeOpacity={0.6}
+                >
+                  <MaterialCommunityIcons name={lt.icon as any} size={14} color={lt.color} />
+                  <Text style={[styles.leaveChipText, { color: lt.color }]}>{lt.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
           {/* Swap section */}
           {currentShift && currentShift.startTime && (
             currentSwap ? (
@@ -525,6 +568,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   otUnit: { fontSize: 14, fontWeight: '600' },
+  leaveSection: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 14, padding: 12, marginBottom: 12, gap: 8 },
+  leaveName: { flex: 1, fontSize: 14, fontWeight: '700' },
+  leaveClearBtn: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  leaveRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  leaveChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10, borderWidth: 1, gap: 5 },
+  leaveChipText: { fontSize: 12, fontWeight: '700' },
   swapSection: { borderWidth: 1, borderRadius: 14, padding: 12, marginBottom: 14 },
   swapHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   swapTitle: { fontSize: 15, fontWeight: '700', flex: 1 },
