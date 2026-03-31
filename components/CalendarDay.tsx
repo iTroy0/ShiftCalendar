@@ -14,7 +14,7 @@ interface Props {
   hasNote: boolean;
   hasOvertime: boolean;
   hasSwap: boolean;
-  leaveColor: string | undefined;
+  leaveInfo: { color: string; icon: string; code: string } | undefined;
   isToday: boolean;
   isSelected: boolean;
   isPatternStart: boolean;
@@ -38,7 +38,7 @@ export const CalendarDay = React.memo(function CalendarDay({
   hasNote,
   hasOvertime,
   hasSwap,
-  leaveColor,
+  leaveInfo,
   isToday,
   isSelected,
   isPatternStart,
@@ -71,6 +71,8 @@ export const CalendarDay = React.memo(function CalendarDay({
             ? colors.primary + '0D'
             : shift
             ? shift.color + '18'
+            : leaveInfo
+            ? leaveInfo.color + '18'
             : 'transparent',
           borderColor: isSelected
             ? colors.primary
@@ -124,6 +126,8 @@ export const CalendarDay = React.memo(function CalendarDay({
               ? colors.primary
               : shift
               ? shift.color
+              : leaveInfo
+              ? leaveInfo.color
               : isToday
               ? colors.primary
               : colors.text,
@@ -139,17 +143,17 @@ export const CalendarDay = React.memo(function CalendarDay({
           <MaterialCommunityIcons name={shift.icon as any} size={11} color="#FFFFFFDD" />
           <Text style={styles.pillCode}>{shift.code}</Text>
         </View>
+      ) : leaveInfo ? (
+        <View style={[styles.shiftPill, { backgroundColor: leaveInfo.color }]}>
+          <MaterialCommunityIcons name={leaveInfo.icon as any} size={11} color="#FFFFFFDD" />
+          <Text style={styles.pillCode}>{leaveInfo.code}</Text>
+        </View>
       ) : (
         <View style={styles.pillPlaceholder} />
       )}
 
       {/* Note indicator */}
       {hasNote && <View style={styles.noteLine} />}
-
-      {/* Leave indicator */}
-      {leaveColor && (
-        <View style={[styles.leaveDot, { backgroundColor: leaveColor }]} />
-      )}
     </TouchableOpacity>
   );
 });
@@ -216,13 +220,5 @@ const styles = StyleSheet.create({
     height: 3,
     borderRadius: 1.5,
     backgroundColor: '#F59E0B',
-  },
-  leaveDot: {
-    position: 'absolute',
-    bottom: 4,
-    right: 4,
-    width: 7,
-    height: 7,
-    borderRadius: 4,
   },
 });

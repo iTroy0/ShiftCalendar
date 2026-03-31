@@ -441,7 +441,8 @@ export default function CalendarScreen() {
       const hasOvertime = ds ? (overtimeData[ds] || 0) > 0 : false;
       const hasSwap = ds ? !!swapsData[ds] : false;
       const leaveId = ds ? leaveData[ds] : undefined;
-      const leaveColor = leaveId ? (leaveTypes.find((t) => t.id === leaveId)?.color) : undefined;
+      const lt = leaveId ? leaveTypes.find((t) => t.id === leaveId) : undefined;
+      const leaveInfo = lt ? { color: lt.color, icon: lt.icon, code: lt.code } : undefined;
       const inPattern = ds ? patternDates.has(ds) : false;
 
       return (
@@ -452,7 +453,7 @@ export default function CalendarScreen() {
           hasNote={hasNote}
           hasOvertime={hasOvertime}
           hasSwap={hasSwap}
-          leaveColor={leaveColor}
+          leaveInfo={leaveInfo}
           isToday={ds === todayStr}
           isSelected={!repeatMode && ds === selectedDate}
           isPatternStart={repeatMode && ds === patternStart}

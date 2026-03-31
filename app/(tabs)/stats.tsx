@@ -6,6 +6,7 @@ import { format, addMonths, subMonths, getDaysInMonth } from 'date-fns';
 import { useAppTheme } from '../../hooks/ThemeContext';
 import { useShifts } from '../../hooks/ShiftContext';
 import { getShiftHours } from '../../constants/shifts';
+import { STANDARD_WORK_HOURS } from '../../constants/leaveTypes';
 import { getCurrencySymbol } from '../../constants/currencies';
 import { MonthHeader } from '../../components/MonthHeader';
 import { CalendarSwitcher } from '../../components/CalendarSwitcher';
@@ -26,6 +27,7 @@ export default function StatsScreen() {
     let overtimeHours = 0;
     let overtimeDays = 0;
     let regularHours = 0;
+    let paidLeaveDays = 0;
 
     Object.entries(shiftData).forEach(([date, code]) => {
       if (date.startsWith(monthKey)) {
@@ -33,6 +35,17 @@ export default function StatsScreen() {
         const shift = allShifts.find((s) => s.code === code);
         if (shift) {
           regularHours += getShiftHours(shift);
+        }
+      }
+    });
+
+    // Count paid leave days as working hours
+    Object.entries(leaveData).forEach(([date, typeId]) => {
+      if (date.startsWith(monthKey)) {
+        const lt = leaveTypes.find((t) => t.id === typeId);
+        if (lt?.paid) {
+          paidLeaveDays++;
+          regularHours += STANDARD_WORK_HOURS;
         }
       }
     });
@@ -47,7 +60,7 @@ export default function StatsScreen() {
     const offCodes = allShifts.filter((s) => !s.startTime).map((s) => s.code);
     const workingDays = Object.entries(counts)
       .filter(([code]) => !offCodes.includes(code))
-      .reduce((sum, [, count]) => sum + count, 0);
+      .reduce((sum, [, count]) => sum + count, 0) + paidLeaveDays;
     const totalHours = regularHours + overtimeHours;
     const totalDays = getDaysInMonth(currentMonth);
     const assignedDays = Object.values(counts).reduce((s, c) => s + c, 0);
@@ -65,7 +78,7 @@ export default function StatsScreen() {
       overtimeEarnings: Math.round(overtimeEarnings * 100) / 100,
       totalPay: Math.round(totalPay * 100) / 100,
     };
-  }, [shiftData, overtimeData, monthKey, currentMonth, allShifts, baseRate, overtimeRate]);
+  }, [shiftData, overtimeData, leaveData, leaveTypes, monthKey, currentMonth, allShifts, baseRate, overtimeRate]);
 
   const maxCount = Math.max(...Object.values(stats.counts), 1);
 
