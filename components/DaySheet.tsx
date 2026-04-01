@@ -226,6 +226,8 @@ export const DaySheet = forwardRef<BottomSheet, Props>(
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               }}
               activeOpacity={0.6}
+              accessibilityLabel="Add note"
+              accessibilityRole="button"
             >
               <MaterialCommunityIcons name="note-plus-outline" size={20} color="#F59E0B" />
               <Text style={[styles.addNoteBtnText, { color: '#F59E0B' }]}>Add Note</Text>
@@ -242,6 +244,8 @@ export const DaySheet = forwardRef<BottomSheet, Props>(
                   <TouchableOpacity
                     style={[styles.saveNotePill, { backgroundColor: colors.primary }]}
                     onPress={handleNoteSave}
+                    accessibilityLabel="Save note"
+                    accessibilityRole="button"
                   >
                     <Text style={styles.saveNotePillText}>Save</Text>
                   </TouchableOpacity>
@@ -268,7 +272,7 @@ export const DaySheet = forwardRef<BottomSheet, Props>(
 
           {/* Overtime section */}
           <View style={[styles.otSection, { borderColor: otEnabled ? '#EF444430' : colors.border }]}>
-            <TouchableOpacity style={styles.otToggleRow} onPress={handleOtToggle} activeOpacity={0.6}>
+            <TouchableOpacity style={styles.otToggleRow} onPress={handleOtToggle} activeOpacity={0.6} accessibilityLabel={`Toggle overtime${otEnabled ? ', enabled' : ''}`} accessibilityRole="switch">
               <View
                 style={[
                   styles.checkbox,
@@ -321,6 +325,8 @@ export const DaySheet = forwardRef<BottomSheet, Props>(
                     onPress={() => { if (selectedDate) onClearLeave(selectedDate); }}
                     style={[styles.leaveClearBtn, { backgroundColor: lt.color + '20' }]}
                     activeOpacity={0.6}
+                    accessibilityLabel="Remove leave"
+                    accessibilityRole="button"
                   >
                     <MaterialCommunityIcons name="close" size={14} color={lt.color} />
                   </TouchableOpacity>
@@ -335,6 +341,8 @@ export const DaySheet = forwardRef<BottomSheet, Props>(
                   style={[styles.leaveChip, { backgroundColor: lt.color + '15', borderColor: lt.color + '40' }]}
                   onPress={() => { onSetLeave(lt.id); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
                   activeOpacity={0.6}
+                  accessibilityLabel={`Mark as ${lt.label}`}
+                  accessibilityRole="button"
                 >
                   <MaterialCommunityIcons name={lt.icon as any} size={14} color={lt.color} />
                   <Text style={[styles.leaveChipText, { color: lt.color }]}>{lt.label}</Text>
@@ -366,6 +374,8 @@ export const DaySheet = forwardRef<BottomSheet, Props>(
                     style={[styles.swapActionBtn, { backgroundColor: '#8B5CF615' }]}
                     onPress={handleShareSwap}
                     activeOpacity={0.6}
+                    accessibilityLabel="Share swap request"
+                    accessibilityRole="button"
                   >
                     <MaterialCommunityIcons name="share-variant-outline" size={16} color="#8B5CF6" />
                     <Text style={[styles.swapActionText, { color: '#8B5CF6' }]}>Share</Text>
@@ -374,6 +384,8 @@ export const DaySheet = forwardRef<BottomSheet, Props>(
                     style={[styles.swapActionBtn, { backgroundColor: colors.surfaceVariant }]}
                     onPress={handleCancelSwap}
                     activeOpacity={0.6}
+                    accessibilityLabel="Cancel swap"
+                    accessibilityRole="button"
                   >
                     <MaterialCommunityIcons name="close" size={16} color={colors.textSecondary} />
                     <Text style={[styles.swapActionText, { color: colors.textSecondary }]}>Cancel</Text>
@@ -435,6 +447,8 @@ export const DaySheet = forwardRef<BottomSheet, Props>(
                     style={[styles.swapActionBtn, { backgroundColor: '#8B5CF6' }]}
                     onPress={handleOfferSwap}
                     activeOpacity={0.7}
+                    accessibilityLabel="Offer shift swap"
+                    accessibilityRole="button"
                   >
                     <MaterialCommunityIcons name="check" size={16} color="#FFF" />
                     <Text style={[styles.swapActionText, { color: '#FFF' }]}>Offer Swap</Text>
@@ -443,6 +457,8 @@ export const DaySheet = forwardRef<BottomSheet, Props>(
                     style={[styles.swapActionBtn, { backgroundColor: colors.surfaceVariant }]}
                     onPress={() => setShowSwapForm(false)}
                     activeOpacity={0.6}
+                    accessibilityLabel="Cancel swap"
+                    accessibilityRole="button"
                   >
                     <Text style={[styles.swapActionText, { color: colors.textSecondary }]}>Cancel</Text>
                   </TouchableOpacity>
@@ -456,6 +472,8 @@ export const DaySheet = forwardRef<BottomSheet, Props>(
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
                 activeOpacity={0.6}
+                accessibilityLabel="Offer shift swap"
+                accessibilityRole="button"
               >
                 <MaterialCommunityIcons name="swap-horizontal" size={20} color="#8B5CF6" />
                 <Text style={[styles.addNoteBtnText, { color: '#8B5CF6' }]}>Offer Swap</Text>
@@ -484,6 +502,8 @@ export const DaySheet = forwardRef<BottomSheet, Props>(
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   onClear();
                 }}
+                accessibilityLabel="Clear shift"
+                accessibilityRole="button"
               >
                 <MaterialCommunityIcons name="close-circle-outline" size={18} color={colors.textSecondary} />
                 <Text style={[styles.actionPillText, { color: colors.textSecondary }]}>Clear Shift</Text>
@@ -570,7 +590,7 @@ const styles = StyleSheet.create({
   otUnit: { fontSize: 14, fontWeight: '600' },
   leaveSection: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 14, padding: 12, marginBottom: 12, gap: 8 },
   leaveName: { flex: 1, fontSize: 14, fontWeight: '700' },
-  leaveClearBtn: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  leaveClearBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   leaveRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   leaveChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10, borderWidth: 1, gap: 5 },
   leaveChipText: { fontSize: 12, fontWeight: '700' },

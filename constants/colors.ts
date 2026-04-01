@@ -7,6 +7,11 @@ export const Colors = {
     textSecondary: '#A0A0A0',
     border: '#2A2A2A',
     primary: '#6366F1',
+    noteAccent: '#D97706',
+    overtimeAccent: '#EF4444',
+    swapAccent: '#8B5CF6',
+    leaveAnnualAccent: '#10B981',
+    leaveSickAccent: '#EF4444',
   },
   light: {
     background: '#E8E9EC',
@@ -16,5 +21,10 @@ export const Colors = {
     textSecondary: '#5B6370',
     border: '#CCCFD4',
     primary: '#6366F1',
+    noteAccent: '#D97706',
+    overtimeAccent: '#EF4444',
+    swapAccent: '#8B5CF6',
+    leaveAnnualAccent: '#10B981',
+    leaveSickAccent: '#EF4444',
   },
 };

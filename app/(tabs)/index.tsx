@@ -753,8 +753,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   templatePill: {
-    width: 34,
-    height: 30,
+    width: 44,
+    height: 40,
     borderRadius: 10,
     borderWidth: 1,
     alignItems: 'center',

@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
     width: 52,
   },
   arrowBtn: {
-    padding: 2,
+    padding: 8,
   },
   peekText: {
     fontSize: 16,

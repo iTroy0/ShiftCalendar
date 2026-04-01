@@ -59,7 +59,7 @@ export function Onboarding({ onComplete, colors }: Props) {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <TouchableOpacity style={styles.skipBtn} onPress={handleSkip}>
+      <TouchableOpacity style={styles.skipBtn} onPress={handleSkip} accessibilityLabel="Skip onboarding" accessibilityRole="button">
         <Text style={[styles.skipText, { color: colors.textSecondary }]}>Skip</Text>
       </TouchableOpacity>
 
@@ -103,6 +103,8 @@ export function Onboarding({ onComplete, colors }: Props) {
         style={[styles.nextBtn, { backgroundColor: colors.primary }]}
         onPress={handleNext}
         activeOpacity={0.8}
+        accessibilityLabel={currentIndex === SLIDES.length - 1 ? 'Get Started' : 'Next'}
+        accessibilityRole="button"
       >
         <Text style={styles.nextText}>
           {currentIndex === SLIDES.length - 1 ? 'Get Started' : 'Next'}

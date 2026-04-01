@@ -91,6 +91,8 @@ export const WeekView = React.memo(function WeekView({
               ]}
               onPress={() => onDayPress(day.dateStr)}
               activeOpacity={0.6}
+              accessibilityLabel={`${day.dayName} ${day.dayNum} ${day.monthName}${day.shift ? ', ' + day.shift.label : ''}${day.isToday ? ', today' : ''}`}
+              accessibilityRole="button"
             >
               <Text style={[styles.dayName, { color: day.isToday ? colors.primary : colors.textSecondary }]}>
                 {day.dayName}
@@ -177,13 +179,13 @@ const styles = StyleSheet.create({
   },
   shiftLabel: {
     color: '#FFFFFFCC',
-    fontSize: 8,
+    fontSize: 10,
     fontWeight: '600',
     marginTop: 2,
   },
   shiftTime: {
     color: '#FFFFFF99',
-    fontSize: 8,
+    fontSize: 10,
     fontWeight: '600',
     marginTop: 1,
   },
@@ -207,7 +209,7 @@ const styles = StyleSheet.create({
   },
   otText: {
     color: '#FFF',
-    fontSize: 8,
+    fontSize: 10,
     fontWeight: '800',
   },
   noteDot: {

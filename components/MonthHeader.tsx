@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   arrow: {
-    padding: 6,
+    padding: 10,
     borderRadius: 10,
   },
   center: {

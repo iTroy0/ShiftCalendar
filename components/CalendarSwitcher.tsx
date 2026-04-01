@@ -36,6 +36,8 @@ export const CalendarSwitcher = React.memo(function CalendarSwitcher({ calendars
               },
             ]}
             onPress={() => onSwitch(cal.id)}
+            accessibilityLabel={`${cal.name} calendar${isActive ? ', active' : ''}`}
+            accessibilityRole="button"
           >
             <View style={[styles.dot, { backgroundColor: isActive ? '#FFF' : cal.color }]} />
             <Text style={[styles.text, { color: isActive ? '#FFF' : colors.textSecondary }]}>
@@ -63,7 +65,7 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 4,
+    paddingVertical: 12,
     paddingHorizontal: 10,
     borderRadius: 8,
     borderWidth: 1,

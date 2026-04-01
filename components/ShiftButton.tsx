@@ -21,6 +21,8 @@ export const ShiftButton = React.memo(function ShiftButton({ shift, selected, on
       ]}
       onPress={onPress}
       activeOpacity={0.6}
+      accessibilityLabel={`${shift.label} shift${shift.startTime ? ', ' + shift.startTime + ' to ' + shift.endTime : ', day off'}${selected ? ', selected' : ''}`}
+      accessibilityRole="button"
     >
       <View style={[styles.codeBadge, { backgroundColor: selected ? '#FFFFFF25' : shift.color + '20' }]}>
         <Text style={[styles.codeText, { color: selected ? '#FFF' : shift.color }]}>

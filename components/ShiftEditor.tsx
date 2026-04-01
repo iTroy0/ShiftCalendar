@@ -183,6 +183,8 @@ export const ShiftEditor = forwardRef<BottomSheet, Props>(
                   { backgroundColor: c, borderColor: color === c ? '#FFF' : 'transparent' },
                 ]}
                 onPress={() => setColor(c)}
+                accessibilityLabel={`Color ${c}${color === c ? ', selected' : ''}`}
+                accessibilityRole="button"
               >
                 {color === c && (
                   <MaterialCommunityIcons name="check" size={18} color="#FFF" />
@@ -205,6 +207,8 @@ export const ShiftEditor = forwardRef<BottomSheet, Props>(
                   },
                 ]}
                 onPress={() => setIcon(ic)}
+                accessibilityLabel={`Icon ${ic}${icon === ic ? ', selected' : ''}`}
+                accessibilityRole="button"
               >
                 <MaterialCommunityIcons
                   name={ic as any}
@@ -226,12 +230,12 @@ export const ShiftEditor = forwardRef<BottomSheet, Props>(
           </View>
 
           {/* Actions */}
-          <TouchableOpacity style={[styles.saveButton, { backgroundColor: colors.primary }]} onPress={handleSave}>
+          <TouchableOpacity style={[styles.saveButton, { backgroundColor: colors.primary }]} onPress={handleSave} accessibilityLabel="Save shift" accessibilityRole="button">
             <Text style={styles.saveButtonText}>{isEditing ? 'Save Changes' : 'Create Shift'}</Text>
           </TouchableOpacity>
 
           {isEditing && onDelete && (
-            <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+            <TouchableOpacity style={styles.deleteButton} onPress={handleDelete} accessibilityLabel="Delete shift" accessibilityRole="button">
               <MaterialCommunityIcons name="delete-outline" size={20} color="#EF4444" />
               <Text style={styles.deleteButtonText}>Delete Shift</Text>
             </TouchableOpacity>
