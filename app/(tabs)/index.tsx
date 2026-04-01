@@ -15,7 +15,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { format, addMonths, subMonths, addWeeks, subWeeks, parseISO } from 'date-fns';
-import { useAppTheme } from '../../hooks/ThemeContext';
+import { useAppSettings } from '../../hooks/ThemeContext';
 import { useShifts } from '../../hooks/ShiftContext';
 import { MonthHeader } from '../../components/MonthHeader';
 import { DaySheet } from '../../components/DaySheet';
@@ -37,7 +37,7 @@ function isSameMonth(a: Date, b: Date) {
 }
 
 export default function CalendarScreen() {
-  const { colors, weekStart } = useAppTheme();
+  const { colors, weekStart } = useAppSettings();
   const {
     shiftData,
     notesData,

@@ -3,13 +3,7 @@ import { Appearance } from 'react-native';
 import type { WidgetTaskHandlerProps } from 'react-native-android-widget';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ShiftWeekWidget } from './ShiftWeekWidget';
-
-interface ShiftType {
-  code: string;
-  label: string;
-  color: string;
-  icon: string;
-}
+import { ShiftType } from '../constants/shifts';
 
 function getShiftByCode(allShifts: ShiftType[], code: string): ShiftType | undefined {
   return allShifts.find((s) => s.code === code);

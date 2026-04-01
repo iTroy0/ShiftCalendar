@@ -1,10 +1,10 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useAppTheme } from '../../hooks/ThemeContext';
+import { useAppSettings } from '../../hooks/ThemeContext';
 
 export default function TabLayout() {
-  const { colors, isDark } = useAppTheme();
+  const { colors, isDark } = useAppSettings();
 
   return (
     <Tabs

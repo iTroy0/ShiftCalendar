@@ -1,5 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Appearance } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 interface Props {
@@ -28,11 +28,12 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      const isDark = Appearance.getColorScheme() !== 'light';
       return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: isDark ? '#0F0F0F' : '#F2F3F5' }]}>
           <MaterialCommunityIcons name="alert-circle-outline" size={64} color="#EF4444" />
-          <Text style={styles.title}>Something went wrong</Text>
-          <Text style={styles.message}>
+          <Text style={[styles.title, { color: isDark ? '#FFF' : '#1A1A1A' }]}>Something went wrong</Text>
+          <Text style={[styles.message, { color: isDark ? '#A0A0A0' : '#6B7280' }]}>
             The app ran into an unexpected error. Try restarting.
           </Text>
           <TouchableOpacity style={styles.button} onPress={this.handleReset}>
@@ -52,7 +53,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0F0F0F',
+    backgroundColor: '#0F0F0F', // overridden at render time
     padding: 40,
   },
   title: {

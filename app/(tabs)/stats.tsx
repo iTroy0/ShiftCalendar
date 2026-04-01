@@ -2,83 +2,27 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { format, addMonths, subMonths, getDaysInMonth } from 'date-fns';
-import { useAppTheme } from '../../hooks/ThemeContext';
+import { format, addMonths, subMonths } from 'date-fns';
+import { useAppSettings } from '../../hooks/ThemeContext';
 import { useShifts } from '../../hooks/ShiftContext';
-import { getShiftHours } from '../../constants/shifts';
-import { STANDARD_WORK_HOURS } from '../../constants/leaveTypes';
+import { computeMonthlyStats } from '../../utils/statsCalculation';
 import { getCurrencySymbol } from '../../constants/currencies';
 import { MonthHeader } from '../../components/MonthHeader';
 import { CalendarSwitcher } from '../../components/CalendarSwitcher';
 import { YearlyOverview } from '../../components/YearlyOverview';
 
 export default function StatsScreen() {
-  const { colors, baseRate, overtimeRate, currencyCode } = useAppTheme();
+  const { colors, baseRate, overtimeRate, currencyCode } = useAppSettings();
   const currSymbol = getCurrencySymbol(currencyCode);
   const { shiftData, overtimeData, allShifts, leaveData, leaveBalances, leaveTypes, calendars, activeCalendar, switchCalendar } = useShifts();
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
   const monthKey = format(currentMonth, 'yyyy-MM');
 
-  const stats = useMemo(() => {
-    const counts: Record<string, number> = {};
-    allShifts.forEach((s) => (counts[s.code] = 0));
-
-    let overtimeHours = 0;
-    let overtimeDays = 0;
-    let regularHours = 0;
-    let paidLeaveDays = 0;
-
-    Object.entries(shiftData).forEach(([date, code]) => {
-      if (date.startsWith(monthKey)) {
-        counts[code] = (counts[code] || 0) + 1;
-        const shift = allShifts.find((s) => s.code === code);
-        if (shift) {
-          regularHours += getShiftHours(shift);
-        }
-      }
-    });
-
-    // Count paid leave days as working hours
-    Object.entries(leaveData).forEach(([date, typeId]) => {
-      if (date.startsWith(monthKey)) {
-        const lt = leaveTypes.find((t) => t.id === typeId);
-        if (lt?.paid) {
-          paidLeaveDays++;
-          regularHours += STANDARD_WORK_HOURS;
-        }
-      }
-    });
-
-    Object.entries(overtimeData).forEach(([date, hours]) => {
-      if (date.startsWith(monthKey) && hours > 0) {
-        overtimeHours += hours;
-        overtimeDays++;
-      }
-    });
-
-    const offCodes = allShifts.filter((s) => !s.startTime).map((s) => s.code);
-    const workingDays = Object.entries(counts)
-      .filter(([code]) => !offCodes.includes(code))
-      .reduce((sum, [, count]) => sum + count, 0) + paidLeaveDays;
-    const totalHours = regularHours + overtimeHours;
-    const totalDays = getDaysInMonth(currentMonth);
-    const assignedDays = Object.values(counts).reduce((s, c) => s + c, 0);
-    const basePay = baseRate > 0 ? regularHours * baseRate : 0;
-    const overtimeEarnings = overtimeRate > 0 ? overtimeHours * overtimeRate : 0;
-    const totalPay = basePay + overtimeEarnings;
-
-    return {
-      counts, workingDays,
-      regularHours: Math.round(regularHours * 10) / 10,
-      overtimeHours, overtimeDays,
-      totalHours: Math.round(totalHours * 10) / 10,
-      totalDays, assignedDays,
-      basePay: Math.round(basePay * 100) / 100,
-      overtimeEarnings: Math.round(overtimeEarnings * 100) / 100,
-      totalPay: Math.round(totalPay * 100) / 100,
-    };
-  }, [shiftData, overtimeData, leaveData, leaveTypes, monthKey, currentMonth, allShifts, baseRate, overtimeRate]);
+  const stats = useMemo(() =>
+    computeMonthlyStats(shiftData, overtimeData, leaveData, leaveTypes, monthKey, currentMonth, allShifts, baseRate, overtimeRate),
+    [shiftData, overtimeData, leaveData, leaveTypes, monthKey, currentMonth, allShifts, baseRate, overtimeRate]
+  );
 
   const maxCount = Math.max(...Object.values(stats.counts), 1);
 
