@@ -16,7 +16,6 @@ interface ShiftContextType {
   clearNote: (date: string) => void;
   setOvertime: (date: string, hours: number) => void;
   allShifts: ShiftType[];
-  customShifts: ShiftType[];
   addCustomShift: (shift: ShiftType) => void;
   updateCustomShift: (code: string, shift: ShiftType) => void;
   deleteCustomShift: (code: string) => void;
@@ -54,7 +53,6 @@ const ShiftContext = createContext<ShiftContextType>({
   clearNote: () => {},
   setOvertime: () => {},
   allShifts: [],
-  customShifts: [],
   addCustomShift: () => {},
   updateCustomShift: () => {},
   deleteCustomShift: () => {},

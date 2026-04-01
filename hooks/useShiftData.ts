@@ -69,7 +69,6 @@ export function useShiftData() {
   const [lastUsedShift, setLastUsedShift] = useState<string | null>(null);
 
   const allShifts = allShiftsState;
-  const customShifts = allShiftsState.filter((s) => !s.isDefault);
 
   const getShiftByCode = useCallback(
     (code: string): ShiftType | undefined => {
@@ -79,6 +78,14 @@ export function useShiftData() {
   );
 
   const activeCalendar = calendars.find((c) => c.id === activeCalendarId) || DEFAULT_CALENDAR;
+
+  const switchGen = useRef(0);
+
+  // --- Safe parse helper ---
+  function safeParse<T>(json: string | null, fallback: T): T {
+    if (!json) return fallback;
+    try { return JSON.parse(json) as T; } catch { return fallback; }
+  }
 
   // --- Persist helpers ---
   const persist = useCallback((key: string, data: any) => {
@@ -99,17 +106,16 @@ export function useShiftData() {
           AsyncStorage.getItem(ALL_SHIFTS_KEY),
           AsyncStorage.getItem(CUSTOM_SHIFTS_KEY),
         ]);
-        const cals: CalendarInfo[] = rawCals ? JSON.parse(rawCals) : [DEFAULT_CALENDAR];
+        const cals = safeParse<CalendarInfo[]>(rawCals, [DEFAULT_CALENDAR]);
         const active = rawActive || 'default';
         setCalendars(cals);
         setActiveCalendarId(active);
         calIdRef.current = active;
 
         if (rawAllShifts) {
-          setAllShiftsState(JSON.parse(rawAllShifts));
+          setAllShiftsState(safeParse<ShiftType[]>(rawAllShifts, [...DEFAULT_SHIFTS]));
         } else {
-          // Migration from old format (DEFAULT_SHIFTS + custom_shifts)
-          const customs: ShiftType[] = rawCustom ? JSON.parse(rawCustom) : [];
+          const customs = safeParse<ShiftType[]>(rawCustom, []);
           const merged = [...DEFAULT_SHIFTS, ...customs];
           setAllShiftsState(merged);
           await AsyncStorage.setItem(ALL_SHIFTS_KEY, JSON.stringify(merged));
@@ -124,12 +130,12 @@ export function useShiftData() {
           AsyncStorage.getItem(leaveKey(active)),
           AsyncStorage.getItem(leaveBalancesKey(active)),
         ]);
-        if (rawShifts) setShiftData(JSON.parse(rawShifts));
-        if (rawNotes) setNotesData(JSON.parse(rawNotes));
-        if (rawOT) setOvertimeData(JSON.parse(rawOT));
-        if (rawSwaps) setSwapsData(JSON.parse(rawSwaps));
-        if (rawLeave) setLeaveData(JSON.parse(rawLeave));
-        if (rawLeaveBalances) setLeaveBalancesState(JSON.parse(rawLeaveBalances));
+        setShiftData(safeParse<ShiftData>(rawShifts, {}));
+        setNotesData(safeParse<NotesData>(rawNotes, {}));
+        setOvertimeData(safeParse<OvertimeData>(rawOT, {}));
+        setSwapsData(safeParse<SwapsData>(rawSwaps, {}));
+        setLeaveData(safeParse<LeaveData>(rawLeave, {}));
+        setLeaveBalancesState(safeParse<LeaveBalances>(rawLeaveBalances, Object.fromEntries(DEFAULT_LEAVE_TYPES.map((t) => [t.id, t.defaultDays]))));
       } catch (e) {
         console.error('Failed to load data', e);
       } finally {
@@ -140,6 +146,7 @@ export function useShiftData() {
 
   // --- Switch calendar ---
   const switchCalendar = useCallback(async (calId: string) => {
+    const gen = ++switchGen.current;
     setActiveCalendarId(calId);
     calIdRef.current = calId;
     AsyncStorage.setItem(ACTIVE_CALENDAR_KEY, calId).catch(console.error);
@@ -152,12 +159,14 @@ export function useShiftData() {
         AsyncStorage.getItem(leaveKey(calId)),
         AsyncStorage.getItem(leaveBalancesKey(calId)),
       ]);
-      setShiftData(rawShifts ? JSON.parse(rawShifts) : {});
-      setNotesData(rawNotes ? JSON.parse(rawNotes) : {});
-      setOvertimeData(rawOT ? JSON.parse(rawOT) : {});
-      setSwapsData(rawSwaps ? JSON.parse(rawSwaps) : {});
-      setLeaveData(rawLeave ? JSON.parse(rawLeave) : {});
-      setLeaveBalancesState(rawLeaveBal ? JSON.parse(rawLeaveBal) : Object.fromEntries(DEFAULT_LEAVE_TYPES.map((t) => [t.id, t.defaultDays])));
+      // Discard stale results if another switch happened during the await
+      if (switchGen.current !== gen) return;
+      setShiftData(safeParse<ShiftData>(rawShifts, {}));
+      setNotesData(safeParse<NotesData>(rawNotes, {}));
+      setOvertimeData(safeParse<OvertimeData>(rawOT, {}));
+      setSwapsData(safeParse<SwapsData>(rawSwaps, {}));
+      setLeaveData(safeParse<LeaveData>(rawLeave, {}));
+      setLeaveBalancesState(safeParse<LeaveBalances>(rawLeaveBal, Object.fromEntries(DEFAULT_LEAVE_TYPES.map((t) => [t.id, t.defaultDays]))));
     } catch (e) {
       console.error('Failed to switch calendar', e);
     }
@@ -404,7 +413,6 @@ export function useShiftData() {
     clearNote,
     setOvertime,
     allShifts,
-    customShifts,
     addCustomShift,
     updateCustomShift,
     deleteCustomShift,
