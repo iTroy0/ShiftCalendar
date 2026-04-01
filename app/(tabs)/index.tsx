@@ -619,7 +619,7 @@ export default function CalendarScreen() {
         <Animated.View style={[styles.calendarWrap, calendarAnimStyle]}>
           {viewMode === 'month' ? (
             <Calendar
-              key={weekStart + '-' + activeCalendar.id}
+              key={monthKey + weekStart + activeCalendar.id}
               current={monthKey + '-01'}
               markingType="custom"
               markedDates={markedDates}
