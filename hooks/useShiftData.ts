@@ -3,6 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ShiftType, DEFAULT_SHIFTS } from '../constants/shifts';
 import { LeaveType, DEFAULT_LEAVE_TYPES } from '../constants/leaveTypes';
 
+const SCHEMA_VERSION_KEY = 'schema_version';
+const CURRENT_SCHEMA = 2;
 const CUSTOM_SHIFTS_KEY = 'custom_shifts';
 const ALL_SHIFTS_KEY = 'all_shifts_v2';
 const CALENDARS_KEY = 'calendars_list';
@@ -91,18 +93,37 @@ export function useShiftData() {
   }
 
   // --- Persist helpers ---
+  const [writeError, setWriteError] = useState(false);
+
   const persist = useCallback((key: string, data: any) => {
-    AsyncStorage.setItem(key, JSON.stringify(data)).catch(console.error);
+    AsyncStorage.setItem(key, JSON.stringify(data)).catch((e) => {
+      console.error('Storage write failed:', key, e);
+      setWriteError(true);
+    });
   }, []);
 
   const persistShifts = useCallback((shifts: ShiftType[]) => {
     AsyncStorage.setItem(ALL_SHIFTS_KEY, JSON.stringify(shifts)).catch(console.error);
   }, []);
 
+  // --- Schema migrations ---
+  async function runMigrations() {
+    const rawVersion = await AsyncStorage.getItem(SCHEMA_VERSION_KEY);
+    const version = rawVersion ? parseInt(rawVersion, 10) : 0;
+    if (version < 1) {
+      // v0→v1: migrate custom_shifts to all_shifts_v2 (handled in load path below)
+    }
+    // Future migrations go here: if (version < 3) { ... }
+    if (version < CURRENT_SCHEMA) {
+      await AsyncStorage.setItem(SCHEMA_VERSION_KEY, String(CURRENT_SCHEMA));
+    }
+  }
+
   // --- Load everything on mount ---
   useEffect(() => {
     (async () => {
       try {
+        await runMigrations();
         const [rawCals, rawActive, rawAllShifts, rawCustom] = await Promise.all([
           AsyncStorage.getItem(CALENDARS_KEY),
           AsyncStorage.getItem(ACTIVE_CALENDAR_KEY),
@@ -190,12 +211,10 @@ export function useShiftData() {
       AsyncStorage.setItem(CALENDARS_KEY, JSON.stringify(next)).catch(console.error);
       return next;
     });
-    AsyncStorage.removeItem(dataKey(calId)).catch(console.error);
-    AsyncStorage.removeItem(notesKey(calId)).catch(console.error);
-    AsyncStorage.removeItem(overtimeKey(calId)).catch(console.error);
-    AsyncStorage.removeItem(swapsKey(calId)).catch(console.error);
-    AsyncStorage.removeItem(leaveKey(calId)).catch(console.error);
-    AsyncStorage.removeItem(leaveBalancesKey(calId)).catch(console.error);
+    AsyncStorage.multiRemove([
+      dataKey(calId), notesKey(calId), overtimeKey(calId),
+      swapsKey(calId), leaveKey(calId), leaveBalancesKey(calId),
+    ]).catch(console.error);
     if (calId === activeCalendarId) {
       switchCalendar('default');
     }
@@ -409,6 +428,7 @@ export function useShiftData() {
     overtimeData,
     swapsData,
     loading,
+    writeError,
     setShift,
     clearShift,
     setShiftsBulk,

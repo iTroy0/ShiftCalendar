@@ -9,6 +9,7 @@ interface ShiftContextType {
   overtimeData: OvertimeData;
   swapsData: SwapsData;
   loading: boolean;
+  writeError: boolean;
   setShift: (date: string, code: string) => void;
   clearShift: (date: string) => void;
   setShiftsBulk: (entries: Record<string, string>) => void;
@@ -46,6 +47,7 @@ const ShiftContext = createContext<ShiftContextType>({
   overtimeData: {},
   swapsData: {},
   loading: true,
+  writeError: false,
   setShift: () => {},
   clearShift: () => {},
   setShiftsBulk: () => {},
@@ -82,7 +84,7 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo(() => data, [
     data.shiftData, data.notesData, data.overtimeData, data.swapsData,
     data.leaveData, data.leaveBalances, data.leaveTypes,
-    data.allShifts, data.loading, data.lastUsedShift,
+    data.allShifts, data.loading, data.writeError, data.lastUsedShift,
     data.calendars, data.activeCalendar, data.activeCalendarId,
     data.setShift, data.clearShift, data.setShiftsBulk,
     data.setNote, data.clearNote, data.setOvertime,

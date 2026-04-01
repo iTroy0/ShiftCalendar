@@ -28,7 +28,7 @@ const ThemeContext = createContext<ThemeContextType>({
   setThemeMode: () => {},
   isDark: true,
   colors: Colors.dark,
-  weekStart: 1,
+  weekStart: 0,
   setWeekStart: () => {},
   baseRate: 0,
   setBaseRate: () => {},
