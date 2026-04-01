@@ -1,4 +1,4 @@
-import { format, addDays, startOfDay } from 'date-fns';
+import { format, addDays, startOfDay, set } from 'date-fns';
 import { ShiftType } from '../constants/shifts';
 
 // Lazy-load expo-notifications to avoid crashing in Expo Go
@@ -54,8 +54,7 @@ export async function scheduleShiftReminder(
     const shift = allShifts.find((s) => s.code === code);
     if (!shift) continue;
 
-    const triggerDate = addDays(today, i);
-    triggerDate.setHours(notificationHour, 0, 0, 0);
+    const triggerDate = set(addDays(today, i), { hours: notificationHour, minutes: 0, seconds: 0, milliseconds: 0 });
 
     if (triggerDate <= new Date()) continue;
 

@@ -188,7 +188,7 @@ export const TemplateSheet = forwardRef<BottomSheet, Props>(
                       {template.description}
                     </Text>
                     <Text style={[styles.templateCycle, { color: colors.primary }]}>
-                      {template.cycleDays}-day cycle
+                      {template.pattern.length}-day cycle
                     </Text>
                   </View>
                   <View style={styles.templatePreview}>

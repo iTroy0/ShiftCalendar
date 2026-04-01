@@ -14,7 +14,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { format, addMonths, subMonths, addWeeks, subWeeks, parseISO } from 'date-fns';
+import { format, addMonths, subMonths, addWeeks, subWeeks, parseISO, eachDayOfInterval } from 'date-fns';
 import { useAppSettings } from '../../hooks/ThemeContext';
 import { useShifts } from '../../hooks/ShiftContext';
 import { MonthHeader } from '../../components/MonthHeader';
@@ -174,13 +174,8 @@ export default function CalendarScreen() {
     if (!patternStart) return new Set<string>();
     const set = new Set<string>();
     if (patternEnd) {
-      const s = parseISO(patternStart);
-      const e = parseISO(patternEnd);
-      const cur = new Date(s);
-      while (cur <= e) {
-        set.add(format(cur, 'yyyy-MM-dd'));
-        cur.setDate(cur.getDate() + 1);
-      }
+      eachDayOfInterval({ start: parseISO(patternStart), end: parseISO(patternEnd) })
+        .forEach((d) => set.add(format(d, 'yyyy-MM-dd')));
     } else {
       set.add(patternStart);
     }

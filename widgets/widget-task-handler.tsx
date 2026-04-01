@@ -2,6 +2,7 @@ import React from 'react';
 import { Appearance } from 'react-native';
 import type { WidgetTaskHandlerProps } from 'react-native-android-widget';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { startOfWeek, addDays, format, getDay, getDate } from 'date-fns';
 import { ShiftWeekWidget } from './ShiftWeekWidget';
 import { ShiftType } from '../constants/shifts';
 
@@ -11,35 +12,22 @@ function getShiftByCode(allShifts: ShiftType[], code: string): ShiftType | undef
 
 function getCurrentWeekDays(weekStart: number) {
   const today = new Date();
-  const todayDay = today.getDay();
-  const diff = (todayDay - weekStart + 7) % 7;
-  const weekStartDate = new Date(today);
-  weekStartDate.setDate(today.getDate() - diff);
-  weekStartDate.setHours(0, 0, 0, 0);
-
-  const todayStr = formatDate(today);
+  const todayStr = format(today, 'yyyy-MM-dd');
+  const weekStartDate = startOfWeek(today, { weekStartsOn: weekStart as 0 | 1 });
   const dayLetters = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
   const days = [];
   for (let i = 0; i < 7; i++) {
-    const d = new Date(weekStartDate);
-    d.setDate(weekStartDate.getDate() + i);
-    const dateStr = formatDate(d);
+    const d = addDays(weekStartDate, i);
+    const dateStr = format(d, 'yyyy-MM-dd');
     days.push({
       dateStr,
-      dayLetter: dayLetters[d.getDay()],
-      dayNum: String(d.getDate()),
+      dayLetter: dayLetters[getDay(d)],
+      dayNum: String(getDate(d)),
       isToday: dateStr === todayStr,
     });
   }
   return days;
-}
-
-function formatDate(d: Date): string {
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
 }
 
 async function getWidgetData() {
