@@ -9,7 +9,7 @@ interface Props {
   onPress: () => void;
 }
 
-export function ShiftButton({ shift, selected, onPress }: Props) {
+export const ShiftButton = React.memo(function ShiftButton({ shift, selected, onPress }: Props) {
   return (
     <TouchableOpacity
       style={[
@@ -45,7 +45,7 @@ export function ShiftButton({ shift, selected, onPress }: Props) {
       )}
     </TouchableOpacity>
   );
-}
+});
 
 const styles = StyleSheet.create({
   button: {

@@ -10,7 +10,7 @@ interface Props {
   textColor: string;
 }
 
-export function MonthHeader({ currentDate, onPrev, onNext, textColor }: Props) {
+export const MonthHeader = React.memo(function MonthHeader({ currentDate, onPrev, onNext, textColor }: Props) {
   return (
     <View style={styles.container}>
       <TouchableOpacity
@@ -41,7 +41,7 @@ export function MonthHeader({ currentDate, onPrev, onNext, textColor }: Props) {
       </TouchableOpacity>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

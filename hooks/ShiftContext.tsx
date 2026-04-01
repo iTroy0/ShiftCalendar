@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useMemo } from 'react';
 import { useShiftData, ShiftData, NotesData, OvertimeData, SwapsData, SwapRequest, LeaveData, LeaveBalances, CalendarInfo } from './useShiftData';
 import { LeaveType } from '../constants/leaveTypes';
 import { ShiftType } from '../constants/shifts';
@@ -79,7 +79,19 @@ const ShiftContext = createContext<ShiftContextType>({
 
 export function ShiftProvider({ children }: { children: React.ReactNode }) {
   const data = useShiftData();
-  return <ShiftContext.Provider value={data}>{children}</ShiftContext.Provider>;
+  const value = useMemo(() => data, [
+    data.shiftData, data.notesData, data.overtimeData, data.swapsData,
+    data.leaveData, data.leaveBalances, data.leaveTypes,
+    data.allShifts, data.loading, data.lastUsedShift,
+    data.calendars, data.activeCalendar, data.activeCalendarId,
+    data.setShift, data.clearShift, data.setShiftsBulk,
+    data.setNote, data.clearNote, data.setOvertime,
+    data.addCustomShift, data.updateCustomShift, data.deleteCustomShift, data.moveShift,
+    data.getShiftByCode, data.setLeave, data.clearLeave, data.setLeaveBalance,
+    data.offerSwap, data.cancelSwap, data.acceptSwap,
+    data.switchCalendar, data.addCalendar, data.deleteCalendar, data.renameCalendar,
+  ]);
+  return <ShiftContext.Provider value={value}>{children}</ShiftContext.Provider>;
 }
 
 export function useShifts() {

@@ -13,7 +13,7 @@ interface Props {
   };
 }
 
-export function CalendarSwitcher({ calendars, activeCalendarId, onSwitch, colors }: Props) {
+export const CalendarSwitcher = React.memo(function CalendarSwitcher({ calendars, activeCalendarId, onSwitch, colors }: Props) {
   if (calendars.length <= 1) return null;
 
   return (
@@ -46,7 +46,7 @@ export function CalendarSwitcher({ calendars, activeCalendarId, onSwitch, colors
       })}
     </ScrollView>
   );
-}
+});
 
 const styles = StyleSheet.create({
   scrollView: {

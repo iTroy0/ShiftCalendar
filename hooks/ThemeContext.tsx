@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useMemo } from 'react';
 import { useTheme, ThemeMode } from './useTheme';
 import { Colors } from '../constants/colors';
 
@@ -46,7 +46,16 @@ const ThemeContext = createContext<ThemeContextType>({
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const theme = useTheme();
-  return <ThemeContext.Provider value={theme}>{children}</ThemeContext.Provider>;
+  const value = useMemo(() => theme, [
+    theme.themeMode, theme.isDark, theme.colors,
+    theme.weekStart, theme.baseRate, theme.overtimeRate,
+    theme.currencyCode, theme.notificationsEnabled, theme.notificationHour,
+    theme.onboardingComplete,
+    theme.setThemeMode, theme.setWeekStart, theme.setBaseRate,
+    theme.setOvertimeRate, theme.setCurrencyCode, theme.setNotificationsEnabled,
+    theme.setNotificationHour, theme.completeOnboarding,
+  ]);
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
 export function useAppSettings() {

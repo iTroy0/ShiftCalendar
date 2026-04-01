@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -41,12 +41,15 @@ export default function StatsScreen() {
     setCurrentMonth(new Date(currentMonth.getFullYear(), month, 1));
   };
 
+  const onPrev = useCallback(() => setCurrentMonth((d) => subMonths(d, 1)), []);
+  const onNext = useCallback(() => setCurrentMonth((d) => addMonths(d, 1)), []);
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <MonthHeader
         currentDate={currentMonth}
-        onPrev={() => setCurrentMonth((d) => subMonths(d, 1))}
-        onNext={() => setCurrentMonth((d) => addMonths(d, 1))}
+        onPrev={onPrev}
+        onNext={onNext}
         textColor={colors.text}
       />
 
@@ -290,7 +293,7 @@ export default function StatsScreen() {
   );
 }
 
-function SummaryRow({
+const SummaryRow = React.memo(function SummaryRow({
   icon,
   label,
   value,
@@ -322,7 +325,7 @@ function SummaryRow({
       </Text>
     </View>
   );
-}
+});
 
 const sStyles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11 },

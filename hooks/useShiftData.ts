@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ShiftType, DEFAULT_SHIFTS } from '../constants/shifts';
 import { LeaveType, DEFAULT_LEAVE_TYPES } from '../constants/leaveTypes';
@@ -70,11 +70,14 @@ export function useShiftData() {
 
   const allShifts = allShiftsState;
 
-  const getShiftByCode = useCallback(
-    (code: string): ShiftType | undefined => {
-      return allShiftsState.find((s) => s.code === code);
-    },
+  const shiftMap = useMemo(
+    () => new Map(allShiftsState.map((s) => [s.code, s])),
     [allShiftsState]
+  );
+
+  const getShiftByCode = useCallback(
+    (code: string): ShiftType | undefined => shiftMap.get(code),
+    [shiftMap]
   );
 
   const activeCalendar = calendars.find((c) => c.id === activeCalendarId) || DEFAULT_CALENDAR;

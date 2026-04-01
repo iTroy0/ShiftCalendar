@@ -23,6 +23,11 @@ function InnerLayout() {
     if (Platform.OS === 'android') {
       NavigationBar.setVisibilityAsync('hidden');
       NavigationBar.setBehaviorAsync('overlay-swipe');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS === 'android') {
       NavigationBar.setBackgroundColorAsync(colors.background);
     }
   }, [colors.background]);

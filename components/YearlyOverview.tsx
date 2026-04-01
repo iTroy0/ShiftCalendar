@@ -25,7 +25,7 @@ interface Props {
   };
 }
 
-export function YearlyOverview({ year, selectedMonth, shiftData, allShifts, onMonthPress, colors }: Props) {
+export const YearlyOverview = React.memo(function YearlyOverview({ year, selectedMonth, shiftData, allShifts, onMonthPress, colors }: Props) {
   const shiftColorMap = useMemo(() => {
     const map: Record<string, string> = {};
     allShifts.forEach((s) => { map[s.code] = s.color; });
@@ -52,9 +52,9 @@ export function YearlyOverview({ year, selectedMonth, shiftData, allShifts, onMo
       </View>
     </View>
   );
-}
+});
 
-function MiniMonth({
+const MiniMonth = React.memo(function MiniMonth({
   name,
   year,
   month,
@@ -118,7 +118,7 @@ function MiniMonth({
       </View>
     </TouchableOpacity>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

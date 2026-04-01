@@ -414,6 +414,21 @@ export default function CalendarScreen() {
     setPatternEnd(null);
   }, []);
 
+  const handleSetLeave = useCallback(
+    (id: string) => {
+      if (selectedDate) {
+        setLeave(selectedDate, id);
+        clearShift(selectedDate);
+      }
+    },
+    [selectedDate, setLeave, clearShift]
+  );
+
+  const handleToastHide = useCallback(() => {
+    setToastVisible(false);
+    setToastUndo(undefined);
+  }, []);
+
   const calendarTheme = useMemo(
     () => ({
       backgroundColor: 'transparent',
@@ -427,8 +442,14 @@ export default function CalendarScreen() {
     [colors]
   );
 
+  const leaveInfoMap = useMemo(() => {
+    const map = new Map<string, { color: string; icon: string; code: string }>();
+    leaveTypes.forEach(lt => map.set(lt.id, { color: lt.color, icon: lt.icon, code: lt.code }));
+    return map;
+  }, [leaveTypes]);
+
   const renderDay = useCallback(
-    (date: any, state: any) => {
+    ({ date, state }: any) => {
       const ds = date?.dateString;
       const code = ds ? shiftData[ds] : undefined;
       const shift = code ? getShiftByCode(code) : undefined;
@@ -436,8 +457,7 @@ export default function CalendarScreen() {
       const hasOvertime = ds ? (overtimeData[ds] || 0) > 0 : false;
       const hasSwap = ds ? !!swapsData[ds] : false;
       const leaveId = ds ? leaveData[ds] : undefined;
-      const lt = leaveId ? leaveTypes.find((t) => t.id === leaveId) : undefined;
-      const leaveInfo = lt ? { color: lt.color, icon: lt.icon, code: lt.code } : undefined;
+      const leaveInfo = leaveId ? leaveInfoMap.get(leaveId) : undefined;
       const inPattern = ds ? patternDates.has(ds) : false;
 
       return (
@@ -460,7 +480,7 @@ export default function CalendarScreen() {
         />
       );
     },
-    [shiftData, notesData, overtimeData, swapsData, leaveData, leaveTypes, getShiftByCode, todayStr, selectedDate, patternDates, repeatMode, patternStart, patternEnd, handleDayPress, handleDayLongPress, colors]
+    [shiftData, notesData, overtimeData, swapsData, leaveData, leaveInfoMap, getShiftByCode, todayStr, selectedDate, patternDates, repeatMode, patternStart, patternEnd, handleDayPress, handleDayLongPress, colors]
   );
 
   return (
@@ -599,11 +619,11 @@ export default function CalendarScreen() {
         <Animated.View style={[styles.calendarWrap, calendarAnimStyle]}>
           {viewMode === 'month' ? (
             <Calendar
-              key={monthKey + weekStart + activeCalendar.id}
+              key={weekStart + '-' + activeCalendar.id}
               current={monthKey + '-01'}
               markingType="custom"
               markedDates={markedDates}
-              dayComponent={({ date, state }: any) => renderDay(date, state)}
+              dayComponent={renderDay}
               hideArrows
               hideExtraDays
               firstDay={weekStart}
@@ -645,7 +665,7 @@ export default function CalendarScreen() {
         onCancelSwap={cancelSwap}
         currentLeaveId={selectedDate ? leaveData[selectedDate] : undefined}
         leaveTypes={leaveTypes}
-        onSetLeave={(id) => { if (selectedDate) { setLeave(selectedDate, id); clearShift(selectedDate); } }}
+        onSetLeave={handleSetLeave}
         onClearLeave={clearLeave}
         colors={colors}
       />
@@ -685,7 +705,7 @@ export default function CalendarScreen() {
       <Toast
         message={toastMsg}
         visible={toastVisible}
-        onHide={() => { setToastVisible(false); setToastUndo(undefined); }}
+        onHide={handleToastHide}
         onUndo={toastUndo}
       />
     </SafeAreaView>

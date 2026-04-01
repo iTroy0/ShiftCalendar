@@ -26,7 +26,7 @@ interface Props {
   };
 }
 
-export function WeekView({
+export const WeekView = React.memo(function WeekView({
   currentDate,
   weekStart,
   shiftData,
@@ -125,7 +125,7 @@ export function WeekView({
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
