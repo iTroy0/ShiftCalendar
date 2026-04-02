@@ -58,10 +58,23 @@ export const CalendarDay = React.memo(function CalendarDay({
 
   if (isDisabled) {
     return (
-      <View style={styles.container}>
-        <Text style={[styles.dayNumber, { color: colors.textSecondary + '40', fontWeight: '400' }]}>
+      <View style={[styles.container, { opacity: 0.35 }]}>
+        <Text style={[styles.dayNumber, { color: colors.textSecondary, fontWeight: '400' }]}>
           {dayNum}
         </Text>
+        {shift ? (
+          <View style={[styles.shiftPill, { backgroundColor: shift.color }]}>
+            <MaterialCommunityIcons name={shift.icon as any} size={11} color="#FFFFFFDD" />
+            <Text style={styles.pillCode}>{shift.code}</Text>
+          </View>
+        ) : leaveInfo ? (
+          <View style={[styles.shiftPill, { backgroundColor: leaveInfo.color }]}>
+            <MaterialCommunityIcons name={leaveInfo.icon as any} size={11} color="#FFFFFFDD" />
+            <Text style={styles.pillCode}>{leaveInfo.code}</Text>
+          </View>
+        ) : (
+          <View style={styles.pillPlaceholder} />
+        )}
       </View>
     );
   }
