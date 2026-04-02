@@ -683,6 +683,7 @@ export default function CalendarScreen() {
 
       <TemplateSheet
         ref={templateSheetRef}
+        allShifts={allShifts}
         getShiftByCode={getShiftByCode}
         selectedTemplate={selectedTemplate}
         templateStart={templateStart}

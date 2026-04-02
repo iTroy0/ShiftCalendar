@@ -16,6 +16,7 @@ import { ShiftType } from '../constants/shifts';
 import { ShiftTemplate, SHIFT_TEMPLATES } from '../constants/templates';
 
 interface Props {
+  allShifts: ShiftType[];
   getShiftByCode: (code: string) => ShiftType | undefined;
   selectedTemplate: ShiftTemplate | null;
   templateStart: string | null;
@@ -40,6 +41,7 @@ type ApplyTarget = 'month' | '3months' | '6months' | 'year';
 export const TemplateSheet = forwardRef<BottomSheet, Props>(
   (
     {
+      allShifts,
       getShiftByCode,
       selectedTemplate,
       templateStart,
@@ -61,6 +63,32 @@ export const TemplateSheet = forwardRef<BottomSheet, Props>(
         ref.current.snapToIndex(1);
       }
     }, [templateStart]);
+
+    // Build a mapping from template codes (M/A/N/O) to user's actual shift codes
+    const codeMap = useMemo(() => {
+      const map = new Map<string, string>();
+      const workingShifts = allShifts.filter((s) => s.startTime).sort((a, b) => a.startTime.localeCompare(b.startTime));
+      const offShifts = allShifts.filter((s) => !s.startTime);
+
+      // Default template slots mapped by position
+      const templateSlots = ['M', 'A', 'N']; // morning, afternoon, night
+      templateSlots.forEach((slot, i) => {
+        // Exact match first
+        if (allShifts.find((s) => s.code === slot)) {
+          map.set(slot, slot);
+        } else if (workingShifts[i]) {
+          map.set(slot, workingShifts[i].code);
+        }
+      });
+      // Off slot
+      if (allShifts.find((s) => s.code === 'O')) {
+        map.set('O', 'O');
+      } else if (offShifts.length > 0) {
+        map.set('O', offShifts[0].code);
+      }
+
+      return map;
+    }, [allShifts]);
 
     const applyTemplate = useCallback(
       (target: ApplyTarget) => {
@@ -96,9 +124,10 @@ export const TemplateSheet = forwardRef<BottomSheet, Props>(
         const entries: Record<string, string> = {};
         for (let i = 0; i < totalDays; i++) {
           const day = addDays(startDate, i);
-          const code = pattern[i % patternLength];
-          if (code) {
-            entries[format(day, 'yyyy-MM-dd')] = code;
+          const templateCode = pattern[i % patternLength];
+          const resolvedCode = templateCode ? codeMap.get(templateCode) : undefined;
+          if (resolvedCode) {
+            entries[format(day, 'yyyy-MM-dd')] = resolvedCode;
           }
         }
 
