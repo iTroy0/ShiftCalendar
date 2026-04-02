@@ -52,8 +52,18 @@ export const CalendarDay = React.memo(function CalendarDay({
   const dayNum = date?.day;
   const dateString = date?.dateString;
 
-  if (!dayNum || isDisabled) {
+  if (!dayNum) {
     return <View style={styles.container} />;
+  }
+
+  if (isDisabled) {
+    return (
+      <View style={styles.container}>
+        <Text style={[styles.dayNumber, { color: colors.textSecondary + '40', fontWeight: '400' }]}>
+          {dayNum}
+        </Text>
+      </View>
+    );
   }
 
   const isPatternEdge = isPatternStart || isPatternEnd;

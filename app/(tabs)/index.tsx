@@ -625,7 +625,6 @@ export default function CalendarScreen() {
               markedDates={markedDates}
               dayComponent={renderDay}
               hideArrows
-              hideExtraDays
               firstDay={weekStart}
               theme={calendarTheme}
               style={styles.calendar}
