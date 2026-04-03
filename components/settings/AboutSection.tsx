@@ -75,7 +75,7 @@ export function AboutSection({ colors, showPrivacy, setShowPrivacy }: Props) {
         <View style={[styles.divider, { backgroundColor: colors.border }]} />
         <View style={styles.aboutRow}>
           <Text style={[styles.aboutLabel, { color: colors.text }]}>Version</Text>
-          <Text style={[styles.aboutValue, { color: colors.textSecondary }]}>2.4.1</Text>
+          <Text style={[styles.aboutValue, { color: colors.textSecondary }]}>2.4.2</Text>
         </View>
         <View style={[styles.divider, { backgroundColor: colors.border }]} />
         <View style={styles.aboutRow}>
