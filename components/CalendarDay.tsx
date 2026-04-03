@@ -10,6 +10,7 @@ const CELL_HEIGHT = CELL_WIDTH + 18;
 interface Props {
   date: any;
   state?: string;
+  monthKey: string;
   shift?: ShiftType;
   hasNote: boolean;
   hasOvertime: boolean;
@@ -34,6 +35,7 @@ interface Props {
 export const CalendarDay = React.memo(function CalendarDay({
   date,
   state,
+  monthKey,
   shift,
   hasNote,
   hasOvertime,
@@ -48,15 +50,15 @@ export const CalendarDay = React.memo(function CalendarDay({
   onLongPress,
   colors,
 }: Props) {
-  const isDisabled = state === 'disabled';
   const dayNum = date?.day;
   const dateString = date?.dateString;
+  const isAdjacentMonth = dateString ? !dateString.startsWith(monthKey) : (state === 'disabled');
 
   if (!dayNum) {
     return <View style={styles.container} />;
   }
 
-  if (isDisabled) {
+  if (isAdjacentMonth) {
     return (
       <View style={[styles.container, { opacity: 0.35 }]}>
         <Text style={[styles.dayNumber, { color: colors.textSecondary, fontWeight: '400' }]}>
@@ -88,10 +90,14 @@ export const CalendarDay = React.memo(function CalendarDay({
       style={[
         styles.container,
         {
-          backgroundColor: isPatternEdge
+          backgroundColor: isSelected
+            ? colors.primary + '30'
+            : isPatternEdge
             ? colors.primary + '25'
             : isInPattern
             ? colors.primary + '0D'
+            : isToday
+            ? colors.primary + '15'
             : shift
             ? shift.color + '18'
             : leaveInfo
@@ -102,9 +108,9 @@ export const CalendarDay = React.memo(function CalendarDay({
             : isPatternEdge
             ? colors.primary
             : isToday
-            ? colors.primary + '50'
+            ? colors.primary
             : 'transparent',
-          borderWidth: isSelected ? 2.5 : isPatternEdge ? 2 : isToday ? 1.5 : 0,
+          borderWidth: isSelected ? 2.5 : isPatternEdge ? 2 : isToday ? 2 : 0,
         },
         hasNote && {
           ...Platform.select({

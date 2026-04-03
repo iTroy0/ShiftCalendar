@@ -464,6 +464,7 @@ export default function CalendarScreen() {
         <CalendarDay
           date={date}
           state={state}
+          monthKey={monthKey}
           shift={shift}
           hasNote={hasNote}
           hasOvertime={hasOvertime}
@@ -480,7 +481,7 @@ export default function CalendarScreen() {
         />
       );
     },
-    [shiftData, notesData, overtimeData, swapsData, leaveData, leaveInfoMap, getShiftByCode, todayStr, selectedDate, patternDates, repeatMode, patternStart, patternEnd, handleDayPress, handleDayLongPress, colors]
+    [shiftData, notesData, overtimeData, swapsData, leaveData, leaveInfoMap, getShiftByCode, monthKey, todayStr, selectedDate, patternDates, repeatMode, patternStart, patternEnd, handleDayPress, handleDayLongPress, colors]
   );
 
   return (
