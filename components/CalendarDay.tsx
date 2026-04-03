@@ -1,11 +1,7 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ShiftType } from '../constants/shifts';
-
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const CELL_WIDTH = Math.floor((SCREEN_WIDTH - 20) / 7);
-const CELL_HEIGHT = CELL_WIDTH + 18;
 
 interface Props {
   date: any;
@@ -23,6 +19,7 @@ interface Props {
   isInPattern: boolean;
   onPress: (dateString: string) => void;
   onLongPress?: (dateString: string) => void;
+  cellWidth: number;
   colors: {
     text: string;
     textSecondary: string;
@@ -48,19 +45,21 @@ export const CalendarDay = React.memo(function CalendarDay({
   isInPattern,
   onPress,
   onLongPress,
+  cellWidth,
   colors,
 }: Props) {
+  const cellHeight = cellWidth + 18;
   const dayNum = date?.day;
   const dateString = date?.dateString;
   const isAdjacentMonth = dateString ? !dateString.startsWith(monthKey) : (state === 'disabled');
 
   if (!dayNum) {
-    return <View style={styles.container} />;
+    return <View style={[styles.container, { width: cellWidth, height: cellHeight }]} />;
   }
 
   if (isAdjacentMonth) {
     return (
-      <View style={[styles.container, { opacity: 0.35 }]}>
+      <View style={[styles.container, { width: cellWidth, height: cellHeight }, { opacity: 0.35 }]}>
         <Text style={[styles.dayNumber, { color: colors.textSecondary, fontWeight: '400' }]}>
           {dayNum}
         </Text>
@@ -89,6 +88,7 @@ export const CalendarDay = React.memo(function CalendarDay({
     <TouchableOpacity
       style={[
         styles.container,
+        { width: cellWidth, height: cellHeight },
         {
           backgroundColor: isSelected
             ? colors.primary + '30'
@@ -189,8 +189,6 @@ export const CalendarDay = React.memo(function CalendarDay({
 
 const styles = StyleSheet.create({
   container: {
-    width: CELL_WIDTH,
-    height: CELL_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 14,

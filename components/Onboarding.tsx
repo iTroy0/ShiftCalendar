@@ -3,13 +3,11 @@ import {
   View,
   Text,
   StyleSheet,
-  Dimensions,
   TouchableOpacity,
   FlatList,
+  useWindowDimensions,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface Props {
   onComplete: () => void;
@@ -41,6 +39,7 @@ const SLIDES = [
 ];
 
 export function Onboarding({ onComplete, colors }: Props) {
+  const { width: screenWidth } = useWindowDimensions();
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
 
@@ -72,7 +71,7 @@ export function Onboarding({ onComplete, colors }: Props) {
         scrollEnabled={false}
         keyExtractor={(_, i) => String(i)}
         renderItem={({ item }) => (
-          <View style={[styles.slide, { width: SCREEN_WIDTH }]}>
+          <View style={[styles.slide, { width: screenWidth }]}>
             <View style={[styles.iconWrap, { backgroundColor: colors.primary + '15' }]}>
               <MaterialCommunityIcons name={item.icon} size={56} color={colors.primary} />
             </View>

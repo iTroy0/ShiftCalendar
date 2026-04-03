@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Dimensions } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, useWindowDimensions } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import BottomSheet from '@gorhom/bottom-sheet';
@@ -30,13 +30,14 @@ import { ShiftTemplate } from '../../constants/templates';
 import { SwapRequest } from '../../hooks/useShiftData';
 
 const SWIPE_THRESHOLD = 50;
-const SCREEN_WIDTH = Dimensions.get('window').width;
 
 function isSameMonth(a: Date, b: Date) {
   return a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
 }
 
 export default function CalendarScreen() {
+  const { width: screenWidth } = useWindowDimensions();
+  const cellWidth = Math.min(Math.floor((screenWidth - 20) / 7), 56);
   const { colors, weekStart } = useAppSettings();
   const {
     shiftData,
@@ -119,7 +120,7 @@ export default function CalendarScreen() {
   }, [viewMode]);
 
   const handlePrev = useCallback(() => {
-    translateX.value = -SCREEN_WIDTH * 0.35;
+    translateX.value = -screenWidth * 0.35;
     animOpacity.value = 0.15;
     translateX.value = withSpring(0, SPRING_CONFIG);
     animOpacity.value = withTiming(1, { duration: 280 });
@@ -127,7 +128,7 @@ export default function CalendarScreen() {
   }, [changeMonth]);
 
   const handleNext = useCallback(() => {
-    translateX.value = SCREEN_WIDTH * 0.35;
+    translateX.value = screenWidth * 0.35;
     animOpacity.value = 0.15;
     translateX.value = withSpring(0, SPRING_CONFIG);
     animOpacity.value = withTiming(1, { duration: 280 });
@@ -141,20 +142,20 @@ export default function CalendarScreen() {
       translateX.value = e.translationX * 0.5;
       animOpacity.value = interpolate(
         Math.abs(e.translationX),
-        [0, SCREEN_WIDTH * 0.4],
+        [0, screenWidth * 0.4],
         [1, 0.5],
         'clamp'
       );
     })
     .onEnd((e) => {
       if (e.translationX < -SWIPE_THRESHOLD) {
-        translateX.value = SCREEN_WIDTH * 0.35;
+        translateX.value = screenWidth * 0.35;
         animOpacity.value = 0.15;
         translateX.value = withSpring(0, SPRING_CONFIG);
         animOpacity.value = withTiming(1, { duration: 280 });
         runOnJS(changeMonth)(1);
       } else if (e.translationX > SWIPE_THRESHOLD) {
-        translateX.value = -SCREEN_WIDTH * 0.35;
+        translateX.value = -screenWidth * 0.35;
         animOpacity.value = 0.15;
         translateX.value = withSpring(0, SPRING_CONFIG);
         animOpacity.value = withTiming(1, { duration: 280 });
@@ -477,11 +478,12 @@ export default function CalendarScreen() {
           isInPattern={repeatMode && inPattern}
           onPress={handleDayPress}
           onLongPress={handleDayLongPress}
+          cellWidth={cellWidth}
           colors={colors}
         />
       );
     },
-    [shiftData, notesData, overtimeData, swapsData, leaveData, leaveInfoMap, getShiftByCode, monthKey, todayStr, selectedDate, patternDates, repeatMode, patternStart, patternEnd, handleDayPress, handleDayLongPress, colors]
+    [shiftData, notesData, overtimeData, swapsData, leaveData, leaveInfoMap, getShiftByCode, monthKey, todayStr, selectedDate, patternDates, repeatMode, patternStart, patternEnd, handleDayPress, handleDayLongPress, cellWidth, screenWidth, colors]
   );
 
   return (

@@ -1,10 +1,7 @@
 import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
 import { format, startOfWeek, addDays } from 'date-fns';
 import { ShiftType } from '../constants/shifts';
-
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const DAY_WIDTH = (SCREEN_WIDTH - 48) / 7;
 
 interface Props {
   currentDate: Date;
@@ -37,6 +34,8 @@ export const WeekView = React.memo(function WeekView({
   selectedDate,
   colors,
 }: Props) {
+  const { width } = useWindowDimensions();
+  const dayWidth = Math.min((width - 48) / 7, 80);
   const todayStr = format(new Date(), 'yyyy-MM-dd');
 
   const weekDays = useMemo(() => {

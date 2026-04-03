@@ -1,11 +1,7 @@
 import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
 import { getDaysInMonth } from 'date-fns';
 import { ShiftType } from '../constants/shifts';
-
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const MONTH_WIDTH = (SCREEN_WIDTH - 48) / 3; // 3 columns with padding
-const DOT_SIZE = Math.max(Math.floor((MONTH_WIDTH - 24) / 7) - 1, 4);
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -26,6 +22,10 @@ interface Props {
 }
 
 export const YearlyOverview = React.memo(function YearlyOverview({ year, selectedMonth, shiftData, allShifts, onMonthPress, colors }: Props) {
+  const { width } = useWindowDimensions();
+  const monthWidth = Math.min((width - 48) / 3, 200);
+  const dotSize = Math.max(Math.floor((monthWidth - 24) / 7) - 1, 4);
+
   const shiftColorMap = useMemo(() => {
     const map: Record<string, string> = {};
     allShifts.forEach((s) => { map[s.code] = s.color; });
@@ -47,6 +47,8 @@ export const YearlyOverview = React.memo(function YearlyOverview({ year, selecte
             shiftColorMap={shiftColorMap}
             onPress={() => onMonthPress(monthIdx)}
             colors={colors}
+            monthWidth={monthWidth}
+            dotSize={dotSize}
           />
         ))}
       </View>
@@ -63,6 +65,8 @@ const MiniMonth = React.memo(function MiniMonth({
   shiftColorMap,
   onPress,
   colors,
+  monthWidth,
+  dotSize,
 }: {
   name: string;
   year: number;
@@ -72,6 +76,8 @@ const MiniMonth = React.memo(function MiniMonth({
   shiftColorMap: Record<string, string>;
   onPress: () => void;
   colors: any;
+  monthWidth: number;
+  dotSize: number;
 }) {
   const days = useMemo(() => {
     const daysInMonth = getDaysInMonth(new Date(year, month));
@@ -94,7 +100,7 @@ const MiniMonth = React.memo(function MiniMonth({
 
   return (
     <TouchableOpacity
-      style={[styles.miniMonth, { borderColor: isSelected ? colors.primary : 'transparent' }]}
+      style={[styles.miniMonth, { width: monthWidth, borderColor: isSelected ? colors.primary : 'transparent' }]}
       onPress={onPress}
       activeOpacity={0.7}
     >
@@ -106,8 +112,10 @@ const MiniMonth = React.memo(function MiniMonth({
           <View
             key={i}
             style={[
-              styles.dot,
               {
+                width: dotSize,
+                height: dotSize,
+                borderRadius: dotSize / 2,
                 backgroundColor: item.day === 0
                   ? 'transparent'
                   : item.color || colors.surfaceVariant,
@@ -138,7 +146,6 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   miniMonth: {
-    width: MONTH_WIDTH,
     flexGrow: 1,
     padding: 8,
     borderRadius: 10,
@@ -154,10 +161,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 1,
-  },
-  dot: {
-    width: DOT_SIZE,
-    height: DOT_SIZE,
-    borderRadius: DOT_SIZE / 2,
   },
 });
