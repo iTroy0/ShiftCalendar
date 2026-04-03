@@ -1,22 +1,35 @@
 # ShiftCalendar
 
-A modern, offline-first shift scheduling app for shift workers. Track morning, afternoon, night, and off shifts on a clean monthly calendar. Built with React Native + Expo.
+A modern, offline-first shift scheduling app for shift workers. Track shifts, leave, overtime, and pay on a clean monthly calendar. Built with React Native + Expo.
+
+<a href="https://play.google.com/store/apps/details?id=com.itroy0.ShiftCalendar">
+  <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" height="80" alt="Get it on Google Play" />
+</a>
 
 ## Features
 
-- **Monthly Calendar** — Color-coded shift badges on each day with smooth swipe navigation
-- **Quick Assign** — Tap any day to assign a shift from a bottom sheet
-- **Repeat Patterns** — Select a date range and apply a repeating shift pattern
-- **Custom Shifts** — Create your own shift types with custom names, colors, icons, and times
-- **Multi-Calendar** — Manage separate calendars (e.g. My Shifts, Team A, Team B)
-- **Stats Dashboard** — Monthly breakdown of shift counts, working days, hours, and overtime
-- **Overtime Tracking** — Log overtime hours per day with automatic totals
-- **Day Notes** — Add notes to any day
-- **Modern Time Picker** — Scroll-wheel style hour/minute picker for shift times
-- **Dark / Light / System Theme** — Full dark mode support
-- **Configurable Week Start** — Sunday or Monday
-- **Haptic Feedback** — Tactile response on interactions
-- **Offline & Private** — All data stored locally via AsyncStorage. No account, no server, no tracking.
+- **Monthly Calendar** -- Color-coded shift & leave badges with swipe navigation
+- **Adjacent Month Days** -- See previous/next month shifts in the calendar grid
+- **Quick Assign** -- Tap to assign, long-press for instant last-used shift
+- **Shift Templates** -- 8 pre-built rotations (2-2-2, 4-on/4-off, Continental, Panama, DuPont, and more)
+- **Repeat Patterns** -- Select a date range and repeat any shift pattern forward
+- **Custom Shifts** -- Create shift types with custom names, colors, icons, and times
+- **Leave Management** -- Annual, Sick, Emergency, and Unpaid leave with yearly balance tracking
+- **Shift Swap** -- Offer swaps and share requests via WhatsApp, SMS, etc.
+- **Pay Calculator** -- Base rate + overtime rate with monthly pay estimates
+- **Multi-Calendar** -- Manage separate calendars (e.g. My Shifts, Team A, Team B)
+- **Stats Dashboard** -- Monthly shift counts, hours breakdown, pay estimates, and leave balance
+- **Overtime Tracking** -- Log overtime hours per day with automatic totals
+- **Notes & Search** -- Add notes to any day and search through all notes
+- **Android Widget** -- Home screen widget showing the current week's shifts
+- **Week View** -- Toggle between month and week views
+- **Yearly Overview** -- At-a-glance heatmap of the entire year
+- **Dark / Light / System Theme** -- Full theme support including the widget
+- **Export & Import** -- CSV export/import, PDF export, full backup/restore
+- **Notifications** -- Evening reminders for the next day's shift
+- **Configurable** -- Week start day, currency (33 supported), haptic feedback
+- **Offline & Private** -- All data stored locally. No account, no server, no tracking.
+- **Accessible** -- Screen reader labels on all interactive elements
 
 ## Screenshots
 
@@ -32,7 +45,6 @@ A modern, offline-first shift scheduling app for shift workers. Track morning, a
 
 - [Node.js](https://nodejs.org/) (v18+)
 - [Expo CLI](https://docs.expo.dev/get-started/installation/)
-- [Expo Go](https://expo.dev/go) app on your phone (for development)
 
 ### Installation
 
@@ -45,119 +57,91 @@ npm install
 ### Development
 
 ```bash
-# Start the Expo dev server
 npx expo start
-
-# Run on Android (with Expo Go or dev client)
 npx expo start --android
-
-# Run on iOS
 npx expo start --ios
 ```
+
+> **Note:** The Android home screen widget requires an EAS development build, not Expo Go.
 
 ## Building
 
 ### Cloud Build (EAS)
 
-No local SDK required. Builds compile on Expo's servers.
-
 ```bash
-# Install EAS CLI
 npm install -g eas-cli
 eas login
 
-# Preview APK (testing / internal distribution)
+# Preview APK
 eas build --platform android --profile preview
 
-# Production APK
+# Production AAB (for Google Play)
 eas build --platform android --profile production
-
-# iOS (requires Apple Developer account)
-eas build --platform ios --profile production
 ```
-
-EAS provides a download link when the build completes.
 
 ### Local Build
 
-Requires [Android SDK](https://developer.android.com/studio) for Android or [Xcode](https://developer.apple.com/xcode/) for iOS.
-
 ```bash
-# 1. Generate native project
 npx expo prebuild --platform android
-
-# 2. Create local.properties (Android only)
-echo "sdk.dir=$ANDROID_HOME" > android/local.properties
-
-# 3. Build
 cd android
-
-# Debug APK
-./gradlew assembleDebug
-# → android/app/build/outputs/apk/debug/app-debug.apk
-
-# Release APK
 ./gradlew assembleRelease
-# → android/app/build/outputs/apk/release/app-release.apk
 ```
-
-Alternatively, use EAS for local builds:
-
-```bash
-eas build --platform android --profile preview --local
-```
-
-### Build Profiles
-
-Configured in [`eas.json`](eas.json):
-
-| Profile      | Output | Use Case                    |
-|-------------|--------|-----------------------------|
-| `preview`    | APK    | Testing on physical devices |
-| `production` | APK    | Release builds              |
 
 ## Project Structure
 
 ```
 ShiftCalendar/
 ├── app/
-│   ├── _layout.tsx          # Root layout with providers
+│   ├── _layout.tsx              # Root layout with providers
 │   └── (tabs)/
-│       ├── index.tsx         # Calendar screen
-│       ├── stats.tsx         # Stats screen
-│       └── settings.tsx      # Settings screen
+│       ├── index.tsx             # Calendar screen
+│       ├── stats.tsx             # Stats screen
+│       └── settings.tsx          # Settings screen
 ├── components/
-│   ├── CalendarDay.tsx       # Individual day cell
-│   ├── CalendarSwitcher.tsx  # Multi-calendar tabs
-│   ├── DaySheet.tsx          # Day edit bottom sheet
-│   ├── MonthHeader.tsx       # Month navigation header
-│   ├── RepeatSheet.tsx       # Pattern repeat bottom sheet
-│   ├── ShiftButton.tsx       # Shift selector button
-│   ├── ShiftEditor.tsx       # Create/edit shift form
-│   ├── TimePicker.tsx        # Scroll-wheel time picker
-│   └── Toast.tsx             # Notification toast
+│   ├── CalendarDay.tsx           # Day cell with shift/leave pills
+│   ├── DaySheet.tsx              # Day detail bottom sheet
+│   ├── TemplateSheet.tsx         # Template selector
+│   ├── RepeatSheet.tsx           # Pattern repeat sheet
+│   ├── NotesSearchSheet.tsx      # Notes search
+│   ├── ShiftEditor.tsx           # Shift create/edit form
+│   ├── WeekView.tsx              # Week view display
+│   ├── YearlyOverview.tsx        # Yearly heatmap
+│   └── settings/                 # Settings section components
 ├── hooks/
-│   ├── ShiftContext.tsx       # Shift data React context
-│   ├── ThemeContext.tsx       # Theme React context
-│   ├── useShiftData.ts       # Data persistence logic
-│   └── useTheme.ts           # Theme preferences
+│   ├── ShiftContext.tsx           # Shift data context
+│   ├── ThemeContext.tsx           # App settings context
+│   ├── useShiftData.ts           # Data persistence layer
+│   ├── useTheme.ts               # Theme & preferences
+│   └── useDeepLinkHandler.ts     # File import handler
 ├── constants/
-│   ├── shifts.ts             # Shift definitions & defaults
-│   └── colors.ts             # Color palettes
-└── assets/                   # App icons & splash
+│   ├── shifts.ts                 # Shift type definitions
+│   ├── templates.ts              # Rotation templates
+│   ├── leaveTypes.ts             # Leave type definitions
+│   ├── colors.ts                 # Theme color palettes
+│   └── currencies.ts             # Currency list
+├── utils/
+│   ├── exportImport.ts           # CSV/PDF/backup export & import
+│   ├── statsCalculation.ts       # Stats computation
+│   └── notifications.ts          # Shift reminders
+├── widgets/
+│   ├── ShiftWeekWidget.tsx       # Android widget UI
+│   └── widget-task-handler.tsx   # Widget data handler
+└── assets/                       # App icons & splash
 ```
 
 ## Tech Stack
 
-- **Framework** — React Native + Expo SDK 55
-- **Language** — TypeScript
-- **Routing** — expo-router (file-based)
-- **Calendar** — react-native-calendars
-- **Animations** — react-native-reanimated
-- **Gestures** — react-native-gesture-handler
-- **Bottom Sheets** — @gorhom/bottom-sheet
-- **Storage** — @react-native-async-storage/async-storage
-- **Haptics** — expo-haptics
+- **Framework** -- React Native + Expo SDK 55
+- **Language** -- TypeScript
+- **Routing** -- Expo Router (file-based)
+- **Calendar** -- react-native-calendars
+- **Animations** -- react-native-reanimated
+- **Gestures** -- react-native-gesture-handler
+- **Bottom Sheets** -- @gorhom/bottom-sheet
+- **Storage** -- @react-native-async-storage/async-storage
+- **Widget** -- react-native-android-widget
+- **Date Math** -- date-fns
+- **Haptics** -- expo-haptics
 
 ## License
 

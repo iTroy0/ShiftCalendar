@@ -52,5 +52,9 @@ yarn-error.*
 *.swp
 *.swo
 
+# Claude Code / OMC local state
+.claude/
+.omc/
+
 # OS
 Thumbs.db
