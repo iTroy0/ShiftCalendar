@@ -87,13 +87,13 @@ async function ensureAlarmChannel() {
 
   await N.setNotificationChannelAsync(ALARM_CHANNEL_ID, {
     name: 'Pre-Shift Alarm',
-    description: 'Loud alarm 1 hour before your shift starts',
+    description: 'Alarm 1 hour before your shift starts',
     importance: N.AndroidImportance.MAX,
     vibrationPattern: [0, 500, 200, 500, 200, 500],
     enableVibrate: true,
     bypassDnd: true,
     lockscreenVisibility: N.AndroidNotificationVisibility.PUBLIC,
-    sound: 'default',
+    sound: 'alarm.mp3',
   });
 }
 
@@ -131,7 +131,7 @@ export async function schedulePreShiftAlarms(
         title: `⏰ ${shift.label} in 1 hour`,
         body: `Your ${shift.label} shift starts at ${shift.startTime} — time to get ready!`,
         data: { date: dateStr },
-        sound: 'default',
+        sound: 'alarm.mp3',
         priority: N.AndroidNotificationPriority.MAX,
       },
       trigger: {

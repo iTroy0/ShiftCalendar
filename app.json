@@ -7,7 +7,6 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "shiftcalendar",
-    "author": "Troy",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -45,8 +44,6 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "softwareKeyboardLayoutMode": "pan",
-      "navigationBarColor": "transparent",
-      "navigationBarHidden": true,
       "package": "com.itroy0.ShiftCalendar",
       "intentFilters": [
         {
@@ -87,7 +84,7 @@
             {
               "scheme": "file",
               "mimeType": "application/json"
-            },
+            }
           ]
         }
       ]
@@ -100,20 +97,25 @@
       "expo-router",
       "expo-sharing",
       "expo-notifications",
-      ["react-native-android-widget", {
-        "widgets": [
-          {
-            "name": "ShiftWeek",
-            "label": "Shift Calendar - Week",
-            "minWidth": "320dp",
-            "minHeight": "110dp",
-            "targetCellWidth": 5,
-            "targetCellHeight": 2,
-            "description": "Shows your shifts for the current week",
-            "updatePeriodMillis": 1800000
-          }
-        ]
-      }]
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "ShiftWeek",
+              "label": "Shift Calendar - Week",
+              "minWidth": "320dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 5,
+              "targetCellHeight": 2,
+              "description": "Shows your shifts for the current week",
+              "updatePeriodMillis": 1800000
+            }
+          ]
+        }
+      ],
+      "expo-font",
+      "./plugins/withAlarmSound"
     ],
     "extra": {
       "eas": {
