@@ -54,13 +54,20 @@ export const TemplateSheet = forwardRef<BottomSheet, Props>(
     },
     ref
   ) => {
-    const snapPoints = useMemo(() => ['60%', '85%'], []);
+    const snapPoints = useMemo(() => ['12%', '60%', '85%'], []);
 
-    // Auto-expand when start date is picked
+    // Auto-minimize when template is selected but no start date (user needs to tap calendar)
+    useEffect(() => {
+      if (selectedTemplate && !templateStart && ref && typeof ref !== 'function' && ref.current) {
+        ref.current.snapToIndex(0);
+      }
+    }, [selectedTemplate, templateStart]);
+
+    // Auto-expand when start date is picked (user needs apply options)
     useEffect(() => {
       if (selectedTemplate && templateStart && ref && typeof ref !== 'function' && ref.current) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        ref.current.snapToIndex(1);
+        ref.current.snapToIndex(2);
       }
     }, [templateStart]);
 

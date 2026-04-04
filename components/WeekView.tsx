@@ -34,8 +34,9 @@ export const WeekView = React.memo(function WeekView({
   selectedDate,
   colors,
 }: Props) {
-  const { width } = useWindowDimensions();
-  const dayWidth = Math.min((width - 48) / 7, 80);
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+  const dayWidth = Math.min((width - 48) / 7, isLandscape ? 120 : 80);
   const todayStr = format(new Date(), 'yyyy-MM-dd');
 
   const weekDays = useMemo(() => {

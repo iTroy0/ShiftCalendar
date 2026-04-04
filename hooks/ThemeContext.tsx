@@ -19,6 +19,8 @@ interface ThemeContextType {
   setNotificationsEnabled: (enabled: boolean) => void;
   notificationHour: number;
   setNotificationHour: (hour: number) => void;
+  preShiftAlarm: boolean;
+  setPreShiftAlarm: (enabled: boolean) => void;
   onboardingComplete: boolean;
   completeOnboarding: () => void;
 }
@@ -40,6 +42,8 @@ const ThemeContext = createContext<ThemeContextType>({
   setNotificationsEnabled: () => {},
   notificationHour: 20,
   setNotificationHour: () => {},
+  preShiftAlarm: false,
+  setPreShiftAlarm: () => {},
   onboardingComplete: true,
   completeOnboarding: () => {},
 });
@@ -50,10 +54,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     theme.themeMode, theme.isDark, theme.colors,
     theme.weekStart, theme.baseRate, theme.overtimeRate,
     theme.currencyCode, theme.notificationsEnabled, theme.notificationHour,
-    theme.onboardingComplete,
+    theme.preShiftAlarm, theme.onboardingComplete,
     theme.setThemeMode, theme.setWeekStart, theme.setBaseRate,
     theme.setOvertimeRate, theme.setCurrencyCode, theme.setNotificationsEnabled,
-    theme.setNotificationHour, theme.completeOnboarding,
+    theme.setNotificationHour, theme.setPreShiftAlarm, theme.completeOnboarding,
   ]);
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

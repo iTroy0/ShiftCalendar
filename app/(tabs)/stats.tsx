@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { format, addMonths, subMonths } from 'date-fns';
@@ -12,6 +12,8 @@ import { CalendarSwitcher } from '../../components/CalendarSwitcher';
 import { YearlyOverview } from '../../components/YearlyOverview';
 
 export default function StatsScreen() {
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const isLandscape = screenWidth > screenHeight;
   const { colors, baseRate, overtimeRate, currencyCode } = useAppSettings();
   const currSymbol = getCurrencySymbol(currencyCode);
   const { shiftData, overtimeData, allShifts, leaveData, leaveBalances, leaveTypes, calendars, activeCalendar, switchCalendar } = useShifts();
@@ -60,7 +62,7 @@ export default function StatsScreen() {
         colors={colors}
       />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, isLandscape && styles.scrollContentLandscape]} showsVerticalScrollIndicator={false}>
         {stats.assignedDays === 0 ? (
           <View style={styles.emptyState}>
             <View style={[styles.emptyIconWrap, { backgroundColor: colors.surfaceVariant }]}>
@@ -89,8 +91,10 @@ export default function StatsScreen() {
               ))}
             </View>
 
+            {/* Hours + Pay row in landscape */}
+            <View style={isLandscape ? styles.landscapeRow : undefined}>
             {/* Hours summary */}
-            <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }, isLandscape && styles.landscapeHalf]}>
               <Text style={[styles.summaryTitle, { color: colors.text }]}>Hours Breakdown</Text>
 
               <SummaryRow
@@ -122,7 +126,7 @@ export default function StatsScreen() {
 
             {/* Pay Estimate */}
             {(baseRate > 0 || overtimeRate > 0) && (
-              <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }, isLandscape && styles.landscapeHalf]}>
                 <View style={styles.payHeader}>
                   <Text style={[styles.summaryTitle, { color: colors.text }]}>Pay Estimate</Text>
                   <View style={[styles.payBadge, { backgroundColor: colors.primary + '18' }]}>
@@ -164,9 +168,12 @@ export default function StatsScreen() {
                 />
               </View>
             )}
+            </View>
 
+            {/* Days + Leave row in landscape */}
+            <View style={isLandscape ? styles.landscapeRow : undefined}>
             {/* Days summary */}
-            <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }, isLandscape && styles.landscapeHalf]}>
               <Text style={[styles.summaryTitle, { color: colors.text }]}>Days Overview</Text>
 
               <SummaryRow
@@ -196,7 +203,7 @@ export default function StatsScreen() {
             </View>
 
             {/* Leave Balance */}
-            <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }, isLandscape && styles.landscapeHalf]}>
               <View style={styles.payHeader}>
                 <Text style={[styles.summaryTitle, { color: colors.text }]}>Leave Balance</Text>
                 <View style={[styles.payBadge, { backgroundColor: colors.primary + '18' }]}>
@@ -232,6 +239,7 @@ export default function StatsScreen() {
                   </View>
                 );
               })}
+            </View>
             </View>
 
             {/* Distribution bars */}
@@ -336,6 +344,9 @@ const sStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { padding: 16, paddingBottom: 40 },
+  scrollContentLandscape: { maxWidth: 960, alignSelf: 'center', width: '100%' },
+  landscapeRow: { flexDirection: 'row', gap: 10 },
+  landscapeHalf: { flex: 1 },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',

@@ -13,6 +13,7 @@ const OT_RATE_KEY = 'overtime_rate';
 const NOTIF_ENABLED_KEY = 'notif_enabled';
 const NOTIF_HOUR_KEY = 'notif_hour';
 const CURRENCY_KEY = 'currency_code';
+const PRE_SHIFT_ALARM_KEY = 'pre_shift_alarm';
 const ONBOARDING_KEY = 'onboarding_complete';
 
 export function useTheme() {
@@ -23,6 +24,7 @@ export function useTheme() {
   const [overtimeRate, setOvertimeRateState] = useState(0);
   const [notificationsEnabled, setNotifEnabledState] = useState(false);
   const [notificationHour, setNotifHourState] = useState(20); // 8 PM default
+  const [preShiftAlarm, setPreShiftAlarmState] = useState(false);
   const [currencyCode, setCurrencyCodeState] = useState(DEFAULT_CURRENCY);
   const [onboardingComplete, setOnboardingCompleteState] = useState(true); // default true to not flash
 
@@ -34,15 +36,17 @@ export function useTheme() {
       AsyncStorage.getItem(OT_RATE_KEY),
       AsyncStorage.getItem(NOTIF_ENABLED_KEY),
       AsyncStorage.getItem(NOTIF_HOUR_KEY),
+      AsyncStorage.getItem(PRE_SHIFT_ALARM_KEY),
       AsyncStorage.getItem(CURRENCY_KEY),
       AsyncStorage.getItem(ONBOARDING_KEY),
-    ]).then(([theme, week, base, rate, notif, notifHr, currency, onboard]) => {
+    ]).then(([theme, week, base, rate, notif, notifHr, preAlarm, currency, onboard]) => {
       if (theme === 'light' || theme === 'dark' || theme === 'system') setThemeModeState(theme);
       if (week === '0' || week === '1') setWeekStartState(Number(week) as 0 | 1);
       if (base) setBaseRateState(parseFloat(base) || 0);
       if (rate) setOvertimeRateState(parseFloat(rate) || 0);
       if (notif === 'true') setNotifEnabledState(true);
       if (notifHr) setNotifHourState(parseInt(notifHr, 10) || 20);
+      if (preAlarm === 'true') setPreShiftAlarmState(true);
       if (currency) setCurrencyCodeState(currency);
       if (onboard === null) setOnboardingCompleteState(false); // first launch
     }).catch(console.error);
@@ -78,6 +82,11 @@ export function useTheme() {
     AsyncStorage.setItem(NOTIF_HOUR_KEY, String(hour)).catch(console.error);
   }, []);
 
+  const setPreShiftAlarm = useCallback((enabled: boolean) => {
+    setPreShiftAlarmState(enabled);
+    AsyncStorage.setItem(PRE_SHIFT_ALARM_KEY, String(enabled)).catch(console.error);
+  }, []);
+
   const setCurrencyCode = useCallback((code: string) => {
     setCurrencyCodeState(code);
     AsyncStorage.setItem(CURRENCY_KEY, code).catch(console.error);
@@ -104,6 +113,7 @@ export function useTheme() {
     currencyCode, setCurrencyCode,
     notificationsEnabled, setNotificationsEnabled,
     notificationHour, setNotificationHour,
+    preShiftAlarm, setPreShiftAlarm,
     onboardingComplete, completeOnboarding,
   };
 }

@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import BottomSheet from '@gorhom/bottom-sheet';
@@ -16,7 +17,7 @@ import { ShiftType, AVAILABLE_COLORS } from '../../constants/shifts';
 import { ThemeMode } from '../../hooks/useTheme';
 import { ShiftEditor } from '../../components/ShiftEditor';
 import { exportCSV, exportPDF, importCSV, backupAll, restoreBackup } from '../../utils/exportImport';
-import { requestNotificationPermissions, scheduleShiftReminder, cancelAllReminders } from '../../utils/notifications';
+import { requestNotificationPermissions, scheduleShiftReminder, schedulePreShiftAlarms, cancelAllReminders } from '../../utils/notifications';
 
 import { CalendarsSection } from '../../components/settings/CalendarsSection';
 import { AppearanceSection } from '../../components/settings/AppearanceSection';
@@ -28,6 +29,8 @@ import { ShiftsSection } from '../../components/settings/ShiftsSection';
 import { AboutSection } from '../../components/settings/AboutSection';
 
 export default function SettingsScreen() {
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const isLandscape = screenWidth > screenHeight;
   const {
     colors, themeMode, setThemeMode, weekStart, setWeekStart,
     baseRate, setBaseRate,
@@ -35,6 +38,7 @@ export default function SettingsScreen() {
     currencyCode, setCurrencyCode,
     notificationsEnabled, setNotificationsEnabled,
     notificationHour, setNotificationHour,
+    preShiftAlarm, setPreShiftAlarm,
   } = useAppSettings();
   const {
     allShifts,
@@ -93,7 +97,10 @@ export default function SettingsScreen() {
     if (notificationsEnabled) {
       scheduleShiftReminder(shiftData, allShifts, notificationHour).catch(console.error);
     }
-  }, [notificationsEnabled, shiftData, allShifts, notificationHour]);
+    if (preShiftAlarm) {
+      schedulePreShiftAlarms(shiftData, allShifts).catch(console.error);
+    }
+  }, [notificationsEnabled, shiftData, allShifts, notificationHour, preShiftAlarm]);
 
   const handleToggleNotifications = async (value: boolean) => {
     if (value) {
@@ -104,10 +111,36 @@ export default function SettingsScreen() {
       }
       setNotificationsEnabled(true);
       await scheduleShiftReminder(shiftData, allShifts, notificationHour);
+      if (preShiftAlarm) {
+        await schedulePreShiftAlarms(shiftData, allShifts);
+      }
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } else {
       setNotificationsEnabled(false);
       await cancelAllReminders();
+      if (preShiftAlarm) {
+        await schedulePreShiftAlarms(shiftData, allShifts);
+      }
+    }
+  };
+
+  const handleTogglePreShiftAlarm = async (value: boolean) => {
+    if (value) {
+      const granted = await requestNotificationPermissions();
+      if (!granted) {
+        Alert.alert('Permission Required', 'Please enable notifications in your device settings.');
+        return;
+      }
+      setPreShiftAlarm(true);
+      await schedulePreShiftAlarms(shiftData, allShifts);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } else {
+      setPreShiftAlarm(false);
+      // Re-schedule only evening reminders if those are still on
+      await cancelAllReminders();
+      if (notificationsEnabled) {
+        await scheduleShiftReminder(shiftData, allShifts, notificationHour);
+      }
     }
   };
 
@@ -266,7 +299,7 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, isLandscape && styles.scrollContentLandscape]} showsVerticalScrollIndicator={false}>
         <Text style={[styles.screenTitle, { color: colors.text }]}>Settings</Text>
 
         <CalendarsSection
@@ -319,6 +352,8 @@ export default function SettingsScreen() {
           onToggleNotifications={handleToggleNotifications}
           notificationHour={notificationHour}
           setNotificationHour={setNotificationHour}
+          preShiftAlarm={preShiftAlarm}
+          onTogglePreShiftAlarm={handleTogglePreShiftAlarm}
           shiftData={shiftData}
           allShifts={allShifts}
           notifHours={notifHours}
@@ -375,5 +410,6 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { padding: 16, paddingBottom: 40 },
+  scrollContentLandscape: { maxWidth: 700, alignSelf: 'center', width: '100%' },
   screenTitle: { fontSize: 30, fontWeight: '800', marginBottom: 20, marginTop: 8 },
 });

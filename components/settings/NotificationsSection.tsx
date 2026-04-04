@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Switch, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ShiftType } from '../../constants/shifts';
-import { scheduleShiftReminder } from '../../utils/notifications';
+import { scheduleShiftReminder, schedulePreShiftAlarms } from '../../utils/notifications';
 
 type Props = {
   colors: any;
@@ -10,6 +10,8 @@ type Props = {
   onToggleNotifications: (v: boolean) => void;
   notificationHour: number;
   setNotificationHour: (h: number) => void;
+  preShiftAlarm: boolean;
+  onTogglePreShiftAlarm: (v: boolean) => void;
   shiftData: Record<string, string>;
   allShifts: ShiftType[];
   notifHours: number[];
@@ -21,6 +23,8 @@ export function NotificationsSection({
   onToggleNotifications,
   notificationHour,
   setNotificationHour,
+  preShiftAlarm,
+  onTogglePreShiftAlarm,
   shiftData,
   allShifts,
   notifHours,
@@ -72,6 +76,24 @@ export function NotificationsSection({
             </View>
           </>
         )}
+      </View>
+
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, marginTop: 10 }]}>
+        <View style={styles.notifRow}>
+          <MaterialCommunityIcons name="alarm" size={20} color={preShiftAlarm ? '#EF4444' : colors.textSecondary} />
+          <View style={styles.notifInfo}>
+            <Text style={[styles.notifLabel, { color: colors.text }]}>Pre-Shift Alarm</Text>
+            <Text style={[styles.notifDesc, { color: colors.textSecondary }]}>
+              Alert 1 hour before your shift starts
+            </Text>
+          </View>
+          <Switch
+            value={preShiftAlarm}
+            onValueChange={onTogglePreShiftAlarm}
+            trackColor={{ false: colors.border, true: '#EF4444' + '60' }}
+            thumbColor={preShiftAlarm ? '#EF4444' : colors.textSecondary}
+          />
+        </View>
       </View>
     </>
   );

@@ -8,11 +8,12 @@ interface Props {
   onPrev: () => void;
   onNext: () => void;
   textColor: string;
+  compact?: boolean;
 }
 
-export const MonthHeader = React.memo(function MonthHeader({ currentDate, onPrev, onNext, textColor }: Props) {
+export const MonthHeader = React.memo(function MonthHeader({ currentDate, onPrev, onNext, textColor, compact }: Props) {
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, compact && styles.containerCompact]}>
       <TouchableOpacity
         onPress={onPrev}
         style={styles.arrow}
@@ -50,6 +51,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 10,
+  },
+  containerCompact: {
+    paddingVertical: 4,
   },
   arrow: {
     padding: 10,

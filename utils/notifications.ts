@@ -76,6 +76,73 @@ export async function scheduleShiftReminder(
   }
 }
 
+const ALARM_CHANNEL_ID = 'pre-shift-alarm';
+
+async function ensureAlarmChannel() {
+  const N = await getNotifications();
+  if (!N) return;
+
+  const Platform = require('react-native').Platform;
+  if (Platform.OS !== 'android') return;
+
+  await N.setNotificationChannelAsync(ALARM_CHANNEL_ID, {
+    name: 'Pre-Shift Alarm',
+    description: 'Loud alarm 1 hour before your shift starts',
+    importance: N.AndroidImportance.MAX,
+    vibrationPattern: [0, 500, 200, 500, 200, 500],
+    enableVibrate: true,
+    bypassDnd: true,
+    lockscreenVisibility: N.AndroidNotificationVisibility.PUBLIC,
+    sound: 'default',
+  });
+}
+
+export async function schedulePreShiftAlarms(
+  shiftData: Record<string, string>,
+  allShifts: ShiftType[],
+) {
+  const N = await getNotifications();
+  if (!N) return;
+
+  await ensureAlarmChannel();
+
+  const today = startOfDay(new Date());
+
+  for (let i = 0; i < 14; i++) {
+    const targetDate = addDays(today, i);
+    const dateStr = format(targetDate, 'yyyy-MM-dd');
+    const code = shiftData[dateStr];
+    if (!code) continue;
+
+    const shift = allShifts.find((s) => s.code === code);
+    if (!shift || !shift.startTime) continue;
+
+    const [hours, minutes] = shift.startTime.split(':').map(Number);
+    // 1 hour before shift start
+    let alarmHour = hours - 1;
+    let alarmMin = minutes;
+    if (alarmHour < 0) alarmHour = 23;
+
+    const triggerDate = set(targetDate, { hours: alarmHour, minutes: alarmMin, seconds: 0, milliseconds: 0 });
+    if (triggerDate <= new Date()) continue;
+
+    await N.scheduleNotificationAsync({
+      content: {
+        title: `⏰ ${shift.label} in 1 hour`,
+        body: `Your ${shift.label} shift starts at ${shift.startTime} — time to get ready!`,
+        data: { date: dateStr },
+        sound: 'default',
+        priority: N.AndroidNotificationPriority.MAX,
+      },
+      trigger: {
+        type: N.SchedulableTriggerInputTypes.DATE,
+        date: triggerDate,
+        channelId: ALARM_CHANNEL_ID,
+      },
+    });
+  }
+}
+
 export async function cancelAllReminders() {
   const N = await getNotifications();
   if (!N) return;

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, useWindowDimensions } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, useWindowDimensions, ScrollView } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import BottomSheet from '@gorhom/bottom-sheet';
@@ -36,8 +36,9 @@ function isSameMonth(a: Date, b: Date) {
 }
 
 export default function CalendarScreen() {
-  const { width: screenWidth } = useWindowDimensions();
-  const cellWidth = Math.min(Math.floor((screenWidth - 20) / 7), 56);
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const isLandscape = screenWidth > screenHeight;
+  const cellWidth = Math.min(Math.floor((screenWidth - 20) / 7), isLandscape ? 48 : 56);
   const { colors, weekStart } = useAppSettings();
   const {
     shiftData,
@@ -197,7 +198,7 @@ export default function CalendarScreen() {
       if (templateMode && selectedTemplate) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setTemplateStart(dateString);
-        templateSheetRef.current?.snapToIndex(1);
+        templateSheetRef.current?.snapToIndex(2);
         return;
       }
       if (repeatMode) {
@@ -349,7 +350,7 @@ export default function CalendarScreen() {
       setPatternEnd(null);
       repeatSheetRef.current?.close();
       daySheetRef.current?.close();
-      templateSheetRef.current?.snapToIndex(0);
+      templateSheetRef.current?.snapToIndex(1);
     }
   }, [templateMode]);
 
@@ -486,17 +487,18 @@ export default function CalendarScreen() {
     [shiftData, notesData, overtimeData, swapsData, leaveData, leaveInfoMap, getShiftByCode, monthKey, todayStr, selectedDate, patternDates, repeatMode, patternStart, patternEnd, handleDayPress, handleDayLongPress, cellWidth, screenWidth, colors]
   );
 
-  return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+  const calendarContent = (
+    <>
       <MonthHeader
         currentDate={currentMonth}
         onPrev={handlePrev}
         onNext={handleNext}
         textColor={colors.text}
+        compact={isLandscape}
       />
 
       {/* Top row: Today pill + View mode toggle */}
-      <View style={styles.topRow}>
+      <View style={[styles.topRow, isLandscape && styles.topRowCompact]}>
         {!isCurrentMonth ? (
           <TouchableOpacity
             style={[styles.todayPill, { backgroundColor: colors.primary }]}
@@ -619,7 +621,7 @@ export default function CalendarScreen() {
 
       {/* Swipeable calendar / week view */}
       <GestureDetector gesture={panGesture}>
-        <Animated.View style={[styles.calendarWrap, calendarAnimStyle]}>
+        <Animated.View style={[isLandscape ? styles.calendarWrapLandscape : styles.calendarWrap, calendarAnimStyle]}>
           {viewMode === 'month' ? (
             <Calendar
               key={monthKey + weekStart + activeCalendar.id}
@@ -628,6 +630,7 @@ export default function CalendarScreen() {
               markedDates={markedDates}
               dayComponent={renderDay}
               hideArrows
+              renderHeader={() => <View />}
               firstDay={weekStart}
               theme={calendarTheme}
               style={styles.calendar}
@@ -647,6 +650,24 @@ export default function CalendarScreen() {
           )}
         </Animated.View>
       </GestureDetector>
+    </>
+  );
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      {isLandscape ? (
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.calendarPanelScrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {calendarContent}
+        </ScrollView>
+      ) : (
+        <View style={styles.calendarPanelFull}>
+          {calendarContent}
+        </View>
+      )}
 
       <DaySheet
         ref={daySheetRef}
@@ -724,6 +745,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 4,
   },
+  topRowCompact: {
+    marginBottom: 2,
+  },
   todayPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -749,7 +773,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   calendarWrap: { flex: 1, overflow: 'hidden' },
+  calendarWrapLandscape: { overflow: 'hidden' },
   calendar: { marginHorizontal: 6 },
+  calendarPanelScrollContent: {
+    paddingBottom: 8,
+  },
+  calendarPanelFull: {
+    flex: 1,
+  },
   topRowRight: {
     flexDirection: 'row',
     alignItems: 'center',

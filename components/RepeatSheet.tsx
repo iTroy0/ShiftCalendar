@@ -38,13 +38,13 @@ type RepeatTarget = 'month' | '3months' | '6months' | 'year';
 
 export const RepeatSheet = forwardRef<BottomSheet, Props>(
   ({ shiftData, getShiftByCode, onApplyPattern, onClearPattern, currentMonth, patternStart, patternEnd, colors }, ref) => {
-    const snapPoints = useMemo(() => ['55%', '85%'], []);
+    const snapPoints = useMemo(() => ['12%', '55%', '85%'], []);
 
-    // Auto-snap sheet when end date is picked
+    // Auto-expand when end date is picked (user needs apply options)
     useEffect(() => {
       if (patternStart && patternEnd && ref && typeof ref !== 'function' && ref.current) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        ref.current.snapToIndex(1); // expand to full view
+        ref.current.snapToIndex(2);
       }
     }, [patternEnd]);
 

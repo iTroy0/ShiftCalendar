@@ -22,8 +22,10 @@ interface Props {
 }
 
 export const YearlyOverview = React.memo(function YearlyOverview({ year, selectedMonth, shiftData, allShifts, onMonthPress, colors }: Props) {
-  const { width } = useWindowDimensions();
-  const monthWidth = Math.min((width - 48) / 3, 200);
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+  const columns = isLandscape ? 6 : 3;
+  const monthWidth = Math.min((width - 48) / columns - 6, 200);
   const dotSize = Math.max(Math.floor((monthWidth - 24) / 7) - 1, 4);
 
   const shiftColorMap = useMemo(() => {
