@@ -2,7 +2,7 @@
   "expo": {
     "name": "ShiftCalendar",
     "slug": "ShiftCalendar",
-    "version": "2.5.0",
+    "version": "2.5.1",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -36,7 +36,7 @@
       }
     },
     "android": {
-      "versionCode": 9,
+      "versionCode": 10,
       "adaptiveIcon": {
         "backgroundColor": "#0F0F0F",
         "foregroundImage": "./assets/android-icon-foreground.png",

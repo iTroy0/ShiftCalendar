@@ -76,7 +76,8 @@ export async function scheduleShiftReminder(
   }
 }
 
-const ALARM_CHANNEL_ID = 'pre-shift-alarm';
+const ALARM_CHANNEL_ID = 'pre-shift-alarm-v2';
+const OLD_ALARM_CHANNEL_ID = 'pre-shift-alarm';
 
 async function ensureAlarmChannel() {
   const N = await getNotifications();
@@ -84,6 +85,9 @@ async function ensureAlarmChannel() {
 
   const Platform = require('react-native').Platform;
   if (Platform.OS !== 'android') return;
+
+  // Remove old channel (Android won't update sound on existing channels)
+  await N.deleteNotificationChannelAsync(OLD_ALARM_CHANNEL_ID).catch(() => {});
 
   await N.setNotificationChannelAsync(ALARM_CHANNEL_ID, {
     name: 'Pre-Shift Alarm',

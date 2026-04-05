@@ -302,6 +302,15 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={[styles.scrollContent, isLandscape && styles.scrollContentLandscape]} showsVerticalScrollIndicator={false}>
         <Text style={[styles.screenTitle, { color: colors.text }]}>Settings</Text>
 
+        <ShiftsSection
+          colors={colors}
+          allShifts={allShifts}
+          onNewShift={openNewShift}
+          onEditShift={openEditShift}
+          onDeleteShift={handleDeleteShift}
+          onMoveShift={moveShift}
+        />
+
         <CalendarsSection
           colors={colors}
           calendars={calendars}
@@ -316,13 +325,11 @@ export default function SettingsScreen() {
           onDeleteCalendar={handleDeleteCalendar}
         />
 
-        <AppearanceSection
+        <LeaveBalanceSection
           colors={colors}
-          themeMode={themeMode}
-          setThemeMode={setThemeMode}
-          weekStart={weekStart}
-          setWeekStart={setWeekStart}
-          themeModes={themeModes}
+          leaveTypes={leaveTypes}
+          leaveBalances={leaveBalances}
+          setLeaveBalance={setLeaveBalance}
         />
 
         <PayEarningsSection
@@ -339,13 +346,6 @@ export default function SettingsScreen() {
           setOvertimeRate={setOvertimeRate}
         />
 
-        <LeaveBalanceSection
-          colors={colors}
-          leaveTypes={leaveTypes}
-          leaveBalances={leaveBalances}
-          setLeaveBalance={setLeaveBalance}
-        />
-
         <NotificationsSection
           colors={colors}
           notificationsEnabled={notificationsEnabled}
@@ -357,6 +357,15 @@ export default function SettingsScreen() {
           shiftData={shiftData}
           allShifts={allShifts}
           notifHours={notifHours}
+        />
+
+        <AppearanceSection
+          colors={colors}
+          themeMode={themeMode}
+          setThemeMode={setThemeMode}
+          weekStart={weekStart}
+          setWeekStart={setWeekStart}
+          themeModes={themeModes}
         />
 
         <ImportExportSection
@@ -374,15 +383,6 @@ export default function SettingsScreen() {
           onImportCSV={handleImportCSV}
           onBackup={handleBackup}
           onRestore={handleRestore}
-        />
-
-        <ShiftsSection
-          colors={colors}
-          allShifts={allShifts}
-          onNewShift={openNewShift}
-          onEditShift={openEditShift}
-          onDeleteShift={handleDeleteShift}
-          onMoveShift={moveShift}
         />
 
         <AboutSection
