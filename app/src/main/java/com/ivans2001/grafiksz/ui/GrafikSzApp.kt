@@ -53,7 +53,7 @@ fun GrafikSzApp(store: ScheduleStore) {
                         icon = {
                             Icon(
                                 imageVector = icon,
-                                contentDescription = null,
+                                contentDescription = tab.label,
                             )
                         },
                         label = { Text(tab.label) },
