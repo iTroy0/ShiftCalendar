@@ -121,13 +121,13 @@ fun FirstRunImportCard(
             modifier = Modifier.padding(18.dp),
         ) {
             Text(
-                text = "Сделай график своим",
+                text = "Добавь свой график",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
             Text(
-                text = "Скопируй свой столбец из листа СЗ01…СЗ12 вместе с ФИО и вставь сюда. Приложение соберёт личный календарь на месяц.",
+                text = "Скопируй свой столбик из Google Таблиц: ФИО и все дни месяца. Затем вставь его сюда.",
                 modifier = Modifier.padding(top = 4.dp),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
@@ -145,7 +145,7 @@ fun FirstRunImportCard(
                     contentDescription = null,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Вставить график")
+                Text("Добавить из Таблиц")
             }
         }
     }
