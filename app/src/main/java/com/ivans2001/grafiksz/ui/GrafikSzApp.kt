@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -53,6 +54,7 @@ fun GrafikSzApp(
         mutableStateOf(AppDestination.SCHEDULE.name)
     }
     val destination = AppDestination.valueOf(destinationName)
+    val stateHolder = rememberSaveableStateHolder()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -89,21 +91,23 @@ fun GrafikSzApp(
             targetState = destination,
             label = "rootDestination",
         ) { target ->
-            when (target) {
-                AppDestination.SCHEDULE -> ScheduleScreen(
-                    store = store,
-                    contentPadding = innerPadding,
-                )
+            stateHolder.SaveableStateProvider(target.name) {
+                when (target) {
+                    AppDestination.SCHEDULE -> ScheduleScreen(
+                        store = store,
+                        contentPadding = innerPadding,
+                    )
 
-                AppDestination.STATS -> StatsScreen(
-                    store = store,
-                    contentPadding = innerPadding,
-                )
+                    AppDestination.STATS -> StatsScreen(
+                        store = store,
+                        contentPadding = innerPadding,
+                    )
 
-                AppDestination.SETTINGS -> SettingsScreen(
-                    store = store,
-                    contentPadding = innerPadding,
-                )
+                    AppDestination.SETTINGS -> SettingsScreen(
+                        store = store,
+                        contentPadding = innerPadding,
+                    )
+                }
             }
         }
     }
