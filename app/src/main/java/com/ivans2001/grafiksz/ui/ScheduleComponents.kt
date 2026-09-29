@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.ivans2001.grafiksz.ui
 
 import androidx.compose.foundation.BorderStroke
