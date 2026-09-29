@@ -48,6 +48,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -514,10 +516,27 @@ private fun MonthDayCell(
         ?: statusColor(record?.status)
         ?: MaterialTheme.colorScheme.outlineVariant
     val isToday = date == LocalDate.now()
+    val dayDescription = buildString {
+        append(date.dayOfMonth)
+        append(" ")
+        append(date.month.getDisplayName(TextStyle.FULL, scheduleUiLocale))
+        append(". ")
+        when {
+            shift != null -> {
+                append("Смена ")
+                append(shift.rangeLabel)
+                append(". ")
+                append(shift.purpose)
+            }
+            record?.status != null -> append(record.status.title)
+            else -> append("Не заполнено")
+        }
+    }
 
     Column(
         modifier = modifier
             .padding(2.dp)
+            .semantics { contentDescription = dayDescription }
             .clickable(onClick = onClick)
             .padding(horizontal = 3.dp, vertical = 5.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -743,6 +762,20 @@ private fun WeekDayCell(
         ?: statusColor(record?.status)
         ?: MaterialTheme.colorScheme.outlineVariant
     val isToday = date == LocalDate.now()
+    val dayDescription = buildString {
+        append(date.dayOfWeek.getDisplayName(TextStyle.FULL, scheduleUiLocale))
+        append(", ")
+        append(date.dayOfMonth)
+        append(". ")
+        when {
+            shift != null -> {
+                append("Смена ")
+                append(shift.rangeLabel)
+            }
+            record?.status != null -> append(record.status.title)
+            else -> append("Не заполнено")
+        }
+    }
     val background by animateColorAsState(
         targetValue = if (selected) {
             MaterialTheme.colorScheme.primaryContainer
@@ -756,6 +789,7 @@ private fun WeekDayCell(
         modifier = modifier
             .height(108.dp)
             .background(background, RoundedCornerShape(15.dp))
+            .semantics { contentDescription = dayDescription }
             .clickable(onClick = onClick)
             .padding(horizontal = 2.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
