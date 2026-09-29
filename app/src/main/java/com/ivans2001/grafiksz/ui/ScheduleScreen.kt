@@ -75,6 +75,7 @@ fun ScheduleScreen(
         }
 
         scope.launch {
+            snackbar.currentSnackbarData?.dismiss()
             val result = snackbar.showSnackbar(
                 message = message,
                 actionLabel = "Отменить",
