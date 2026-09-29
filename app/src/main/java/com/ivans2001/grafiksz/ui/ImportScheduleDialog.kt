@@ -2,6 +2,7 @@
 
 package com.ivans2001.grafiksz.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -31,6 +32,7 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -93,6 +95,9 @@ fun ImportScheduleDialog(
     val mappings = remember {
         mutableStateMapOf<String, String>()
     }
+    var confirmClose by remember {
+        mutableStateOf(false)
+    }
 
     val selectedMonth = YearMonth.parse(monthValue)
 
@@ -127,8 +132,20 @@ fun ImportScheduleDialog(
     val canSave = parsed?.isCompleteColumn == true &&
         unresolved.all(mappings::containsKey)
 
+    fun requestClose() {
+        if (sourceText.isNotBlank() || mappings.isNotEmpty()) {
+            confirmClose = true
+        } else {
+            onDismiss()
+        }
+    }
+
+    BackHandler {
+        requestClose()
+    }
+
     Dialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = ::requestClose,
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
         ),
@@ -152,7 +169,7 @@ fun ImportScheduleDialog(
                             )
                         },
                         navigationIcon = {
-                            IconButton(onClick = onDismiss) {
+                            IconButton(onClick = ::requestClose) {
                                 Icon(
                                     imageVector = Icons.Outlined.Close,
                                     contentDescription = "Закрыть",
@@ -478,6 +495,34 @@ fun ImportScheduleDialog(
                 }
             }
         }
+    }
+
+    if (confirmClose) {
+        AlertDialog(
+            onDismissRequest = { confirmClose = false },
+            title = { Text("Закрыть импорт?") },
+            text = { Text("Вставленные данные и сопоставления не сохранятся.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmClose = false
+                        onDismiss()
+                    },
+                ) {
+                    Text(
+                        text = "Закрыть",
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { confirmClose = false },
+                ) {
+                    Text("Остаться")
+                }
+            },
+        )
     }
 }
 
