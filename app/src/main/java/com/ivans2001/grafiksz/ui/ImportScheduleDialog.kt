@@ -49,10 +49,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -83,16 +86,30 @@ fun ImportScheduleDialog(
     var sourceText by rememberSaveable {
         mutableStateOf("")
     }
-    var parsed by remember {
-        mutableStateOf<ParsedImport?>(null)
-    }
     var clipboardMessage by remember {
         mutableStateOf<String?>(null)
     }
     var openMappingFor by remember {
         mutableStateOf<String?>(null)
     }
-    val mappings = remember {
+    val mappings = rememberSaveable(
+        saver = listSaver<SnapshotStateMap<String, String>, String>(
+            save = { state ->
+                state.entries.flatMap { entry ->
+                    listOf(entry.key, entry.value)
+                }
+            },
+            restore = { values ->
+                mutableStateMapOf<String, String>().apply {
+                    values.chunked(2).forEach { pair ->
+                        if (pair.size == 2) {
+                            this[pair[0]] = pair[1]
+                        }
+                    }
+                }
+            },
+        ),
+    ) {
         mutableStateMapOf<String, String>()
     }
     var confirmClose by remember {
@@ -100,35 +117,30 @@ fun ImportScheduleDialog(
     }
 
     val selectedMonth = YearMonth.parse(monthValue)
-
-    fun parse(
-        text: String = sourceText,
-        month: YearMonth = selectedMonth,
-    ) {
-        parsed = if (text.isBlank()) {
+    val parsed = remember(sourceText, monthValue) {
+        if (sourceText.isBlank()) {
             null
         } else {
-            ExcelColumnParser.parse(text, month)
+            ExcelColumnParser.parse(sourceText, selectedMonth)
         }
+    }
+    val unresolved = parsed?.unresolvedValues.orEmpty()
 
-        val unresolved = parsed?.unresolvedValues.orEmpty().toSet()
+    LaunchedEffect(unresolved) {
+        val unresolvedSet = unresolved.toSet()
         mappings.keys.toList()
-            .filterNot(unresolved::contains)
+            .filterNot(unresolvedSet::contains)
             .forEach(mappings::remove)
     }
 
     fun updateMonth(month: YearMonth) {
         monthValue = month.toString()
-        parse(month = month)
     }
 
     fun updateSource(value: String) {
         sourceText = value
         clipboardMessage = null
-        parse(text = value)
     }
-
-    val unresolved = parsed?.unresolvedValues.orEmpty()
     val canSave = parsed?.isCompleteColumn == true &&
         unresolved.all(mappings::containsKey)
 
