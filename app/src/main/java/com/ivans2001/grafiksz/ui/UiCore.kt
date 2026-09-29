@@ -153,7 +153,7 @@ fun InlineMetrics(
             }
 
             Text(
-                text = "\${item.first} \${item.second}",
+                text = "${item.first} ${item.second}",
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -205,9 +205,9 @@ fun formatMinutes(minutes: Int): String {
     val hours = minutes / 60
     val rest = minutes % 60
     return when {
-        hours > 0 && rest > 0 -> "\${hours}ч \${rest}м"
-        hours > 0 -> "\${hours}ч"
-        else -> "\${rest}м"
+        hours > 0 && rest > 0 -> "${hours}ч ${rest}м"
+        hours > 0 -> "${hours}ч"
+        else -> "${rest}м"
     }
 }
 
@@ -225,7 +225,7 @@ fun fullDateLabel(date: LocalDate): String {
         .getDisplayName(TextStyle.FULL, UiLocale)
         .replaceFirstChar { it.uppercaseChar() }
     val month = date.month.getDisplayName(TextStyle.FULL, UiLocale)
-    return "\$weekday, \${date.dayOfMonth} \$month"
+    return "$weekday, ${date.dayOfMonth} $month"
 }
 
 fun monthLabel(month: YearMonth): String =
