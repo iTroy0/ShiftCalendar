@@ -30,6 +30,7 @@ import androidx.compose.material.icons.outlined.ChevronLeft
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.TableView
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
@@ -94,7 +95,7 @@ fun ScheduleTopBar(
                 modifier = Modifier.padding(end = 8.dp),
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.ContentPaste,
+                    imageVector = Icons.Outlined.TableView,
                     contentDescription = null,
                     modifier = Modifier.width(18.dp),
                 )
