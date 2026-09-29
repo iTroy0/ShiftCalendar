@@ -79,13 +79,17 @@ fun DayEditorSheet(
     var confirmClose by remember { mutableStateOf(false) }
 
     fun buildRecord(): DayRecord {
-        val overtimeMinutes = overtimeText
-            .replace(',', '.')
-            .toDoubleOrNull()
-            ?.coerceAtLeast(0.0)
-            ?.times(60)
-            ?.roundToInt()
-            ?: 0
+        val overtimeMinutes = if (shiftId == null) {
+            0
+        } else {
+            overtimeText
+                .replace(',', '.')
+                .toDoubleOrNull()
+                ?.coerceAtLeast(0.0)
+                ?.times(60)
+                ?.roundToInt()
+                ?: 0
+        }
 
         return DayRecord(
             shiftId = shiftId,
@@ -226,6 +230,7 @@ fun DayEditorSheet(
                     onClick = {
                         shiftId = null
                         statusName = null
+                        overtimeText = ""
                     },
                     label = { Text("Пусто") },
                 )
@@ -236,6 +241,7 @@ fun DayEditorSheet(
                         onClick = {
                             shiftId = null
                             statusName = status.name
+                            overtimeText = ""
                         },
                         label = { Text(status.title) },
                     )
