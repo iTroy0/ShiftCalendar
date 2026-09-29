@@ -98,7 +98,7 @@ fun ScheduleTopBar(
                     modifier = Modifier.width(18.dp),
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Excel")
+                Text("Таблицы")
             }
         },
     )
