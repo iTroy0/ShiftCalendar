@@ -326,23 +326,36 @@ fun MonthCalendar(
             .fillMaxSize()
             .pointerInput(month) {
                 var total = 0f
+                var gestureAllowed = true
                 val threshold = 72.dp.toPx()
+                val edgeGuard = 24.dp.toPx()
 
                 detectHorizontalDragGestures(
-                    onDragStart = { total = 0f },
-                    onHorizontalDrag = { _, amount -> total += amount },
+                    onDragStart = { offset ->
+                        total = 0f
+                        gestureAllowed =
+                            offset.x > edgeGuard &&
+                                offset.x < size.width - edgeGuard
+                    },
+                    onHorizontalDrag = { _, amount ->
+                        if (gestureAllowed) {
+                            total += amount
+                        }
+                    },
                     onDragEnd = {
-                        if (total <= -threshold) {
+                        if (gestureAllowed && total <= -threshold) {
                             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             onSwipeNext()
                         }
-                        if (total >= threshold) {
+                        if (gestureAllowed && total >= threshold) {
                             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             onSwipePrevious()
                         }
                         total = 0f
                     },
-                    onDragCancel = { total = 0f },
+                    onDragCancel = {
+                        total = 0f
+                    },
                 )
             }
             .verticalScroll(rememberScrollState())
@@ -534,23 +547,36 @@ fun WeekCalendar(
             .fillMaxSize()
             .pointerInput(focusDate) {
                 var total = 0f
+                var gestureAllowed = true
                 val threshold = 72.dp.toPx()
+                val edgeGuard = 24.dp.toPx()
 
                 detectHorizontalDragGestures(
-                    onDragStart = { total = 0f },
-                    onHorizontalDrag = { _, amount -> total += amount },
+                    onDragStart = { offset ->
+                        total = 0f
+                        gestureAllowed =
+                            offset.x > edgeGuard &&
+                                offset.x < size.width - edgeGuard
+                    },
+                    onHorizontalDrag = { _, amount ->
+                        if (gestureAllowed) {
+                            total += amount
+                        }
+                    },
                     onDragEnd = {
-                        if (total <= -threshold) {
+                        if (gestureAllowed && total <= -threshold) {
                             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             onSwipeNext()
                         }
-                        if (total >= threshold) {
+                        if (gestureAllowed && total >= threshold) {
                             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             onSwipePrevious()
                         }
                         total = 0f
                     },
-                    onDragCancel = { total = 0f },
+                    onDragCancel = {
+                        total = 0f
+                    },
                 )
             },
     ) {
