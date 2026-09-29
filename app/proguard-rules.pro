@@ -1,0 +1,2 @@
+-dontwarn org.intellij.lang.annotations.**
+-keepattributes *Annotation*

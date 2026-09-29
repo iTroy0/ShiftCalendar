@@ -1,150 +1,50 @@
-# ShiftCalendar
+# График СЗ — native
 
-A modern, offline-first shift scheduling app for shift workers. Track shifts, leave, overtime, and pay on a clean monthly calendar. Built with React Native + Expo.
+Лёгкое личное Android-приложение для графика Службы заботы.
 
-[![Download APK](https://img.shields.io/github/v/release/iTroy0/ShiftCalendar?label=Download%20APK&style=for-the-badge)](https://github.com/iTroy0/ShiftCalendar/releases/latest)
+Это новая реализация **с нуля**, без кода и архитектуры ShiftCalendar. Стек: Kotlin + Jetpack Compose + Material 3.
 
-## Features
+## Основной сценарий
 
-- **Monthly Calendar** -- Color-coded shift & leave badges with swipe navigation
-- **Adjacent Month Days** -- See previous/next month shifts in the calendar grid
-- **Quick Assign** -- Tap to assign, long-press for instant last-used shift
-- **Shift Templates** -- 8 pre-built rotations (2-2-2, 4-on/4-off, Continental, Panama, DuPont, and more)
-- **Repeat Patterns** -- Select a date range and repeat any shift pattern forward
-- **Custom Shifts** -- Create shift types with custom names, colors, icons, and times
-- **Leave Management** -- Annual, Sick, Emergency, and Unpaid leave with yearly balance tracking
-- **Shift Swap** -- Offer swaps and share requests via WhatsApp, SMS, etc.
-- **Pay Calculator** -- Base rate + overtime rate with monthly pay estimates
-- **Multi-Calendar** -- Manage separate calendars (e.g. My Shifts, Team A, Team B)
-- **Stats Dashboard** -- Monthly shift counts, hours breakdown, pay estimates, and leave balance
-- **Overtime Tracking** -- Log overtime hours per day with automatic totals
-- **Notes & Search** -- Add notes to any day and search through all notes
-- **Android Widget** -- Home screen widget showing the current week's shifts
-- **Week View** -- Toggle between month and week views
-- **Yearly Overview** -- At-a-glance heatmap of the entire year
-- **Dark / Light / System Theme** -- Full theme support including the widget
-- **Export & Import** -- CSV export/import, PDF export, full backup/restore
-- **Notifications** -- Evening reminders for the next day's shift
-- **Configurable** -- Week start day, currency (33 supported), haptic feedback
-- **Offline & Private** -- All data stored locally. No account, no server, no tracking.
-- **Accessible** -- Screen reader labels on all interactive elements
+1. Открыть нужный лист `СЗ01…СЗ12`.
+2. Скопировать свой столбец вместе с ФИО и всеми днями месяца.
+3. В «График СЗ» нажать «Вставить Excel».
+4. Известные времена автоматически назначаются существующим сменам из системного пула.
+5. Если время не найдено в пуле, приложение просит **выбрать существующую смену**. Новый тип смены не создаётся и не сохраняется.
+6. После импорта любой день можно нажать и изменить вручную.
 
-## Screenshots
+## Пул смен
 
-<p align="center">
-  <img src="screenshots/calendar.png" width="250" alt="Calendar" />
-  <img src="screenshots/stats.png" width="250" alt="Stats" />
-  <img src="screenshots/settings.png" width="250" alt="Settings" />
-</p>
+- 04:00–12:30 — Утренняя · Почта и Verbox
+- 12:30–21:00 — Вечерняя · Почта и Verbox
+- 06:00–15:00 — Средняя утренняя · Замена ФН
+- 07:00–16:00 — Средняя утренняя · Отменённые мероприятия с Пушкинской картой
+- 11:00–20:00 — Средняя вечерняя · Замена ФН
+- 15:00–00:00 — Ночная · Почта и Verbox с 21:00 до 00:00
+- 08:00–17:00 — Обычная рабочая смена
+- 09:00–18:00 — Обычная рабочая смена
+- 04:00–21:00 — Рабочий выходной
+- 12:30–00:00 — Рабочий выходной
 
-## Getting Started
+Статусы: выходной, отпуск, больничный, сессия, «К».
 
-### Prerequisites
+## Интерфейс
 
-- [Node.js](https://nodejs.org/) (v18+)
-- [Expo CLI](https://docs.expo.dev/get-started/installation/)
+- График: **Месяц / Неделя / Список**
+- Тап по любому дню: смена из пула, статус, переработка, заметка
+- Итоги: **Месяц / Год**, часы, рабочие/выходные, переработка, отсутствия, распределение смен, нагрузка по месяцам
+- Настройки: тема и просмотр фиксированного пула смен
+- Всё хранится локально, аккаунт и сервер не нужны
 
-### Installation
+## Размер
+
+CI жёстко отклоняет release APK больше **30 МБ**.
+
+## Сборка
 
 ```bash
-git clone https://github.com/iTroy0/ShiftCalendar.git
-cd ShiftCalendar
-npm install
+gradle testReleaseUnitTest
+gradle assembleRelease
 ```
 
-### Development
-
-```bash
-npx expo start
-npx expo start --android
-npx expo start --ios
-```
-
-> **Note:** The Android home screen widget requires an EAS development build, not Expo Go.
-
-## Building
-
-### Cloud Build (EAS)
-
-```bash
-npm install -g eas-cli
-eas login
-
-# Preview APK
-eas build --platform android --profile preview
-
-# Production AAB (for Google Play)
-eas build --platform android --profile production
-```
-
-### Local Build
-
-```bash
-npx expo prebuild --platform android
-cd android
-./gradlew assembleRelease
-```
-
-## Project Structure
-
-```
-ShiftCalendar/
-├── app/
-│   ├── _layout.tsx              # Root layout with providers
-│   └── (tabs)/
-│       ├── index.tsx             # Calendar screen
-│       ├── stats.tsx             # Stats screen
-│       └── settings.tsx          # Settings screen
-├── components/
-│   ├── CalendarDay.tsx           # Day cell with shift/leave pills
-│   ├── DaySheet.tsx              # Day detail bottom sheet
-│   ├── TemplateSheet.tsx         # Template selector
-│   ├── RepeatSheet.tsx           # Pattern repeat sheet
-│   ├── NotesSearchSheet.tsx      # Notes search
-│   ├── ShiftEditor.tsx           # Shift create/edit form
-│   ├── WeekView.tsx              # Week view display
-│   ├── YearlyOverview.tsx        # Yearly heatmap
-│   └── settings/                 # Settings section components
-├── hooks/
-│   ├── ShiftContext.tsx           # Shift data context
-│   ├── ThemeContext.tsx           # App settings context
-│   ├── useShiftData.ts           # Data persistence layer
-│   ├── useTheme.ts               # Theme & preferences
-│   └── useDeepLinkHandler.ts     # File import handler
-├── constants/
-│   ├── shifts.ts                 # Shift type definitions
-│   ├── templates.ts              # Rotation templates
-│   ├── leaveTypes.ts             # Leave type definitions
-│   ├── colors.ts                 # Theme color palettes
-│   └── currencies.ts             # Currency list
-├── utils/
-│   ├── exportImport.ts           # CSV/PDF/backup export & import
-│   ├── statsCalculation.ts       # Stats computation
-│   └── notifications.ts          # Shift reminders
-├── widgets/
-│   ├── ShiftWeekWidget.tsx       # Android widget UI
-│   └── widget-task-handler.tsx   # Widget data handler
-└── assets/                       # App icons & splash
-```
-
-## Tech Stack
-
-- **Framework** -- React Native + Expo SDK 55
-- **Language** -- TypeScript
-- **Routing** -- Expo Router (file-based)
-- **Calendar** -- react-native-calendars
-- **Animations** -- react-native-reanimated
-- **Gestures** -- react-native-gesture-handler
-- **Bottom Sheets** -- @gorhom/bottom-sheet
-- **Storage** -- @react-native-async-storage/async-storage
-- **Widget** -- react-native-android-widget
-- **Date Math** -- date-fns
-- **Haptics** -- expo-haptics
-
-## License
-
-MIT
-
-## Author
-
-Made by **Troy**
+APK: `app/build/outputs/apk/release/app-release.apk`
