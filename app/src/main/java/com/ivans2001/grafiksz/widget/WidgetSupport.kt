@@ -117,9 +117,8 @@ object ScheduleWidgetData {
             ) == Configuration.UI_MODE_NIGHT_YES
 
         return when (mode) {
-            AccentMode.DYNAMIC,
-            AccentMode.GRAPHITE,
-            -> if (dark) 0xFFC5C6CC.toInt() else 0xFF5D5F63.toInt()
+            AccentMode.DYNAMIC, AccentMode.GRAPHITE ->
+                if (dark) 0xFFC5C6CC.toInt() else 0xFF5D5F63.toInt()
 
             AccentMode.VIOLET ->
                 if (dark) 0xFFD0BCFF.toInt() else 0xFF6750A4.toInt()
