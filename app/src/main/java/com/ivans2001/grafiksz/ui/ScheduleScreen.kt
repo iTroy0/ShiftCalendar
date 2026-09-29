@@ -193,9 +193,9 @@ fun ScheduleScreen(
 
     if (showImport) {
         ImportScheduleDialog(
-            month = month,
+            initialMonth = month,
             onDismiss = { showImport = false },
-            onApply = { imported: ParsedImport, mappings: Map<String, String> ->
+            onApply = { selectedMonth: YearMonth, imported: ParsedImport, mappings: Map<String, String> ->
                 val records = imported.days.mapNotNull { day ->
                     val record = when (val value = day.value) {
                         ParsedCell.Empty -> null
@@ -208,10 +208,12 @@ fun ScheduleScreen(
                 }.toMap()
 
                 store.replaceMonth(
-                    month = month,
+                    month = selectedMonth,
                     imported = records,
                     importedEmployeeName = imported.employeeName,
                 )
+                monthString = selectedMonth.toString()
+                focusDateString = selectedMonth.atDay(1).toString()
                 showImport = false
             },
         )
