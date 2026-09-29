@@ -540,8 +540,14 @@ fun WeekCalendar(
                     onDragStart = { total = 0f },
                     onHorizontalDrag = { _, amount -> total += amount },
                     onDragEnd = {
-                        if (total <= -threshold) onSwipeNext()
-                        if (total >= threshold) onSwipePrevious()
+                        if (total <= -threshold) {
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onSwipeNext()
+                        }
+                        if (total >= threshold) {
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onSwipePrevious()
+                        }
                         total = 0f
                     },
                     onDragCancel = { total = 0f },
