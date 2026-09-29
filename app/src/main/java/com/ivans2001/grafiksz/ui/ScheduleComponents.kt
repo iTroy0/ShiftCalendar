@@ -104,6 +104,149 @@ fun ScheduleTopBar(
 }
 
 @Composable
+fun FirstRunImportCard(
+    onImport: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.primaryContainer,
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+        ) {
+            Text(
+                text = "Сделай график своим",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            Text(
+                text = "Скопируй свой столбец из листа СЗ01…СЗ12 вместе с ФИО и вставь сюда. Приложение соберёт личный календарь на месяц.",
+                modifier = Modifier.padding(top = 4.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
+            )
+
+            FilledTonalButton(
+                onClick = onImport,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 14.dp)
+                    .heightIn(min = 52.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.ContentPaste,
+                    contentDescription = null,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Вставить график")
+            }
+        }
+    }
+}
+
+@Composable
+fun TodayOverview(
+    date: LocalDate,
+    record: DayRecord?,
+    nextDate: LocalDate?,
+    nextRecord: DayRecord?,
+) {
+    val shift = ShiftPool.byId(record?.shiftId)
+    val accent = shift?.let { Color(it.color) }
+        ?: statusColor(record?.status)
+        ?: MaterialTheme.colorScheme.outlineVariant
+
+    val nextShift = ShiftPool.byId(nextRecord?.shiftId)
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(5.dp)
+                        .height(52.dp)
+                        .background(accent, CircleShape),
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Сегодня · " + date.dayOfMonth + " " +
+                            date.month
+                                .getDisplayName(TextStyle.SHORT, scheduleUiLocale)
+                                .replace(".", ""),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = when {
+                            shift != null -> shift.rangeLabel
+                            record?.status != null -> record.status.title
+                            else -> "Смена не назначена"
+                        },
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    if (shift != null) {
+                        Text(
+                            text = shift.purpose,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+
+            if (nextDate != null && nextShift != null) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f),
+                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(Color(nextShift.color), CircleShape),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Следующая: " +
+                            nextDate.dayOfMonth + " " +
+                            nextDate.month
+                                .getDisplayName(TextStyle.SHORT, scheduleUiLocale)
+                                .replace(".", "") +
+                            " · " + nextShift.rangeLabel,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun PeriodNavigator(
     label: String,
     onPrevious: () -> Unit,
