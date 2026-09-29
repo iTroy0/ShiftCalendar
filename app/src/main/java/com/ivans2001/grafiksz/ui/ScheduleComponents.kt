@@ -491,7 +491,7 @@ private fun MonthDayCell(
                                 .background(accent, CircleShape),
                         )
 
-                        if ((record?.overtimeMinutes ?: 0) > 0) {
+                        if (record?.shiftId != null && record.overtimeMinutes > 0) {
                             Box(
                                 modifier = Modifier
                                     .size(4.dp)
@@ -760,13 +760,16 @@ private fun SelectedDayDetails(
                 }
             }
 
-            if ((record?.overtimeMinutes ?: 0) > 0 || record?.note?.isNotBlank() == true) {
+            if (
+                (record?.shiftId != null && record.overtimeMinutes > 0) ||
+                record?.note?.isNotBlank() == true
+            ) {
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = AppSpacing.sm),
                     color = MaterialTheme.colorScheme.outlineVariant,
                 )
 
-                if ((record?.overtimeMinutes ?: 0) > 0) {
+                if (record?.shiftId != null && record.overtimeMinutes > 0) {
                     Text(
                         text = "Переработка +${formatMinutes(record!!.overtimeMinutes)}",
                         style = MaterialTheme.typography.bodyMedium,
@@ -778,7 +781,13 @@ private fun SelectedDayDetails(
                 if (record?.note?.isNotBlank() == true) {
                     Text(
                         text = record.note,
-                        modifier = Modifier.padding(top = if (record.overtimeMinutes > 0) 4.dp else 0.dp),
+                        modifier = Modifier.padding(
+                            top = if (record.shiftId != null && record.overtimeMinutes > 0) {
+                                4.dp
+                            } else {
+                                0.dp
+                            },
+                        ),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
