@@ -27,6 +27,7 @@ import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.ViewAgenda
 import androidx.compose.material.icons.outlined.Widgets
 import androidx.compose.material3.AlertDialog
@@ -57,6 +58,7 @@ import com.ivans2001.grafiksz.data.ShiftPool
 import com.ivans2001.grafiksz.data.ThemeMode
 import com.ivans2001.grafiksz.widget.ScheduleWidgetPinning
 import com.ivans2001.grafiksz.widget.ScheduleWidgetType
+import com.ivans2001.grafiksz.widget.ScheduleWidgetUpdater
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -173,6 +175,21 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+
+            OutlinedButton(
+                onClick = { ScheduleWidgetUpdater.updateAll(context) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp)
+                    .heightIn(min = 48.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Refresh,
+                    contentDescription = null,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Обновить виджеты")
             }
 
             Spacer(modifier = Modifier.height(24.dp))
