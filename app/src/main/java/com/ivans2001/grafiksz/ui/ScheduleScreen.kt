@@ -96,6 +96,24 @@ fun ScheduleScreen(
             onImport = { showImport = true },
         )
 
+        if (store.records.isEmpty()) {
+            FirstRunImportCard(
+                onImport = { showImport = true },
+            )
+        } else {
+            val today = LocalDate.now()
+            val nextShiftDate = generateSequence(today.plusDays(1)) { it.plusDays(1) }
+                .take(60)
+                .firstOrNull { date -> store.record(date)?.shiftId != null }
+
+            TodayOverview(
+                date = today,
+                record = store.record(today),
+                nextDate = nextShiftDate,
+                nextRecord = nextShiftDate?.let(store::record),
+            )
+        }
+
         PeriodNavigator(
             label = periodLabel,
             onPrevious = goPrevious,
