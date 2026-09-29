@@ -393,6 +393,8 @@ private fun calculateStats(
             workDays++
             shiftCounts[shiftId] = (shiftCounts[shiftId] ?: 0) + 1
             totalMinutes += ShiftPool.byId(shiftId)?.durationMinutes ?: 0
+            overtimeMinutes += record.overtimeMinutes
+            totalMinutes += record.overtimeMinutes
         }
 
         if (record.status == DayStatus.DAY_OFF) {
@@ -406,9 +408,6 @@ private fun calculateStats(
         ) {
             absenceDays++
         }
-
-        overtimeMinutes += record.overtimeMinutes
-        totalMinutes += record.overtimeMinutes
     }
 
     return StatsData(
