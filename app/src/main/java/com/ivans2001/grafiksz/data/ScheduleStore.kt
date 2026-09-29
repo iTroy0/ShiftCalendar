@@ -115,9 +115,10 @@ class ScheduleStore(context: Context) {
     fun clearAll() {
         recordsState.clear()
         employeeName = ""
-        preferences.edit().clear().commit()
-        themeMode = ThemeMode.SYSTEM
-        accentMode = AccentMode.DYNAMIC
+        preferences.edit()
+            .remove(KEY_RECORDS)
+            .remove(KEY_EMPLOYEE_NAME)
+            .commit()
         ScheduleWidgetUpdater.updateAll(appContext)
     }
 
