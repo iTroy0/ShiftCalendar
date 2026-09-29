@@ -21,8 +21,9 @@
         </activity>
 
         <receiver
-            android:name=".widget.ScheduleWidgetProvider"
-            android:exported="false">
+            android:name=".widget.TodayWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_today_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
@@ -31,10 +32,43 @@
                 <action android:name="android.intent.action.TIMEZONE_CHANGED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
-
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="@xml/grafik_widget_info" />
+                android:resource="@xml/widget_today_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.UpcomingWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_upcoming_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_upcoming_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.WeekWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_week_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_week_info" />
         </receiver>
     </application>
 

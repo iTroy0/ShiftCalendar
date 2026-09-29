@@ -6,7 +6,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateMap
-import com.ivans2001.grafiksz.widget.ScheduleWidgetProvider
+import com.ivans2001.grafiksz.widget.ScheduleWidgetUpdater
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
@@ -98,7 +98,7 @@ class ScheduleStore(context: Context) {
         employeeName = ""
         preferences.edit().clear().commit()
         themeMode = ThemeMode.SYSTEM
-        ScheduleWidgetProvider.updateAll(appContext)
+        ScheduleWidgetUpdater.updateAll(appContext)
     }
 
     private fun loadRecords() {
@@ -151,7 +151,7 @@ class ScheduleStore(context: Context) {
             .putString(KEY_RECORDS, array.toString())
             .commit()
 
-        ScheduleWidgetProvider.updateAll(appContext)
+        ScheduleWidgetUpdater.updateAll(appContext)
     }
 
     private companion object {

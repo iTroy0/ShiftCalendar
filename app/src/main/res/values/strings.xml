@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">График СЗ</string>
-    <string name="widget_description">Личный график: сегодня, завтра и следующая смена</string>
+
+    <string name="widget_today_name">График СЗ — Сегодня</string>
+    <string name="widget_today_description">Текущая смена и ближайшая следующая</string>
+
+    <string name="widget_upcoming_name">График СЗ — Ближайшие</string>
+    <string name="widget_upcoming_description">Сегодня, завтра и следующая смена</string>
+
+    <string name="widget_week_name">График СЗ — Неделя</string>
+    <string name="widget_week_description">Семь дней в горизонтальной ленте</string>
 </resources>

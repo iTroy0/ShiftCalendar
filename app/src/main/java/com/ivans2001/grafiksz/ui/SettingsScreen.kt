@@ -2,8 +2,6 @@ package com.ivans2001.grafiksz.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -22,12 +20,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CalendarViewWeek
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.ViewAgenda
+import androidx.compose.material.icons.outlined.Widgets
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -43,12 +46,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ivans2001.grafiksz.data.ScheduleStore
 import com.ivans2001.grafiksz.data.ShiftPool
 import com.ivans2001.grafiksz.data.ThemeMode
+import com.ivans2001.grafiksz.widget.ScheduleWidgetPinning
+import com.ivans2001.grafiksz.widget.ScheduleWidgetType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,6 +62,7 @@ fun SettingsScreen(
     store: ScheduleStore,
     contentPadding: PaddingValues,
 ) {
+    val context = LocalContext.current
     var confirmReset by remember { mutableStateOf(false) }
     var poolExpanded by remember { mutableStateOf(false) }
 
@@ -94,8 +101,80 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             SectionHeadingSettings(
+                title = "Виджеты",
+                subtitle = "Выбери формат под свой главный экран",
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            WidgetChoiceCard(
+                title = "Сегодня",
+                description = "Компактно: текущая смена, назначение и ближайшая следующая.",
+                icon = {
+                    Icon(
+                        imageVector = Icons.Outlined.Event,
+                        contentDescription = null,
+                    )
+                },
+                onAdd = {
+                    ScheduleWidgetPinning.request(
+                        context,
+                        ScheduleWidgetType.TODAY,
+                    )
+                },
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            WidgetChoiceCard(
+                title = "Ближайшие",
+                description = "Сегодня, завтра и следующая рабочая смена в одном блоке.",
+                icon = {
+                    Icon(
+                        imageVector = Icons.Outlined.ViewAgenda,
+                        contentDescription = null,
+                    )
+                },
+                onAdd = {
+                    ScheduleWidgetPinning.request(
+                        context,
+                        ScheduleWidgetType.UPCOMING,
+                    )
+                },
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            WidgetChoiceCard(
+                title = "Неделя",
+                description = "Семь дней горизонтально, с цветами смен из графика.",
+                icon = {
+                    Icon(
+                        imageVector = Icons.Outlined.CalendarViewWeek,
+                        contentDescription = null,
+                    )
+                },
+                onAdd = {
+                    ScheduleWidgetPinning.request(
+                        context,
+                        ScheduleWidgetType.WEEK,
+                    )
+                },
+            )
+
+            if (!ScheduleWidgetPinning.isSupported(context)) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "На этом лаунчере виджеты добавляются через системное меню главного экрана.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            SectionHeadingSettings(
                 title = "Пул смен",
-                subtitle = "Фиксирован по времени и назначению",
+                subtitle = "Цвета основаны на легенде Excel СЗ",
             )
             Spacer(modifier = Modifier.height(10.dp))
 
@@ -110,6 +189,12 @@ fun SettingsScreen(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Widgets,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = ShiftPool.all.size.toString() + " смен",
@@ -138,10 +223,11 @@ fun SettingsScreen(
                             .padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(10.dp)
-                                .background(Color(shift.color), CircleShape),
+                        Surface(
+                            modifier = Modifier.size(12.dp),
+                            shape = CircleShape,
+                            color = Color(shift.color),
+                            content = {},
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Column(modifier = Modifier.weight(1f)) {
@@ -269,6 +355,60 @@ fun SettingsScreen(
 }
 
 @Composable
+private fun WidgetChoiceCard(
+    title: String,
+    description: String,
+    icon: @Composable () -> Unit,
+    onAdd: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                modifier = Modifier.size(44.dp),
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.primaryContainer,
+            ) {
+                androidx.compose.foundation.layout.Box(
+                    contentAlignment = Alignment.Center,
+                ) {
+                    icon()
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            FilledTonalButton(
+                onClick = onAdd,
+            ) {
+                Text("Добавить")
+            }
+        }
+    }
+}
+
+@Composable
 private fun ThemeSelector(
     selected: ThemeMode,
     onSelect: (ThemeMode) -> Unit,
@@ -295,7 +435,7 @@ private fun ThemeSelector(
                 val label = pair.second
                 val isSelected = selected == mode
 
-                Box(
+                androidx.compose.foundation.layout.Box(
                     modifier = Modifier
                         .weight(1f)
                         .heightIn(min = 48.dp)

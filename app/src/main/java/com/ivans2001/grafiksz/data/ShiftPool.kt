@@ -1,5 +1,6 @@
 package com.ivans2001.grafiksz.data
 
+import com.ivans2001.grafiksz.ui.theme.SchedulePalette
 import java.time.LocalTime
 
 object ShiftPool {
@@ -10,7 +11,7 @@ object ShiftPool {
             start = LocalTime.of(4, 0),
             end = LocalTime.of(12, 30),
             purpose = "Почта и Verbox",
-            color = 0xFF6AA84F,
+            color = SchedulePalette.Morning,
         ),
         ShiftPreset(
             id = "evening_mail",
@@ -18,7 +19,7 @@ object ShiftPool {
             start = LocalTime.of(12, 30),
             end = LocalTime.of(21, 0),
             purpose = "Почта и Verbox",
-            color = 0xFFFF9900,
+            color = SchedulePalette.Evening,
         ),
         ShiftPreset(
             id = "mid_morning_fn",
@@ -26,7 +27,7 @@ object ShiftPool {
             start = LocalTime.of(6, 0),
             end = LocalTime.of(15, 0),
             purpose = "Замена ФН",
-            color = 0xFFFF00FF,
+            color = SchedulePalette.MidMorningFn,
         ),
         ShiftPreset(
             id = "mid_morning_pushkin",
@@ -34,7 +35,7 @@ object ShiftPool {
             start = LocalTime.of(7, 0),
             end = LocalTime.of(16, 0),
             purpose = "Отменённые мероприятия с Пушкинской картой",
-            color = 0xFF00BCD4,
+            color = SchedulePalette.MidMorningPushkin,
         ),
         ShiftPreset(
             id = "mid_evening_fn",
@@ -42,7 +43,7 @@ object ShiftPool {
             start = LocalTime.of(11, 0),
             end = LocalTime.of(20, 0),
             purpose = "Замена ФН",
-            color = 0xFFBF9000,
+            color = SchedulePalette.MidEveningFn,
         ),
         ShiftPreset(
             id = "night_mail",
@@ -50,7 +51,7 @@ object ShiftPool {
             start = LocalTime.of(15, 0),
             end = LocalTime.MIDNIGHT,
             purpose = "Почта и Verbox с 21:00 до 00:00",
-            color = 0xFFCC4125,
+            color = SchedulePalette.Night,
         ),
         ShiftPreset(
             id = "regular_08",
@@ -58,7 +59,7 @@ object ShiftPool {
             start = LocalTime.of(8, 0),
             end = LocalTime.of(17, 0),
             purpose = "Рабочая смена",
-            color = 0xFF607D8B,
+            color = SchedulePalette.Regular,
         ),
         ShiftPreset(
             id = "regular_09",
@@ -66,7 +67,7 @@ object ShiftPool {
             start = LocalTime.of(9, 0),
             end = LocalTime.of(18, 0),
             purpose = "Рабочая смена",
-            color = 0xFF455A64,
+            color = SchedulePalette.Regular,
         ),
         ShiftPreset(
             id = "working_weekend_long",
@@ -74,7 +75,7 @@ object ShiftPool {
             start = LocalTime.of(4, 0),
             end = LocalTime.of(21, 0),
             purpose = "Рабочий выходной",
-            color = 0xFFE53935,
+            color = SchedulePalette.WorkingWeekend,
         ),
         ShiftPreset(
             id = "working_weekend_evening",
@@ -82,7 +83,7 @@ object ShiftPool {
             start = LocalTime.of(12, 30),
             end = LocalTime.MIDNIGHT,
             purpose = "Рабочий выходной",
-            color = 0xFFD32F2F,
+            color = SchedulePalette.WorkingWeekend,
         ),
     )
 

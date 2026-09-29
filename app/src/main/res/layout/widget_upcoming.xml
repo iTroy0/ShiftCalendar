@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_upcoming_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="14dp"
+    android:background="@drawable/widget_background">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:src="@drawable/grafik_sz_icon"
+            android:contentDescription="@null" />
+
+        <TextView
+            android:id="@+id/widget_upcoming_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:text="График СЗ"
+            android:textColor="#FAFAFC"
+            android:textSize="14sp"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:ellipsize="end" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="10dp"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <View
+                android:id="@+id/widget_upcoming_today_accent"
+                android:layout_width="4dp"
+                android:layout_height="38dp"
+                android:background="#399AFF" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="10dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/widget_upcoming_today_label"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Сегодня"
+                    android:textColor="#8FBFFF"
+                    android:textSize="10sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:maxLines="1" />
+
+                <TextView
+                    android:id="@+id/widget_upcoming_today_value"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="1dp"
+                    android:text="04:00–12:30"
+                    android:textColor="#FAFAFC"
+                    android:textSize="15sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/widget_upcoming_today_detail"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="Почта и Verbox"
+                android:textColor="#BFC8E6"
+                android:textSize="10sp"
+                android:maxLines="2"
+                android:ellipsize="end" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginStart="14dp"
+            android:background="#35405F" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <View
+                android:id="@+id/widget_upcoming_tomorrow_accent"
+                android:layout_width="4dp"
+                android:layout_height="38dp"
+                android:background="#399AFF" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="10dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/widget_upcoming_tomorrow_label"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Завтра"
+                    android:textColor="#BFC8E6"
+                    android:textSize="10sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:maxLines="1" />
+
+                <TextView
+                    android:id="@+id/widget_upcoming_tomorrow_value"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="1dp"
+                    android:text="12:30–21:00"
+                    android:textColor="#FAFAFC"
+                    android:textSize="15sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/widget_upcoming_tomorrow_detail"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="Почта и Verbox"
+                android:textColor="#BFC8E6"
+                android:textSize="10sp"
+                android:maxLines="2"
+                android:ellipsize="end" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginStart="14dp"
+            android:background="#35405F" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <View
+                android:id="@+id/widget_upcoming_next_accent"
+                android:layout_width="4dp"
+                android:layout_height="32dp"
+                android:background="#399AFF" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="10dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/widget_upcoming_next_label"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Следующая"
+                    android:textColor="#BFC8E6"
+                    android:textSize="10sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:maxLines="1" />
+
+                <TextView
+                    android:id="@+id/widget_upcoming_next_value"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="1dp"
+                    android:text="06:00–15:00"
+                    android:textColor="#FAFAFC"
+                    android:textSize="14sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>
