@@ -156,14 +156,14 @@ object ScheduleWidgetUpdater {
         val manager = AppWidgetManager.getInstance(appContext)
 
         providers.forEach { provider ->
-            val component = ComponentName(appContext, provider)
-            val ids = manager.getAppWidgetIds(component)
+            val receiverComponent = ComponentName(appContext, provider)
+            val ids = manager.getAppWidgetIds(receiverComponent)
             if (ids.isEmpty()) {
                 return@forEach
             }
 
             val intent = Intent(AppWidgetManager.ACTION_APPWIDGET_UPDATE).apply {
-                component = component
+                component = receiverComponent
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
             }
             appContext.sendBroadcast(intent)
