@@ -6,13 +6,16 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateMap
+import com.ivans2001.grafiksz.widget.ScheduleWidgetProvider
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
 import java.time.YearMonth
 
 class ScheduleStore(context: Context) {
-    private val preferences = context.getSharedPreferences(
+    private val appContext = context.applicationContext
+
+    private val preferences = appContext.getSharedPreferences(
         "grafik_sz",
         Context.MODE_PRIVATE,
     )
@@ -95,6 +98,7 @@ class ScheduleStore(context: Context) {
         employeeName = ""
         preferences.edit().clear().apply()
         themeMode = ThemeMode.SYSTEM
+        ScheduleWidgetProvider.updateAll(appContext)
     }
 
     private fun loadRecords() {
@@ -146,6 +150,8 @@ class ScheduleStore(context: Context) {
         preferences.edit()
             .putString(KEY_RECORDS, array.toString())
             .apply()
+
+        ScheduleWidgetProvider.updateAll(appContext)
     }
 
     private companion object {

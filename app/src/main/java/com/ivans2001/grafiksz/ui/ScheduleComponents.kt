@@ -51,6 +51,7 @@ fun ScheduleHeader(
     month: YearMonth,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
+    onToday: () -> Unit,
     onImport: () -> Unit,
 ) {
     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
@@ -79,17 +80,18 @@ fun ScheduleHeader(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onPrevious) { Text("‹ Назад") }
+            TextButton(onClick = onPrevious) { Text("‹") }
             Text(
                 text = month.month.getDisplayName(TextStyle.FULL, ruLocale)
                     .replaceFirstChar { it.uppercaseChar() },
+                modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
             )
-            TextButton(onClick = onNext) { Text("Вперёд ›") }
+            TextButton(onClick = onToday) { Text("Сегодня") }
+            TextButton(onClick = onNext) { Text("›") }
         }
     }
 }

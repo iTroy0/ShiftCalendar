@@ -10,7 +10,7 @@
 
     <style name="Theme.GrafikSZ.Starting" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/icon_background</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/grafik_sz_icon</item>
         <item name="postSplashScreenTheme">@style/Theme.GrafikSZ</item>
     </style>
 </resources>

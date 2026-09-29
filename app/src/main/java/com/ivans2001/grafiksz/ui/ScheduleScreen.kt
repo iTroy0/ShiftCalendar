@@ -1,9 +1,12 @@
 package com.ivans2001.grafiksz.ui
 
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -14,6 +17,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import com.ivans2001.grafiksz.data.DayRecord
 import com.ivans2001.grafiksz.data.DayStatus
@@ -40,6 +44,36 @@ fun ScheduleScreen(
     val focusDate = LocalDate.parse(focusDateString)
     val viewMode = ScheduleViewMode.valueOf(viewModeName)
 
+    val goPrevious: () -> Unit = {
+        if (viewMode == ScheduleViewMode.WEEK) {
+            val date = focusDate.minusWeeks(1)
+            focusDateString = date.toString()
+            monthString = YearMonth.from(date).toString()
+        } else {
+            val previous = month.minusMonths(1)
+            monthString = previous.toString()
+            focusDateString = previous.atDay(1).toString()
+        }
+    }
+
+    val goNext: () -> Unit = {
+        if (viewMode == ScheduleViewMode.WEEK) {
+            val date = focusDate.plusWeeks(1)
+            focusDateString = date.toString()
+            monthString = YearMonth.from(date).toString()
+        } else {
+            val next = month.plusMonths(1)
+            monthString = next.toString()
+            focusDateString = next.atDay(1).toString()
+        }
+    }
+
+    val goToday: () -> Unit = {
+        val today = LocalDate.now()
+        monthString = YearMonth.from(today).toString()
+        focusDateString = today.toString()
+    }
+
     val monthRecords = store.records.filterKeys { YearMonth.from(it) == month }
     val workingDays = monthRecords.values.count { it.shiftId != null }
     val daysOff = monthRecords.values.count { it.status == DayStatus.DAY_OFF }
@@ -60,16 +94,9 @@ fun ScheduleScreen(
             ScheduleHeader(
                 employeeName = store.employeeName,
                 month = month,
-                onPrevious = {
-                    val previous = month.minusMonths(1)
-                    monthString = previous.toString()
-                    focusDateString = previous.atDay(1).toString()
-                },
-                onNext = {
-                    val next = month.plusMonths(1)
-                    monthString = next.toString()
-                    focusDateString = next.atDay(1).toString()
-                },
+                onPrevious = goPrevious,
+                onNext = goNext,
+                onToday = goToday,
                 onImport = { showImport = true },
             )
 
@@ -86,44 +113,60 @@ fun ScheduleScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            when (viewMode) {
-                ScheduleViewMode.MONTH -> MonthGrid(
-                    month = month,
-                    store = store,
-                    onDayClick = { date ->
-                        focusDateString = date.toString()
-                        editingDateString = date.toString()
-                    },
-                )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .pointerInput(viewModeName, monthString, focusDateString) {
+                        var totalDrag = 0f
+                        val threshold = 72.dp.toPx()
 
-                ScheduleViewMode.WEEK -> WeekScheduleView(
-                    focusDate = if (YearMonth.from(focusDate) == month) focusDate else month.atDay(1),
-                    store = store,
-                    onPreviousWeek = {
-                        val date = focusDate.minusWeeks(1)
-                        focusDateString = date.toString()
-                        monthString = YearMonth.from(date).toString()
+                        detectHorizontalDragGestures(
+                            onDragStart = { totalDrag = 0f },
+                            onHorizontalDrag = { _, dragAmount ->
+                                totalDrag += dragAmount
+                            },
+                            onDragEnd = {
+                                when {
+                                    totalDrag <= -threshold -> goNext()
+                                    totalDrag >= threshold -> goPrevious()
+                                }
+                                totalDrag = 0f
+                            },
+                            onDragCancel = { totalDrag = 0f },
+                        )
                     },
-                    onNextWeek = {
-                        val date = focusDate.plusWeeks(1)
-                        focusDateString = date.toString()
-                        monthString = YearMonth.from(date).toString()
-                    },
-                    onDayClick = { date ->
-                        focusDateString = date.toString()
-                        monthString = YearMonth.from(date).toString()
-                        editingDateString = date.toString()
-                    },
-                )
+            ) {
+                when (viewMode) {
+                    ScheduleViewMode.MONTH -> MonthGrid(
+                        month = month,
+                        store = store,
+                        onDayClick = { date ->
+                            focusDateString = date.toString()
+                            editingDateString = date.toString()
+                        },
+                    )
 
-                ScheduleViewMode.LIST -> MonthList(
-                    month = month,
-                    store = store,
-                    onDayClick = { date ->
-                        focusDateString = date.toString()
-                        editingDateString = date.toString()
-                    },
-                )
+                    ScheduleViewMode.WEEK -> WeekScheduleView(
+                        focusDate = if (YearMonth.from(focusDate) == month) focusDate else month.atDay(1),
+                        store = store,
+                        onPreviousWeek = goPrevious,
+                        onNextWeek = goNext,
+                        onDayClick = { date ->
+                            focusDateString = date.toString()
+                            monthString = YearMonth.from(date).toString()
+                            editingDateString = date.toString()
+                        },
+                    )
+
+                    ScheduleViewMode.LIST -> MonthList(
+                        month = month,
+                        store = store,
+                        onDayClick = { date ->
+                            focusDateString = date.toString()
+                            editingDateString = date.toString()
+                        },
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
