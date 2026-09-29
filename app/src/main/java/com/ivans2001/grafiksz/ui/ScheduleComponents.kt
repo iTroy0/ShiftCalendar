@@ -54,6 +54,7 @@ import com.ivans2001.grafiksz.data.DayStatus
 import com.ivans2001.grafiksz.data.ScheduleStore
 import com.ivans2001.grafiksz.data.ScheduleViewMode
 import com.ivans2001.grafiksz.data.ShiftPool
+import com.ivans2001.grafiksz.ui.theme.SchedulePalette
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.TextStyle
@@ -712,7 +713,7 @@ private fun ScheduleListRow(
             Text(
                 text = "+" + formatMinutes(record!!.overtimeMinutes),
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.error,
+                color = Color(SchedulePalette.Overtime),
                 fontWeight = FontWeight.Bold,
             )
         }
