@@ -25,7 +25,7 @@
         android:orientation="horizontal"
         android:gravity="center_vertical">
 
-        <View
+        <TextView
             android:id="@+id/widget_week_today_accent"
             android:layout_width="4dp"
             android:layout_height="34dp"
@@ -62,7 +62,7 @@
         </LinearLayout>
     </LinearLayout>
 
-    <View
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:layout_marginTop="10dp"
@@ -78,37 +78,37 @@
 
         <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical" android:gravity="center">
             <TextView android:id="@+id/widget_week_day_1_label" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:text="Пн 1" android:textColor="@color/widget_on_surface_variant" android:textSize="9sp" android:fontFamily="sans-serif-medium" android:maxLines="1"/>
-            <View android:id="@+id/widget_week_day_1_accent" android:layout_width="18dp" android:layout_height="3dp" android:layout_marginTop="5dp" android:background="#73798B"/>
+            <TextView android:id="@+id/widget_week_day_1_accent" android:layout_width="18dp" android:layout_height="3dp" android:layout_marginTop="5dp" android:background="#73798B"/>
             <TextView android:id="@+id/widget_week_day_1_value" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:gravity="center" android:text="4–12:30" android:textColor="@color/widget_on_surface" android:textSize="9sp" android:fontFamily="sans-serif-medium" android:maxLines="1" android:ellipsize="end"/>
         </LinearLayout>
         <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical" android:gravity="center">
             <TextView android:id="@+id/widget_week_day_2_label" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:text="Вт 2" android:textColor="@color/widget_on_surface_variant" android:textSize="9sp" android:fontFamily="sans-serif-medium" android:maxLines="1"/>
-            <View android:id="@+id/widget_week_day_2_accent" android:layout_width="18dp" android:layout_height="3dp" android:layout_marginTop="5dp" android:background="#73798B"/>
+            <TextView android:id="@+id/widget_week_day_2_accent" android:layout_width="18dp" android:layout_height="3dp" android:layout_marginTop="5dp" android:background="#73798B"/>
             <TextView android:id="@+id/widget_week_day_2_value" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:gravity="center" android:text="12:30–21" android:textColor="@color/widget_on_surface" android:textSize="9sp" android:fontFamily="sans-serif-medium" android:maxLines="1" android:ellipsize="end"/>
         </LinearLayout>
         <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical" android:gravity="center">
             <TextView android:id="@+id/widget_week_day_3_label" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:text="Ср 3" android:textColor="@color/widget_on_surface_variant" android:textSize="9sp" android:fontFamily="sans-serif-medium" android:maxLines="1"/>
-            <View android:id="@+id/widget_week_day_3_accent" android:layout_width="18dp" android:layout_height="3dp" android:layout_marginTop="5dp" android:background="#73798B"/>
+            <TextView android:id="@+id/widget_week_day_3_accent" android:layout_width="18dp" android:layout_height="3dp" android:layout_marginTop="5dp" android:background="#73798B"/>
             <TextView android:id="@+id/widget_week_day_3_value" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:gravity="center" android:text="ВЫХ" android:textColor="@color/widget_on_surface" android:textSize="9sp" android:fontFamily="sans-serif-medium" android:maxLines="1" android:ellipsize="end"/>
         </LinearLayout>
         <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical" android:gravity="center">
             <TextView android:id="@+id/widget_week_day_4_label" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:text="Чт 4" android:textColor="@color/widget_on_surface_variant" android:textSize="9sp" android:fontFamily="sans-serif-medium" android:maxLines="1"/>
-            <View android:id="@+id/widget_week_day_4_accent" android:layout_width="18dp" android:layout_height="3dp" android:layout_marginTop="5dp" android:background="#73798B"/>
+            <TextView android:id="@+id/widget_week_day_4_accent" android:layout_width="18dp" android:layout_height="3dp" android:layout_marginTop="5dp" android:background="#73798B"/>
             <TextView android:id="@+id/widget_week_day_4_value" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:gravity="center" android:text="6–15" android:textColor="@color/widget_on_surface" android:textSize="9sp" android:fontFamily="sans-serif-medium" android:maxLines="1" android:ellipsize="end"/>
         </LinearLayout>
         <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical" android:gravity="center">
             <TextView android:id="@+id/widget_week_day_5_label" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:text="Пт 5" android:textColor="@color/widget_on_surface_variant" android:textSize="9sp" android:fontFamily="sans-serif-medium" android:maxLines="1"/>
-            <View android:id="@+id/widget_week_day_5_accent" android:layout_width="18dp" android:layout_height="3dp" android:layout_marginTop="5dp" android:background="#73798B"/>
+            <TextView android:id="@+id/widget_week_day_5_accent" android:layout_width="18dp" android:layout_height="3dp" android:layout_marginTop="5dp" android:background="#73798B"/>
             <TextView android:id="@+id/widget_week_day_5_value" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:gravity="center" android:text="7–16" android:textColor="@color/widget_on_surface" android:textSize="9sp" android:fontFamily="sans-serif-medium" android:maxLines="1" android:ellipsize="end"/>
         </LinearLayout>
         <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical" android:gravity="center">
             <TextView android:id="@+id/widget_week_day_6_label" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:text="Сб 6" android:textColor="@color/widget_on_surface_variant" android:textSize="9sp" android:fontFamily="sans-serif-medium" android:maxLines="1"/>
-            <View android:id="@+id/widget_week_day_6_accent" android:layout_width="18dp" android:layout_height="3dp" android:layout_marginTop="5dp" android:background="#73798B"/>
+            <TextView android:id="@+id/widget_week_day_6_accent" android:layout_width="18dp" android:layout_height="3dp" android:layout_marginTop="5dp" android:background="#73798B"/>
             <TextView android:id="@+id/widget_week_day_6_value" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:gravity="center" android:text="—" android:textColor="@color/widget_on_surface" android:textSize="9sp" android:fontFamily="sans-serif-medium" android:maxLines="1" android:ellipsize="end"/>
         </LinearLayout>
         <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical" android:gravity="center">
             <TextView android:id="@+id/widget_week_day_7_label" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:text="Вс 7" android:textColor="@color/widget_on_surface_variant" android:textSize="9sp" android:fontFamily="sans-serif-medium" android:maxLines="1"/>
-            <View android:id="@+id/widget_week_day_7_accent" android:layout_width="18dp" android:layout_height="3dp" android:layout_marginTop="5dp" android:background="#73798B"/>
+            <TextView android:id="@+id/widget_week_day_7_accent" android:layout_width="18dp" android:layout_height="3dp" android:layout_marginTop="5dp" android:background="#73798B"/>
             <TextView android:id="@+id/widget_week_day_7_value" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:gravity="center" android:text="15–0" android:textColor="@color/widget_on_surface" android:textSize="9sp" android:fontFamily="sans-serif-medium" android:maxLines="1" android:ellipsize="end"/>
         </LinearLayout>
     </LinearLayout>
