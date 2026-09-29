@@ -44,6 +44,8 @@ object ExcelColumnParser {
     fun parse(text: String, month: YearMonth): ParsedImport {
         val rawLines = text
             .replace("\r", "")
+            .replace('\u00A0', ' ')
+            .replace('\u202F', ' ')
             .split("\n")
             .map { line -> line.substringBefore('\t').trim() }
 
