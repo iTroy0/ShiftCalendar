@@ -100,7 +100,7 @@ object ShiftPool {
 
     fun normalizeTimeRange(raw: String): Pair<LocalTime, LocalTime>? {
         val match = Regex(
-            """(\d{1,2})[.:](\d{2})\s*(?:до|-)\s*(\d{1,2})[.:](\d{2})""",
+            """(\d{1,2})[.:](\d{2})\s*(?:до|[-–—])\s*(\d{1,2})[.:](\d{2})""",
             RegexOption.IGNORE_CASE,
         ).find(raw.trim()) ?: return null
 
