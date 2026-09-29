@@ -78,6 +78,24 @@ class ExcelColumnParserTest {
     }
 
     @Test
+    fun invalidTimeIsUnresolvedInsteadOfCrashingImport() {
+        val text = "Иван\n99:99 до 12:30\n"
+
+        val result = ExcelColumnParser.parse(text, YearMonth.of(2026, 2))
+
+        assertEquals(listOf("99:99 до 12:30"), result.unresolvedValues)
+    }
+
+    @Test
+    fun timeRangeWithExtraGarbageIsNotMatchedPartially() {
+        val text = "Иван\n104:00 до 12:30\n"
+
+        val result = ExcelColumnParser.parse(text, YearMonth.of(2026, 2))
+
+        assertEquals(listOf("104:00 до 12:30"), result.unresolvedValues)
+    }
+
+    @Test
     fun blankCellIsNotDayOff() {
         val text = "Иван\n\n-\n"
 
