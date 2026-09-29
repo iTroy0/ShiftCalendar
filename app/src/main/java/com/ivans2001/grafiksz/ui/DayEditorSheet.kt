@@ -2,6 +2,7 @@
 
 package com.ivans2001.grafiksz.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -95,6 +96,14 @@ fun DayEditorSheet(
     }
 
     val dirty = buildRecord() != initial
+
+    BackHandler {
+        if (dirty) {
+            confirmClose = true
+        } else {
+            onDismiss()
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = {
