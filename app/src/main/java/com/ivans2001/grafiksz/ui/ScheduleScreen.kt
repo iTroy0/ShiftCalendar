@@ -1,5 +1,6 @@
 package com.ivans2001.grafiksz.ui
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -108,12 +109,18 @@ fun ScheduleScreen(
                 .take(60)
                 .firstOrNull { date -> store.record(date)?.shiftId != null }
 
-            TodayOverview(
-                date = today,
-                record = store.record(today),
-                nextDate = nextShiftDate,
-                nextRecord = nextShiftDate?.let(store::record),
-            )
+            if (month == YearMonth.now()) {
+                TodayOverview(
+                    date = today,
+                    record = store.record(today),
+                    nextDate = nextShiftDate,
+                    nextRecord = nextShiftDate?.let(store::record),
+                    onEdit = {
+                        focusDateString = today.toString()
+                        editingDateString = today.toString()
+                    },
+                )
+            }
 
             PeriodNavigator(
                 label = periodLabel,
@@ -122,7 +129,7 @@ fun ScheduleScreen(
                 onToday = goToday,
             )
 
-            SummaryStrip(
+            PeriodSummaryLine(
                 workingDays = workingDays,
                 daysOff = daysOff,
                 hours = totalMinutes / 60.0,
@@ -139,38 +146,47 @@ fun ScheduleScreen(
             )
 
             Box(modifier = Modifier.weight(1f)) {
-                when (viewMode) {
-                    ScheduleViewMode.MONTH -> MonthGrid(
-                        month = month,
-                        store = store,
-                        onDayClick = { date ->
-                            focusDateString = date.toString()
-                            editingDateString = date.toString()
-                        },
-                        onSwipePrevious = goPrevious,
-                        onSwipeNext = goNext,
-                    )
+                Crossfade(
+                    targetState = viewMode,
+                    label = "scheduleView",
+                ) { mode ->
+                    when (mode) {
+                        ScheduleViewMode.MONTH -> MonthGrid(
+                            month = month,
+                            store = store,
+                            onDayClick = { date ->
+                                focusDateString = date.toString()
+                                editingDateString = date.toString()
+                            },
+                            onSwipePrevious = goPrevious,
+                            onSwipeNext = goNext,
+                        )
 
-                    ScheduleViewMode.WEEK -> WeekScheduleView(
-                        focusDate = focusDate,
-                        store = store,
-                        onDayClick = { date ->
-                            focusDateString = date.toString()
-                            monthString = YearMonth.from(date).toString()
-                            editingDateString = date.toString()
-                        },
-                        onSwipePrevious = goPrevious,
-                        onSwipeNext = goNext,
-                    )
+                        ScheduleViewMode.WEEK -> WeekScheduleView(
+                            focusDate = focusDate,
+                            store = store,
+                            onDaySelect = { date ->
+                                focusDateString = date.toString()
+                                monthString = YearMonth.from(date).toString()
+                            },
+                            onEditDay = { date ->
+                                focusDateString = date.toString()
+                                monthString = YearMonth.from(date).toString()
+                                editingDateString = date.toString()
+                            },
+                            onSwipePrevious = goPrevious,
+                            onSwipeNext = goNext,
+                        )
 
-                    ScheduleViewMode.LIST -> MonthList(
-                        month = month,
-                        store = store,
-                        onDayClick = { date ->
-                            focusDateString = date.toString()
-                            editingDateString = date.toString()
-                        },
-                    )
+                        ScheduleViewMode.LIST -> MonthList(
+                            month = month,
+                            store = store,
+                            onDayClick = { date ->
+                                focusDateString = date.toString()
+                                editingDateString = date.toString()
+                            },
+                        )
+                    }
                 }
             }
         }
