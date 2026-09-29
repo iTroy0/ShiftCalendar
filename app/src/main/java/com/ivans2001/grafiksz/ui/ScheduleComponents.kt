@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -526,20 +525,19 @@ fun WeekCalendar(
                 )
             },
     ) {
-        LazyRow(
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = AppSpacing.md),
-            horizontalArrangement = Arrangement.spacedBy(AppSpacing.xs),
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = AppSpacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
         ) {
-            items(
-                items = days,
-                key = { it.toString() },
-            ) { date ->
+            days.forEach { date ->
                 WeekDayTile(
                     date = date,
                     record = store.record(date),
                     selected = date == focusDate,
                     onClick = { onDaySelect(date) },
+                    modifier = Modifier.weight(1f),
                 )
             }
         }
@@ -565,6 +563,7 @@ private fun WeekDayTile(
     record: DayRecord?,
     selected: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val shift = ShiftPool.byId(record?.shiftId)
     val accent = recordAccent(record)
@@ -572,9 +571,8 @@ private fun WeekDayTile(
 
     Surface(
         onClick = onClick,
-        modifier = Modifier
-            .width(82.dp)
-            .height(112.dp),
+        modifier = modifier
+            .height(108.dp),
         shape = RoundedCornerShape(18.dp),
         color = if (selected) {
             MaterialTheme.colorScheme.primaryContainer
