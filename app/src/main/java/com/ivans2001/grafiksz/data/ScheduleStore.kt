@@ -40,6 +40,16 @@ class ScheduleStore(context: Context) {
     )
         private set
 
+    var accentMode by mutableStateOf(
+        runCatching {
+            AccentMode.valueOf(
+                preferences.getString(KEY_ACCENT, AccentMode.DYNAMIC.name)
+                    ?: AccentMode.DYNAMIC.name,
+            )
+        }.getOrDefault(AccentMode.DYNAMIC),
+    )
+        private set
+
     init {
         loadRecords()
     }
@@ -91,6 +101,15 @@ class ScheduleStore(context: Context) {
         preferences.edit()
             .putString(KEY_THEME, value.name)
             .apply()
+        ScheduleWidgetUpdater.updateAll(appContext)
+    }
+
+    fun updateAccentMode(value: AccentMode) {
+        accentMode = value
+        preferences.edit()
+            .putString(KEY_ACCENT, value.name)
+            .apply()
+        ScheduleWidgetUpdater.updateAll(appContext)
     }
 
     fun clearAll() {
@@ -98,6 +117,7 @@ class ScheduleStore(context: Context) {
         employeeName = ""
         preferences.edit().clear().commit()
         themeMode = ThemeMode.SYSTEM
+        accentMode = AccentMode.DYNAMIC
         ScheduleWidgetUpdater.updateAll(appContext)
     }
 
@@ -158,5 +178,6 @@ class ScheduleStore(context: Context) {
         const val KEY_RECORDS = "records"
         const val KEY_EMPLOYEE_NAME = "employee_name"
         const val KEY_THEME = "theme"
+        const val KEY_ACCENT = "accent"
     }
 }

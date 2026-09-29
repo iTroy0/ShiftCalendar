@@ -21,69 +21,80 @@ import com.ivans2001.grafiksz.data.ScheduleViewMode
 import com.ivans2001.grafiksz.data.ShiftPool
 import java.time.LocalDate
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
-import java.util.Locale
-
-private val scheduleLocale = Locale("ru")
-private val monthTitleFormatter = DateTimeFormatter.ofPattern("LLLL yyyy", scheduleLocale)
 
 @Composable
 fun ScheduleScreen(
     store: ScheduleStore,
     contentPadding: PaddingValues,
 ) {
-    var monthString by rememberSaveable { mutableStateOf(YearMonth.now().toString()) }
-    var focusDateString by rememberSaveable { mutableStateOf(LocalDate.now().toString()) }
-    var viewModeName by rememberSaveable { mutableStateOf(ScheduleViewMode.MONTH.name) }
-    var editingDateString by rememberSaveable { mutableStateOf<String?>(null) }
-    var showImport by rememberSaveable { mutableStateOf(false) }
+    var monthValue by rememberSaveable {
+        mutableStateOf(YearMonth.now().toString())
+    }
+    var focusDateValue by rememberSaveable {
+        mutableStateOf(LocalDate.now().toString())
+    }
+    var modeValue by rememberSaveable {
+        mutableStateOf(ScheduleViewMode.MONTH.name)
+    }
+    var editingDateValue by rememberSaveable {
+        mutableStateOf<String?>(null)
+    }
+    var showImport by rememberSaveable {
+        mutableStateOf(false)
+    }
 
-    val month = YearMonth.parse(monthString)
-    val focusDate = LocalDate.parse(focusDateString)
-    val viewMode = ScheduleViewMode.valueOf(viewModeName)
+    val month = YearMonth.parse(monthValue)
+    val focusDate = LocalDate.parse(focusDateValue)
+    val mode = ScheduleViewMode.valueOf(modeValue)
+
+    val goToday: () -> Unit = {
+        val today = LocalDate.now()
+        monthValue = YearMonth.from(today).toString()
+        focusDateValue = today.toString()
+    }
 
     val goPrevious: () -> Unit = {
-        if (viewMode == ScheduleViewMode.WEEK) {
-            val date = focusDate.minusWeeks(1)
-            focusDateString = date.toString()
-            monthString = YearMonth.from(date).toString()
+        if (mode == ScheduleViewMode.WEEK) {
+            val previous = focusDate.minusWeeks(1)
+            focusDateValue = previous.toString()
+            monthValue = YearMonth.from(previous).toString()
         } else {
             val previous = month.minusMonths(1)
-            monthString = previous.toString()
-            focusDateString = previous.atDay(1).toString()
+            monthValue = previous.toString()
+            focusDateValue = previous.atDay(1).toString()
         }
     }
 
     val goNext: () -> Unit = {
-        if (viewMode == ScheduleViewMode.WEEK) {
-            val date = focusDate.plusWeeks(1)
-            focusDateString = date.toString()
-            monthString = YearMonth.from(date).toString()
+        if (mode == ScheduleViewMode.WEEK) {
+            val next = focusDate.plusWeeks(1)
+            focusDateValue = next.toString()
+            monthValue = YearMonth.from(next).toString()
         } else {
             val next = month.plusMonths(1)
-            monthString = next.toString()
-            focusDateString = next.atDay(1).toString()
+            monthValue = next.toString()
+            focusDateValue = next.atDay(1).toString()
         }
     }
 
-    val goToday: () -> Unit = {
-        val today = LocalDate.now()
-        monthString = YearMonth.from(today).toString()
-        focusDateString = today.toString()
+    val periodLabel = if (mode == ScheduleViewMode.WEEK) {
+        weekRangeLabel(focusDate)
+    } else {
+        monthLabel(month)
     }
 
-    val periodLabel = when (viewMode) {
-        ScheduleViewMode.WEEK -> weekRangeLabel(focusDate)
-        ScheduleViewMode.MONTH,
-        ScheduleViewMode.LIST,
-        -> month.format(monthTitleFormatter).replaceFirstChar { it.uppercaseChar() }
+    val periodRecords = if (mode == ScheduleViewMode.WEEK) {
+        val monday = focusDate.minusDays((focusDate.dayOfWeek.value - 1).toLong())
+        val sunday = monday.plusDays(6)
+        store.records.filterKeys { date -> !date.isBefore(monday) && !date.isAfter(sunday) }
+    } else {
+        store.records.filterKeys { date -> YearMonth.from(date) == month }
     }
 
-    val monthRecords = store.records.filterKeys { YearMonth.from(it) == month }
-    val workingDays = monthRecords.values.count { it.shiftId != null }
-    val daysOff = monthRecords.values.count { it.status == DayStatus.DAY_OFF }
-    val totalMinutes = monthRecords.values.sumOf { record ->
+    val workingDays = periodRecords.values.count { it.shiftId != null }
+    val daysOff = periodRecords.values.count { it.status == DayStatus.DAY_OFF }
+    val totalMinutes = periodRecords.values.sumOf { record ->
         (ShiftPool.byId(record.shiftId)?.durationMinutes ?: 0) + record.overtimeMinutes
     }
 
@@ -98,26 +109,25 @@ fun ScheduleScreen(
         )
 
         if (store.records.isEmpty()) {
-            FirstRunImportCard(
+            EmptyScheduleState(
                 onImport = { showImport = true },
+                modifier = Modifier.weight(1f),
             )
-
-            Box(modifier = Modifier.weight(1f))
         } else {
-            val today = LocalDate.now()
-            val nextShiftDate = generateSequence(today.plusDays(1)) { it.plusDays(1) }
-                .take(60)
-                .firstOrNull { date -> store.record(date)?.shiftId != null }
-
             if (month == YearMonth.now()) {
-                TodayOverview(
+                val today = LocalDate.now()
+                val nextDate = generateSequence(today.plusDays(1)) { it.plusDays(1) }
+                    .take(60)
+                    .firstOrNull { date -> store.record(date)?.shiftId != null }
+
+                CurrentDayPanel(
                     date = today,
                     record = store.record(today),
-                    nextDate = nextShiftDate,
-                    nextRecord = nextShiftDate?.let(store::record),
+                    nextDate = nextDate,
+                    nextRecord = nextDate?.let(store::record),
                     onEdit = {
-                        focusDateString = today.toString()
-                        editingDateString = today.toString()
+                        focusDateValue = today.toString()
+                        editingDateValue = today.toString()
                     },
                 )
             }
@@ -127,63 +137,79 @@ fun ScheduleScreen(
                 onPrevious = goPrevious,
                 onNext = goNext,
                 onToday = goToday,
+                modifier = Modifier.padding(horizontal = AppSpacing.xs),
             )
 
-            PeriodSummaryLine(
-                workingDays = workingDays,
-                daysOff = daysOff,
-                hours = totalMinutes / 60.0,
+            InlineMetrics(
+                items = listOf(
+                    workingDays.toString() to "смен",
+                    formatHours(totalMinutes / 60.0) to "ч",
+                    daysOff.toString() to "выходных",
+                ),
+                modifier = Modifier.padding(
+                    start = AppSpacing.md,
+                    end = AppSpacing.md,
+                    bottom = AppSpacing.xs,
+                ),
             )
 
-            ViewModeSelector(
-                selected = viewMode,
+            ScheduleModeTabs(
+                selected = mode,
                 onSelect = { selected ->
-                    viewModeName = selected.name
-                    if (selected == ScheduleViewMode.WEEK && YearMonth.from(focusDate) != month) {
-                        focusDateString = month.atDay(1).toString()
+                    modeValue = selected.name
+                    if (selected == ScheduleViewMode.WEEK) {
+                        val candidate = if (YearMonth.from(focusDate) == month) {
+                            focusDate
+                        } else {
+                            month.atDay(1)
+                        }
+                        focusDateValue = candidate.toString()
                     }
                 },
+                modifier = Modifier.padding(horizontal = AppSpacing.sm),
             )
 
-            Box(modifier = Modifier.weight(1f)) {
+            Box(
+                modifier = Modifier.weight(1f),
+            ) {
                 Crossfade(
-                    targetState = viewMode,
-                    label = "scheduleView",
-                ) { mode ->
-                    when (mode) {
-                        ScheduleViewMode.MONTH -> MonthGrid(
+                    targetState = mode,
+                    label = "scheduleMode",
+                ) { target ->
+                    when (target) {
+                        ScheduleViewMode.MONTH -> MonthCalendar(
                             month = month,
                             store = store,
                             onDayClick = { date ->
-                                focusDateString = date.toString()
-                                editingDateString = date.toString()
+                                focusDateValue = date.toString()
+                                editingDateValue = date.toString()
                             },
                             onSwipePrevious = goPrevious,
                             onSwipeNext = goNext,
                         )
 
-                        ScheduleViewMode.WEEK -> WeekScheduleView(
+                        ScheduleViewMode.WEEK -> WeekCalendar(
                             focusDate = focusDate,
                             store = store,
                             onDaySelect = { date ->
-                                focusDateString = date.toString()
-                                monthString = YearMonth.from(date).toString()
+                                focusDateValue = date.toString()
+                                monthValue = YearMonth.from(date).toString()
                             },
                             onEditDay = { date ->
-                                focusDateString = date.toString()
-                                monthString = YearMonth.from(date).toString()
-                                editingDateString = date.toString()
+                                focusDateValue = date.toString()
+                                monthValue = YearMonth.from(date).toString()
+                                editingDateValue = date.toString()
                             },
                             onSwipePrevious = goPrevious,
                             onSwipeNext = goNext,
                         )
 
-                        ScheduleViewMode.LIST -> MonthList(
+                        ScheduleViewMode.LIST -> MonthScheduleList(
                             month = month,
                             store = store,
                             onDayClick = { date ->
-                                focusDateString = date.toString()
-                                editingDateString = date.toString()
+                                focusDateValue = date.toString()
+                                editingDateValue = date.toString()
                             },
                         )
                     }
@@ -192,19 +218,20 @@ fun ScheduleScreen(
         }
     }
 
-    editingDateString?.let { dateString ->
-        val date = LocalDate.parse(dateString)
+    editingDateValue?.let { value ->
+        val date = LocalDate.parse(value)
+
         DayEditorSheet(
             date = date,
             initial = store.record(date) ?: DayRecord(),
-            onDismiss = { editingDateString = null },
+            onDismiss = { editingDateValue = null },
             onSave = { record ->
                 store.saveDay(date, record)
-                editingDateString = null
+                editingDateValue = null
             },
             onClear = {
                 store.clearDay(date)
-                editingDateString = null
+                editingDateValue = null
             },
         )
     }
@@ -213,8 +240,8 @@ fun ScheduleScreen(
         ImportScheduleDialog(
             initialMonth = month,
             onDismiss = { showImport = false },
-            onApply = { selectedMonth: YearMonth, imported: ParsedImport, mappings: Map<String, String> ->
-                val records = imported.days.mapNotNull { day ->
+            onApply = { selectedMonth: YearMonth, parsed: ParsedImport, mappings: Map<String, String> ->
+                val imported = parsed.days.mapNotNull { day ->
                     val record = when (val value = day.value) {
                         ParsedCell.Empty -> null
                         is ParsedCell.Shift -> DayRecord(shiftId = value.shiftId)
@@ -222,27 +249,31 @@ fun ScheduleScreen(
                         is ParsedCell.Unresolved -> mappings[value.raw]
                             ?.let { shiftId -> DayRecord(shiftId = shiftId) }
                     }
+
                     record?.let { day.date to it }
                 }.toMap()
 
                 store.replaceMonth(
                     month = selectedMonth,
-                    imported = records,
-                    importedEmployeeName = imported.employeeName,
+                    imported = imported,
+                    importedEmployeeName = parsed.employeeName,
                 )
-                monthString = selectedMonth.toString()
-                focusDateString = selectedMonth.atDay(1).toString()
+
+                monthValue = selectedMonth.toString()
+                focusDateValue = selectedMonth.atDay(1).toString()
                 showImport = false
             },
         )
     }
 }
 
-private fun weekRangeLabel(date: LocalDate): String {
+private fun weekRangeLabel(
+    date: LocalDate,
+): String {
     val monday = date.minusDays((date.dayOfWeek.value - 1).toLong())
     val sunday = monday.plusDays(6)
-    val startMonth = monday.month.getDisplayName(TextStyle.SHORT, scheduleLocale).replace(".", "")
-    val endMonth = sunday.month.getDisplayName(TextStyle.SHORT, scheduleLocale).replace(".", "")
+    val startMonth = monday.month.getDisplayName(TextStyle.SHORT, UiLocale).replace(".", "")
+    val endMonth = sunday.month.getDisplayName(TextStyle.SHORT, UiLocale).replace(".", "")
 
     return if (monday.month == sunday.month) {
         "${monday.dayOfMonth}–${sunday.dayOfMonth} $endMonth ${sunday.year}"

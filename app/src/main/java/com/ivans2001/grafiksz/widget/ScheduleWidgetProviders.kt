@@ -21,7 +21,10 @@ abstract class BaseScheduleWidgetProvider : AppWidgetProvider() {
         appWidgetIds: IntArray,
     ) {
         appWidgetIds.forEach { id ->
-            appWidgetManager.updateAppWidget(id, render(context, id))
+            appWidgetManager.updateAppWidget(
+                id,
+                render(context, id),
+            )
         }
     }
 
@@ -31,19 +34,31 @@ abstract class BaseScheduleWidgetProvider : AppWidgetProvider() {
         appWidgetId: Int,
         newOptions: Bundle,
     ) {
-        super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
-        appWidgetManager.updateAppWidget(appWidgetId, render(context, appWidgetId))
+        super.onAppWidgetOptionsChanged(
+            context,
+            appWidgetManager,
+            appWidgetId,
+            newOptions,
+        )
+
+        appWidgetManager.updateAppWidget(
+            appWidgetId,
+            render(context, appWidgetId),
+        )
     }
 
-    override fun onReceive(context: Context, intent: Intent) {
+    override fun onReceive(
+        context: Context,
+        intent: Intent,
+    ) {
         super.onReceive(context, intent)
 
         if (
-            intent.action == Intent.ACTION_DATE_CHANGED
-            || intent.action == Intent.ACTION_TIME_CHANGED
-            || intent.action == Intent.ACTION_TIMEZONE_CHANGED
-            || intent.action == Intent.ACTION_BOOT_COMPLETED
-            || intent.action == Intent.ACTION_MY_PACKAGE_REPLACED
+            intent.action == Intent.ACTION_DATE_CHANGED ||
+            intent.action == Intent.ACTION_TIME_CHANGED ||
+            intent.action == Intent.ACTION_TIMEZONE_CHANGED ||
+            intent.action == Intent.ACTION_BOOT_COMPLETED ||
+            intent.action == Intent.ACTION_MY_PACKAGE_REPLACED
         ) {
             ScheduleWidgetUpdater.updateAll(context)
         }
@@ -58,26 +73,50 @@ class TodayWidgetProvider : BaseScheduleWidgetProvider() {
         val records = ScheduleWidgetData.read(context)
         val today = LocalDate.now()
         val item = ScheduleWidgetData.display(records[today])
-        val next = ScheduleWidgetData.nextShift(today.plusDays(1), records)
+        val next = ScheduleWidgetData.nextShift(
+            today.plusDays(1),
+            records,
+        )
+        val themeAccent = ScheduleWidgetData.themeAccent(context)
 
-        return RemoteViews(context.packageName, R.layout.widget_today).apply {
+        return RemoteViews(
+            context.packageName,
+            R.layout.widget_today,
+        ).apply {
             setTextViewText(
                 R.id.widget_today_date,
                 "Сегодня · ${today.format(ScheduleWidgetData.shortDate)}",
             )
-            setTextViewText(R.id.widget_today_value, item.primary)
+            setTextColor(
+                R.id.widget_today_date,
+                themeAccent,
+            )
+
+            setTextViewText(
+                R.id.widget_today_value,
+                item.primary,
+            )
+
             setTextViewText(
                 R.id.widget_today_detail,
                 item.secondary.ifBlank {
                     if (next != null) {
-                        val nextItem = ScheduleWidgetData.display(records[next])
+                        val nextItem =
+                            ScheduleWidgetData.display(records[next])
+
                         "Следующая ${next.format(ScheduleWidgetData.shortDate)} · ${nextItem.primary}"
                     } else {
                         "Следующих смен пока нет"
                     }
                 },
             )
-            setInt(R.id.widget_today_accent, "setBackgroundColor", item.accent)
+
+            setInt(
+                R.id.widget_today_accent,
+                "setBackgroundColor",
+                item.accent,
+            )
+
             setOnClickPendingIntent(
                 R.id.widget_today_root,
                 ScheduleWidgetData.openAppIntent(context),
@@ -95,13 +134,24 @@ class UpcomingWidgetProvider : BaseScheduleWidgetProvider() {
         val employee = ScheduleWidgetData.employeeName(context)
         val today = LocalDate.now()
         val tomorrow = today.plusDays(1)
+        val themeAccent = ScheduleWidgetData.themeAccent(context)
 
-        val todayItem = ScheduleWidgetData.display(records[today])
-        val tomorrowItem = ScheduleWidgetData.display(records[tomorrow])
-        val next = ScheduleWidgetData.nextShift(today.plusDays(2), records)
-        val nextItem = next?.let { ScheduleWidgetData.display(records[it]) }
+        val todayItem =
+            ScheduleWidgetData.display(records[today])
+        val tomorrowItem =
+            ScheduleWidgetData.display(records[tomorrow])
 
-        return RemoteViews(context.packageName, R.layout.widget_upcoming).apply {
+        val next = ScheduleWidgetData.nextShift(
+            tomorrow.plusDays(1),
+            records,
+        )
+        val nextItem =
+            next?.let { ScheduleWidgetData.display(records[it]) }
+
+        return RemoteViews(
+            context.packageName,
+            R.layout.widget_upcoming,
+        ).apply {
             setTextViewText(
                 R.id.widget_upcoming_title,
                 employee.ifBlank { "График СЗ" },
@@ -111,29 +161,70 @@ class UpcomingWidgetProvider : BaseScheduleWidgetProvider() {
                 R.id.widget_upcoming_today_label,
                 "Сегодня · ${today.format(ScheduleWidgetData.shortDate)}",
             )
-            setTextViewText(R.id.widget_upcoming_today_value, todayItem.primary)
-            setTextViewText(R.id.widget_upcoming_today_detail, todayItem.secondary)
-            setInt(R.id.widget_upcoming_today_accent, "setBackgroundColor", todayItem.accent)
+            setTextColor(
+                R.id.widget_upcoming_today_label,
+                themeAccent,
+            )
+            setTextViewText(
+                R.id.widget_upcoming_today_value,
+                todayItem.primary,
+            )
+            setTextViewText(
+                R.id.widget_upcoming_today_detail,
+                todayItem.secondary,
+            )
+            setInt(
+                R.id.widget_upcoming_today_accent,
+                "setBackgroundColor",
+                todayItem.accent,
+            )
 
             setTextViewText(
                 R.id.widget_upcoming_tomorrow_label,
                 "Завтра · ${tomorrow.format(ScheduleWidgetData.shortDate)}",
             )
-            setTextViewText(R.id.widget_upcoming_tomorrow_value, tomorrowItem.primary)
-            setTextViewText(R.id.widget_upcoming_tomorrow_detail, tomorrowItem.secondary)
-            setInt(R.id.widget_upcoming_tomorrow_accent, "setBackgroundColor", tomorrowItem.accent)
+            setTextViewText(
+                R.id.widget_upcoming_tomorrow_value,
+                tomorrowItem.primary,
+            )
+            setTextViewText(
+                R.id.widget_upcoming_tomorrow_detail,
+                tomorrowItem.secondary,
+            )
+            setInt(
+                R.id.widget_upcoming_tomorrow_accent,
+                "setBackgroundColor",
+                tomorrowItem.accent,
+            )
 
             if (next != null && nextItem != null) {
                 setTextViewText(
                     R.id.widget_upcoming_next_label,
                     "Следующая · ${next.format(ScheduleWidgetData.shortDate)}",
                 )
-                setTextViewText(R.id.widget_upcoming_next_value, nextItem.primary)
-                setInt(R.id.widget_upcoming_next_accent, "setBackgroundColor", nextItem.accent)
+                setTextViewText(
+                    R.id.widget_upcoming_next_value,
+                    nextItem.primary,
+                )
+                setInt(
+                    R.id.widget_upcoming_next_accent,
+                    "setBackgroundColor",
+                    nextItem.accent,
+                )
             } else {
-                setTextViewText(R.id.widget_upcoming_next_label, "Следующая")
-                setTextViewText(R.id.widget_upcoming_next_value, "Нет в графике")
-                setInt(R.id.widget_upcoming_next_accent, "setBackgroundColor", 0xFF73798B.toInt())
+                setTextViewText(
+                    R.id.widget_upcoming_next_label,
+                    "Следующая",
+                )
+                setTextViewText(
+                    R.id.widget_upcoming_next_value,
+                    "Нет в графике",
+                )
+                setInt(
+                    R.id.widget_upcoming_next_accent,
+                    "setBackgroundColor",
+                    0xFF73798B.toInt(),
+                )
             }
 
             setOnClickPendingIntent(
@@ -152,8 +243,13 @@ class WeekWidgetProvider : BaseScheduleWidgetProvider() {
         val records = ScheduleWidgetData.read(context)
         val employee = ScheduleWidgetData.employeeName(context)
         val today = LocalDate.now()
-        val monday = today.minusDays((today.dayOfWeek.value - 1).toLong())
-        val todayItem = ScheduleWidgetData.display(records[today])
+        val monday = today.minusDays(
+            (today.dayOfWeek.value - 1).toLong(),
+        )
+        val todayItem =
+            ScheduleWidgetData.display(records[today])
+        val themeAccent =
+            ScheduleWidgetData.themeAccent(context)
 
         val labelIds = intArrayOf(
             R.id.widget_week_day_1_label,
@@ -164,6 +260,7 @@ class WeekWidgetProvider : BaseScheduleWidgetProvider() {
             R.id.widget_week_day_6_label,
             R.id.widget_week_day_7_label,
         )
+
         val valueIds = intArrayOf(
             R.id.widget_week_day_1_value,
             R.id.widget_week_day_2_value,
@@ -173,6 +270,7 @@ class WeekWidgetProvider : BaseScheduleWidgetProvider() {
             R.id.widget_week_day_6_value,
             R.id.widget_week_day_7_value,
         )
+
         val accentIds = intArrayOf(
             R.id.widget_week_day_1_accent,
             R.id.widget_week_day_2_accent,
@@ -183,23 +281,39 @@ class WeekWidgetProvider : BaseScheduleWidgetProvider() {
             R.id.widget_week_day_7_accent,
         )
 
-        return RemoteViews(context.packageName, R.layout.widget_week).apply {
+        return RemoteViews(
+            context.packageName,
+            R.layout.widget_week,
+        ).apply {
             setTextViewText(
                 R.id.widget_week_title,
                 employee.ifBlank { "Неделя" },
             )
-            setTextViewText(R.id.widget_week_today_value, todayItem.primary)
+
+            setTextViewText(
+                R.id.widget_week_today_value,
+                todayItem.primary,
+            )
             setTextViewText(
                 R.id.widget_week_today_detail,
                 todayItem.secondary.ifBlank {
                     "Сегодня · ${today.format(ScheduleWidgetData.shortDate)}"
                 },
             )
-            setInt(R.id.widget_week_today_accent, "setBackgroundColor", todayItem.accent)
+            setTextColor(
+                R.id.widget_week_today_detail,
+                themeAccent,
+            )
+            setInt(
+                R.id.widget_week_today_accent,
+                "setBackgroundColor",
+                todayItem.accent,
+            )
 
             (0..6).forEach { offset ->
                 val date = monday.plusDays(offset.toLong())
-                val item = ScheduleWidgetData.display(records[date])
+                val item =
+                    ScheduleWidgetData.display(records[date])
                 val isToday = date == today
 
                 setTextViewText(
@@ -210,20 +324,27 @@ class WeekWidgetProvider : BaseScheduleWidgetProvider() {
                         "${ScheduleWidgetData.dayLabel(date)} ${date.dayOfMonth}"
                     },
                 )
+
                 setTextViewText(
                     valueIds[offset],
                     ScheduleWidgetData.compact(item.primary),
                 )
-                setInt(accentIds[offset], "setBackgroundColor", item.accent)
+
+                setInt(
+                    accentIds[offset],
+                    "setBackgroundColor",
+                    item.accent,
+                )
+
                 setTextColor(
                     labelIds[offset],
-                    context.getColor(
-                        if (isToday) {
-                            R.color.widget_primary
-                        } else {
-                            R.color.widget_on_surface_variant
-                        },
-                    ),
+                    if (isToday) {
+                        themeAccent
+                    } else {
+                        context.getColor(
+                            R.color.widget_on_surface_variant,
+                        )
+                    },
                 )
             }
 

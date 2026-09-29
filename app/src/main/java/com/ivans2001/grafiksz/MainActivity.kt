@@ -18,7 +18,10 @@ class MainActivity : ComponentActivity() {
         val store = ScheduleStore(applicationContext)
 
         setContent {
-            GrafikSzTheme(themeMode = store.themeMode) {
+            GrafikSzTheme(
+                themeMode = store.themeMode,
+                accentMode = store.accentMode,
+            ) {
                 GrafikSzApp(store = store)
             }
         }

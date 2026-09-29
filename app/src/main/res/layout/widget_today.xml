@@ -5,41 +5,26 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:gravity="center_vertical"
-    android:padding="14dp"
+    android:padding="16dp"
     android:background="@drawable/widget_background">
 
-    <LinearLayout
+    <TextView
+        android:id="@+id/widget_today_date"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
-
-        <ImageView
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/grafik_sz_icon"
-            android:contentDescription="@null" />
-
-        <TextView
-            android:id="@+id/widget_today_date"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="8dp"
-            android:text="Сегодня"
-            android:textColor="@color/widget_on_surface_variant"
-            android:textSize="11sp"
-            android:fontFamily="sans-serif-medium"
-            android:maxLines="1"
-            android:ellipsize="end" />
-    </LinearLayout>
+        android:text="Сегодня"
+        android:textColor="@color/widget_on_surface_variant"
+        android:textSize="12sp"
+        android:fontFamily="sans-serif-medium"
+        android:maxLines="1"
+        android:ellipsize="end" />
 
     <View
         android:id="@+id/widget_today_accent"
-        android:layout_width="44dp"
+        android:layout_width="36dp"
         android:layout_height="4dp"
-        android:layout_marginTop="12dp"
-        android:background="#399AFF" />
+        android:layout_marginTop="10dp"
+        android:background="#73798B" />
 
     <TextView
         android:id="@+id/widget_today_value"
@@ -57,7 +42,7 @@
         android:id="@+id/widget_today_detail"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="3dp"
         android:text="Почта и Verbox"
         android:textColor="@color/widget_on_surface_variant"
         android:textSize="11sp"

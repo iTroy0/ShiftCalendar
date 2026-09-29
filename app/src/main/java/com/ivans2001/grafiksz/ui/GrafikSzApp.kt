@@ -1,5 +1,6 @@
 package com.ivans2001.grafiksz.ui
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -18,19 +19,40 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.ivans2001.grafiksz.data.ScheduleStore
 
-private enum class AppTab(val label: String) {
-    SCHEDULE("График"),
-    STATS("Итоги"),
-    SETTINGS("Настройки"),
+private enum class AppDestination(
+    val label: String,
+    val selectedIcon: ImageVector,
+    val icon: ImageVector,
+) {
+    SCHEDULE(
+        label = "График",
+        selectedIcon = Icons.Filled.CalendarMonth,
+        icon = Icons.Outlined.CalendarMonth,
+    ),
+    STATS(
+        label = "Итоги",
+        selectedIcon = Icons.Filled.BarChart,
+        icon = Icons.Outlined.BarChart,
+    ),
+    SETTINGS(
+        label = "Настройки",
+        selectedIcon = Icons.Filled.Settings,
+        icon = Icons.Outlined.Settings,
+    ),
 }
 
 @Composable
-fun GrafikSzApp(store: ScheduleStore) {
-    var tabName by rememberSaveable { mutableStateOf(AppTab.SCHEDULE.name) }
-    val activeTab = AppTab.valueOf(tabName)
+fun GrafikSzApp(
+    store: ScheduleStore,
+) {
+    var destinationName by rememberSaveable {
+        mutableStateOf(AppDestination.SCHEDULE.name)
+    }
+    val destination = AppDestination.valueOf(destinationName)
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -39,33 +61,50 @@ fun GrafikSzApp(store: ScheduleStore) {
                 containerColor = MaterialTheme.colorScheme.surface,
                 tonalElevation = 0.dp,
             ) {
-                AppTab.entries.forEach { tab ->
-                    val selected = activeTab == tab
-                    val icon = when (tab) {
-                        AppTab.SCHEDULE -> if (selected) Icons.Filled.CalendarMonth else Icons.Outlined.CalendarMonth
-                        AppTab.STATS -> if (selected) Icons.Filled.BarChart else Icons.Outlined.BarChart
-                        AppTab.SETTINGS -> if (selected) Icons.Filled.Settings else Icons.Outlined.Settings
-                    }
+                AppDestination.entries.forEach { item ->
+                    val selected = item == destination
 
                     NavigationBarItem(
                         selected = selected,
-                        onClick = { tabName = tab.name },
+                        onClick = { destinationName = item.name },
                         icon = {
                             Icon(
-                                imageVector = icon,
-                                contentDescription = tab.label,
+                                imageVector = if (selected) {
+                                    item.selectedIcon
+                                } else {
+                                    item.icon
+                                },
+                                contentDescription = item.label,
                             )
                         },
-                        label = { Text(tab.label) },
+                        label = {
+                            Text(item.label)
+                        },
                     )
                 }
             }
         },
-    ) { padding ->
-        when (activeTab) {
-            AppTab.SCHEDULE -> ScheduleScreen(store, padding)
-            AppTab.STATS -> StatsScreen(store, padding)
-            AppTab.SETTINGS -> SettingsScreen(store, padding)
+    ) { innerPadding ->
+        Crossfade(
+            targetState = destination,
+            label = "rootDestination",
+        ) { target ->
+            when (target) {
+                AppDestination.SCHEDULE -> ScheduleScreen(
+                    store = store,
+                    contentPadding = innerPadding,
+                )
+
+                AppDestination.STATS -> StatsScreen(
+                    store = store,
+                    contentPadding = innerPadding,
+                )
+
+                AppDestination.SETTINGS -> SettingsScreen(
+                    store = store,
+                    contentPadding = innerPadding,
+                )
+            }
         }
     }
 }

@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - native-grafik-sz
+      - native-grafik-sz-redesign
   pull_request:
     paths:
       - 'app/**'

@@ -9,6 +9,16 @@ enum class ThemeMode {
     DARK,
 }
 
+enum class AccentMode(val title: String) {
+    DYNAMIC("Как на телефоне"),
+    VIOLET("Фиолетовый"),
+    GREEN("Зелёный"),
+    TEAL("Бирюзовый"),
+    ORANGE("Оранжевый"),
+    ROSE("Розовый"),
+    GRAPHITE("Графит"),
+}
+
 enum class DayStatus(val title: String, val shortCode: String) {
     DAY_OFF("Выходной", "ВЫХ"),
     VACATION("Отпуск", "ОТП"),

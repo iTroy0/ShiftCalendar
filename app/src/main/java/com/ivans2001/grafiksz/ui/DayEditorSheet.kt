@@ -18,22 +18,22 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,18 +44,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ivans2001.grafiksz.data.DayRecord
 import com.ivans2001.grafiksz.data.DayStatus
 import com.ivans2001.grafiksz.data.ShiftPool
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 import kotlin.math.roundToInt
 
-private val editorDateFormatter = DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale("ru"))
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DayEditorSheet(
     date: LocalDate,
@@ -64,8 +60,8 @@ fun DayEditorSheet(
     onSave: (DayRecord) -> Unit,
     onClear: () -> Unit,
 ) {
-    var selectedShiftId by remember(date) { mutableStateOf(initial.shiftId) }
-    var selectedStatusName by remember(date) { mutableStateOf(initial.status?.name) }
+    var shiftId by remember(date) { mutableStateOf(initial.shiftId) }
+    var statusName by remember(date) { mutableStateOf(initial.status?.name) }
     var overtimeText by remember(date) {
         mutableStateOf(
             if (initial.overtimeMinutes > 0) {
@@ -76,9 +72,9 @@ fun DayEditorSheet(
         )
     }
     var note by remember(date) { mutableStateOf(initial.note) }
-    var confirmDismiss by remember { mutableStateOf(false) }
+    var confirmClose by remember { mutableStateOf(false) }
 
-    fun currentRecord(): DayRecord {
+    fun buildRecord(): DayRecord {
         val overtimeMinutes = overtimeText
             .replace(',', '.')
             .toDoubleOrNull()
@@ -88,175 +84,175 @@ fun DayEditorSheet(
             ?: 0
 
         return DayRecord(
-            shiftId = selectedShiftId,
-            status = selectedStatusName?.let(DayStatus::valueOf),
+            shiftId = shiftId,
+            status = statusName?.let(DayStatus::valueOf),
             overtimeMinutes = overtimeMinutes,
             note = note.trim(),
         )
     }
 
-    val dirty = currentRecord() != initial
+    val dirty = buildRecord() != initial
 
     ModalBottomSheet(
         onDismissRequest = {
-            if (dirty) confirmDismiss = true else onDismiss()
+            if (dirty) {
+                confirmClose = true
+            } else {
+                onDismiss()
+            }
         },
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 28.dp),
+                .padding(horizontal = AppSpacing.md)
+                .padding(bottom = AppSpacing.lg),
         ) {
             Text(
-                text = date.format(editorDateFormatter).replaceFirstChar { it.uppercaseChar() },
+                text = fullDateLabel(date),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
             )
+
             Text(
-                text = "Смена, статус и заметки на один день",
+                text = "Выбери смену или статус дня",
+                modifier = Modifier.padding(top = 2.dp),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(AppSpacing.lg))
 
-            Text(
-                text = "Смена",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = "Выбирается только из системного пула",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            SectionHeader(
+                title = "Смена",
+                subtitle = "Пул фиксирован по времени и назначению.",
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(AppSpacing.xs))
 
-            ShiftPool.all.chunked(2).forEach { pair ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    pair.forEach { shift ->
-                        val selected = selectedShiftId == shift.id
-                        Surface(
-                            modifier = Modifier
-                                .weight(1f)
-                                .heightIn(min = 86.dp)
-                                .clickable {
-                                    selectedShiftId = shift.id
-                                    selectedStatusName = null
-                                },
-                            shape = RoundedCornerShape(16.dp),
-                            color = if (selected) {
-                                Color(shift.color).copy(alpha = 0.15f)
-                            } else {
-                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f)
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                ShiftPool.all.forEach { shift ->
+                    val selected = shiftId == shift.id
+
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                shiftId = shift.id
+                                statusName = null
                             },
+                        shape = RoundedCornerShape(14.dp),
+                        color = if (selected) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            Color.Transparent
+                        },
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    horizontal = AppSpacing.sm,
+                                    vertical = AppSpacing.xs,
+                                ),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Column(
-                                modifier = Modifier.padding(12.dp),
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(9.dp)
-                                            .background(Color(shift.color), CircleShape),
-                                    )
-                                    Spacer(modifier = Modifier.width(7.dp))
-                                    Text(
-                                        text = shift.rangeLabel,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                    )
-                                }
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .background(Color(shift.color), CircleShape),
+                            )
 
-                                Spacer(modifier = Modifier.height(5.dp))
+                            Spacer(modifier = Modifier.width(AppSpacing.sm))
 
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = shift.rangeLabel,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
                                 Text(
                                     text = shift.purpose,
-                                    style = MaterialTheme.typography.bodyMedium,
+                                    style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 2,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                             }
+
+                            RadioButton(
+                                selected = selected,
+                                onClick = null,
+                            )
                         }
                     }
-
-                    if (pair.size == 1) {
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
                 }
-
-                Spacer(modifier = Modifier.height(8.dp))
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = AppSpacing.lg),
+                color = MaterialTheme.colorScheme.outlineVariant,
+            )
 
-            Text(
-                text = "Статус дня",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
+            SectionHeader(
+                title = "Статус дня",
+                subtitle = "Статус заменяет смену на выбранный день.",
             )
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
-                    .padding(top = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    .padding(top = AppSpacing.xs),
+                horizontalArrangement = Arrangement.spacedBy(AppSpacing.xs),
             ) {
                 FilterChip(
-                    selected = selectedStatusName == null && selectedShiftId == null,
+                    selected = shiftId == null && statusName == null,
                     onClick = {
-                        selectedStatusName = null
-                        selectedShiftId = null
+                        shiftId = null
+                        statusName = null
                     },
                     label = { Text("Пусто") },
                 )
 
-                DayStatus.entries.forEach { status ->
+                DayStatus.values().forEach { status ->
                     FilterChip(
-                        selected = selectedStatusName == status.name,
+                        selected = statusName == status.name,
                         onClick = {
-                            selectedStatusName = status.name
-                            selectedShiftId = null
+                            shiftId = null
+                            statusName = status.name
                         },
                         label = { Text(status.title) },
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = AppSpacing.lg),
+                color = MaterialTheme.colorScheme.outlineVariant,
+            )
 
-            Text(
-                text = "Переработка",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
+            SectionHeader(
+                title = "Переработка",
+                subtitle = "Дополнительное время поверх выбранной смены.",
             )
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
-                    .padding(top = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    .padding(top = AppSpacing.xs),
+                horizontalArrangement = Arrangement.spacedBy(AppSpacing.xs),
             ) {
-                listOf("1", "2", "4").forEach { hours ->
+                listOf("0.5", "1", "2", "4").forEach { hours ->
                     OutlinedButton(
                         onClick = { overtimeText = hours },
+                        modifier = Modifier.heightIn(min = 48.dp),
                     ) {
                         Text("+$hours ч")
                     }
-                }
-
-                TextButton(onClick = { overtimeText = "" }) {
-                    Text("Сбросить")
                 }
             }
 
@@ -267,38 +263,40 @@ fun DayEditorSheet(
                         char.isDigit() || char == '.' || char == ','
                     }
                 },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = AppSpacing.xs),
                 label = { Text("Часы переработки") },
-                singleLine = true,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Decimal,
                 ),
-                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
             )
-
-            Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedTextField(
                 value = note,
                 onValueChange = { note = it },
-                label = { Text("Заметка") },
-                supportingText = { Text("Например: подмена, встреча, важная задача") },
-                minLines = 2,
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            Button(
-                onClick = { onSave(currentRecord()) },
                 modifier = Modifier
                     .fillMaxWidth()
+                    .padding(top = AppSpacing.md),
+                label = { Text("Заметка") },
+                placeholder = { Text("Например: подмена или важная задача") },
+                minLines = 2,
+                maxLines = 4,
+            )
+
+            Button(
+                onClick = { onSave(buildRecord()) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = AppSpacing.lg)
                     .heightIn(min = 52.dp),
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Check,
                     contentDescription = null,
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(AppSpacing.xs))
                 Text("Сохранить")
             }
 
@@ -314,7 +312,7 @@ fun DayEditorSheet(
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.error,
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(AppSpacing.xs))
                     Text(
                         text = "Очистить день",
                         color = MaterialTheme.colorScheme.error,
@@ -324,15 +322,15 @@ fun DayEditorSheet(
         }
     }
 
-    if (confirmDismiss) {
+    if (confirmClose) {
         AlertDialog(
-            onDismissRequest = { confirmDismiss = false },
+            onDismissRequest = { confirmClose = false },
             title = { Text("Закрыть без сохранения?") },
             text = { Text("Изменения этого дня будут потеряны.") },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        confirmDismiss = false
+                        confirmClose = false
                         onDismiss()
                     },
                 ) {
@@ -343,8 +341,8 @@ fun DayEditorSheet(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { confirmDismiss = false }) {
-                    Text("Продолжить редактирование")
+                TextButton(onClick = { confirmClose = false }) {
+                    Text("Остаться")
                 }
             },
         )
