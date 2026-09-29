@@ -5,6 +5,7 @@
 
     <application
         android:allowBackup="true"
+        android:enableOnBackInvokedCallback="true"
         android:icon="@drawable/grafik_sz_icon"
         android:label="@string/app_name"
         android:roundIcon="@drawable/grafik_sz_icon"
