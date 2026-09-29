@@ -83,7 +83,7 @@ class ScheduleStore(context: Context) {
         persistRecords()
     }
 
-    fun setThemeMode(value: ThemeMode) {
+    fun updateThemeMode(value: ThemeMode) {
         themeMode = value
         preferences.edit()
             .putString(KEY_THEME, value.name)
