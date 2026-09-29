@@ -152,6 +152,7 @@ class WeekWidgetProvider : BaseScheduleWidgetProvider() {
         val records = ScheduleWidgetData.read(context)
         val employee = ScheduleWidgetData.employeeName(context)
         val today = LocalDate.now()
+        val monday = today.minusDays((today.dayOfWeek.value - 1).toLong())
         val todayItem = ScheduleWidgetData.display(records[today])
 
         val labelIds = intArrayOf(
@@ -197,12 +198,13 @@ class WeekWidgetProvider : BaseScheduleWidgetProvider() {
             setInt(R.id.widget_week_today_accent, "setBackgroundColor", todayItem.accent)
 
             (0..6).forEach { offset ->
-                val date = today.plusDays(offset.toLong())
+                val date = monday.plusDays(offset.toLong())
                 val item = ScheduleWidgetData.display(records[date])
+                val isToday = date == today
 
                 setTextViewText(
                     labelIds[offset],
-                    if (offset == 0) {
+                    if (isToday) {
                         "Сегодня"
                     } else {
                         "${ScheduleWidgetData.dayLabel(date)} ${date.dayOfMonth}"
@@ -216,7 +218,7 @@ class WeekWidgetProvider : BaseScheduleWidgetProvider() {
                 setTextColor(
                     labelIds[offset],
                     context.getColor(
-                        if (offset == 0) {
+                        if (isToday) {
                             R.color.widget_primary
                         } else {
                             R.color.widget_on_surface_variant
