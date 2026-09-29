@@ -142,7 +142,12 @@ fun ScheduleScreen(
     val workingDays = periodRecords.values.count { it.shiftId != null }
     val daysOff = periodRecords.values.count { it.status == DayStatus.DAY_OFF }
     val totalMinutes = periodRecords.values.sumOf { record ->
-        (ShiftPool.byId(record.shiftId)?.durationMinutes ?: 0) + record.overtimeMinutes
+        val shift = ShiftPool.byId(record.shiftId)
+        if (shift == null) {
+            0
+        } else {
+            shift.durationMinutes + record.overtimeMinutes
+        }
     }
 
     Box(
