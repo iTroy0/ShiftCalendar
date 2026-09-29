@@ -196,7 +196,7 @@ fun SettingsScreen(
 
             SectionHeadingSettings(
                 title = "Пул смен",
-                subtitle = "Цвета основаны на легенде Excel СЗ",
+                subtitle = "Цвета сохранены из рабочего графика СЗ",
             )
             Spacer(modifier = Modifier.height(10.dp))
 
@@ -224,7 +224,7 @@ fun SettingsScreen(
                             fontWeight = FontWeight.SemiBold,
                         )
                         Text(
-                            text = "Excel только назначает существующую смену",
+                            text = "Импорт не создаёт новые типы смен",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
