@@ -53,6 +53,31 @@ class ExcelColumnParserTest {
     }
 
     @Test
+    fun googleSheetsDashVariantsAreRecognized() {
+        val text = listOf(
+            "Иван",
+            "04:00–12:30",
+            "12:30—21:00",
+            "06:00 - 15:00",
+        ).joinToString("\n")
+
+        val result = ExcelColumnParser.parse(text, YearMonth.of(2026, 2))
+
+        assertEquals(
+            "morning_mail",
+            (result.days[0].value as ParsedCell.Shift).shiftId,
+        )
+        assertEquals(
+            "evening_mail",
+            (result.days[1].value as ParsedCell.Shift).shiftId,
+        )
+        assertEquals(
+            "mid_morning_fn",
+            (result.days[2].value as ParsedCell.Shift).shiftId,
+        )
+    }
+
+    @Test
     fun blankCellIsNotDayOff() {
         val text = "Иван\n\n-\n"
 
