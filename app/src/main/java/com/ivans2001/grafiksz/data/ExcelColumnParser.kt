@@ -47,10 +47,11 @@ object ExcelColumnParser {
             .split("\n")
             .map { line -> line.substringBefore('\t').trim() }
 
-        val hasEmployeeName = rawLines
-            .firstOrNull()
-            ?.takeIf { it.isNotBlank() && !looksLikeScheduleValue(it) }
-            != null
+        val hasEmployeeName = (
+            rawLines.firstOrNull()
+                ?.takeIf { it.isNotBlank() && !looksLikeScheduleValue(it) }
+                != null
+        )
 
         val employeeName = if (hasEmployeeName) {
             rawLines.first().removeSuffix("+").trim()
