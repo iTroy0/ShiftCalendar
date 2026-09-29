@@ -240,9 +240,7 @@ private fun manualScheme(
         AccentMode.TEAL -> Teal
         AccentMode.ORANGE -> Orange
         AccentMode.ROSE -> Rose
-        AccentMode.GRAPHITE,
-        AccentMode.DYNAMIC,
-        -> Graphite
+        AccentMode.GRAPHITE, AccentMode.DYNAMIC -> Graphite
     }
 
     return if (dark) {
