@@ -63,7 +63,7 @@ class TodayWidgetProvider : BaseScheduleWidgetProvider() {
         return RemoteViews(context.packageName, R.layout.widget_today).apply {
             setTextViewText(
                 R.id.widget_today_date,
-                "Сегодня · \${today.format(ScheduleWidgetData.shortDate)}",
+                "Сегодня · ${today.format(ScheduleWidgetData.shortDate)}",
             )
             setTextViewText(R.id.widget_today_value, item.primary)
             setTextViewText(
@@ -71,7 +71,7 @@ class TodayWidgetProvider : BaseScheduleWidgetProvider() {
                 item.secondary.ifBlank {
                     if (next != null) {
                         val nextItem = ScheduleWidgetData.display(records[next])
-                        "Следующая \${next.format(ScheduleWidgetData.shortDate)} · \${nextItem.primary}"
+                        "Следующая ${next.format(ScheduleWidgetData.shortDate)} · ${nextItem.primary}"
                     } else {
                         "Следующих смен пока нет"
                     }
@@ -109,7 +109,7 @@ class UpcomingWidgetProvider : BaseScheduleWidgetProvider() {
 
             setTextViewText(
                 R.id.widget_upcoming_today_label,
-                "Сегодня · \${today.format(ScheduleWidgetData.shortDate)}",
+                "Сегодня · ${today.format(ScheduleWidgetData.shortDate)}",
             )
             setTextViewText(R.id.widget_upcoming_today_value, todayItem.primary)
             setTextViewText(R.id.widget_upcoming_today_detail, todayItem.secondary)
@@ -117,7 +117,7 @@ class UpcomingWidgetProvider : BaseScheduleWidgetProvider() {
 
             setTextViewText(
                 R.id.widget_upcoming_tomorrow_label,
-                "Завтра · \${tomorrow.format(ScheduleWidgetData.shortDate)}",
+                "Завтра · ${tomorrow.format(ScheduleWidgetData.shortDate)}",
             )
             setTextViewText(R.id.widget_upcoming_tomorrow_value, tomorrowItem.primary)
             setTextViewText(R.id.widget_upcoming_tomorrow_detail, tomorrowItem.secondary)
@@ -126,7 +126,7 @@ class UpcomingWidgetProvider : BaseScheduleWidgetProvider() {
             if (next != null && nextItem != null) {
                 setTextViewText(
                     R.id.widget_upcoming_next_label,
-                    "Следующая · \${next.format(ScheduleWidgetData.shortDate)}",
+                    "Следующая · ${next.format(ScheduleWidgetData.shortDate)}",
                 )
                 setTextViewText(R.id.widget_upcoming_next_value, nextItem.primary)
                 setInt(R.id.widget_upcoming_next_accent, "setBackgroundColor", nextItem.accent)
@@ -191,7 +191,7 @@ class WeekWidgetProvider : BaseScheduleWidgetProvider() {
             setTextViewText(
                 R.id.widget_week_today_detail,
                 todayItem.secondary.ifBlank {
-                    "Сегодня · \${today.format(ScheduleWidgetData.shortDate)}"
+                    "Сегодня · ${today.format(ScheduleWidgetData.shortDate)}"
                 },
             )
             setInt(R.id.widget_week_today_accent, "setBackgroundColor", todayItem.accent)
@@ -205,7 +205,7 @@ class WeekWidgetProvider : BaseScheduleWidgetProvider() {
                     if (offset == 0) {
                         "Сегодня"
                     } else {
-                        "\${ScheduleWidgetData.dayLabel(date)} \${date.dayOfMonth}"
+                        "${ScheduleWidgetData.dayLabel(date)} ${date.dayOfMonth}"
                     },
                 )
                 setTextViewText(
@@ -215,7 +215,13 @@ class WeekWidgetProvider : BaseScheduleWidgetProvider() {
                 setInt(accentIds[offset], "setBackgroundColor", item.accent)
                 setTextColor(
                     labelIds[offset],
-                    if (offset == 0) 0xFF8FBFFF.toInt() else 0xFFBFC8E6.toInt(),
+                    context.getColor(
+                        if (offset == 0) {
+                            R.color.widget_primary
+                        } else {
+                            R.color.widget_on_surface_variant
+                        },
+                    ),
                 )
             }
 
