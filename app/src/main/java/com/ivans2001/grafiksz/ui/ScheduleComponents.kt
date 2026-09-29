@@ -817,6 +817,7 @@ private fun ScheduleListRow(
     onClick: () -> Unit,
     onLongPress: () -> Unit,
 ) {
+    val haptics = LocalHapticFeedback.current
     val accent = recordAccent(record)
     val primary = recordPrimary(record)
     val secondary = recordSecondary(record)
