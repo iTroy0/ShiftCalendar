@@ -29,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChevronLeft
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.ContentPaste
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
@@ -155,6 +156,7 @@ fun TodayOverview(
     record: DayRecord?,
     nextDate: LocalDate?,
     nextRecord: DayRecord?,
+    onEdit: () -> Unit,
 ) {
     val shift = ShiftPool.byId(record?.shiftId)
     val accent = shift?.let { Color(it.color) }
@@ -212,6 +214,15 @@ fun TodayOverview(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
+                }
+
+                IconButton(
+                    onClick = onEdit,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Edit,
+                        contentDescription = "Изменить сегодняшний день",
+                    )
                 }
             }
 
@@ -290,63 +301,58 @@ fun PeriodNavigator(
 }
 
 @Composable
-fun SummaryStrip(
+fun PeriodSummaryLine(
     workingDays: Int,
     daysOff: Int,
     hours: Double,
 ) {
-    Surface(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),
+            .padding(horizontal = 20.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            SummaryValue(workingDays.toString(), "рабочих", Modifier.weight(1f))
-            SummaryDivider()
-            SummaryValue(daysOff.toString(), "выходных", Modifier.weight(1f))
-            SummaryDivider()
-            SummaryValue(formatHours(hours), "часов", Modifier.weight(1f))
-        }
+        CompactSummaryItem(
+            value = workingDays.toString(),
+            label = "смен",
+        )
+        SummaryDot()
+        CompactSummaryItem(
+            value = formatHours(hours),
+            label = "ч",
+        )
+        SummaryDot()
+        CompactSummaryItem(
+            value = daysOff.toString(),
+            label = "выходных",
+        )
     }
 }
 
 @Composable
-private fun SummaryValue(
+private fun CompactSummaryItem(
     value: String,
     label: String,
-    modifier: Modifier,
 ) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
+    Text(
+        text = "$value $label",
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        fontWeight = FontWeight.Medium,
+    )
 }
 
 @Composable
-private fun SummaryDivider() {
+private fun SummaryDot() {
     Box(
         modifier = Modifier
-            .width(1.dp)
-            .height(30.dp)
-            .background(MaterialTheme.colorScheme.outlineVariant),
+            .padding(horizontal = 9.dp)
+            .size(3.dp)
+            .background(
+                MaterialTheme.colorScheme.outline,
+                CircleShape,
+            ),
     )
 }
 
@@ -442,16 +448,19 @@ fun MonthGrid(
     ) {
         Column(
             modifier = Modifier
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 8.dp, vertical = 10.dp),
+                .fillMaxSize()
+                .padding(horizontal = 8.dp, vertical = 8.dp),
         ) {
-            Row(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(34.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс").forEach { label ->
                     Text(
                         text = label,
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(vertical = 7.dp),
+                        modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.SemiBold,
@@ -461,14 +470,18 @@ fun MonthGrid(
             }
 
             repeat(rows) { row ->
-                Row(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                ) {
                     repeat(7) { column ->
                         val day = row * 7 + column - leadingEmpty + 1
                         if (day !in 1..month.lengthOfMonth()) {
                             Spacer(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .aspectRatio(0.9f),
+                                    .fillMaxSize(),
                             )
                         } else {
                             val date = month.atDay(day)
@@ -478,7 +491,7 @@ fun MonthGrid(
                                 onClick = { onDayClick(date) },
                                 modifier = Modifier
                                     .weight(1f)
-                                    .aspectRatio(0.9f),
+                                    .fillMaxSize(),
                             )
                         }
                     }
@@ -498,66 +511,92 @@ private fun MonthDayCell(
     val shift = ShiftPool.byId(record?.shiftId)
     val accent = shift?.let { Color(it.color) }
         ?: statusColor(record?.status)
-        ?: Color.Transparent
+        ?: MaterialTheme.colorScheme.outlineVariant
     val isToday = date == LocalDate.now()
-    val background by animateColorAsState(
-        targetValue = when {
-            isToday -> MaterialTheme.colorScheme.primaryContainer
-            shift != null -> accent.copy(alpha = 0.09f)
-            record?.status != null -> accent.copy(alpha = 0.09f)
-            else -> Color.Transparent
-        },
-        label = "dayBackground",
-    )
 
-    Box(modifier = modifier.padding(2.dp)) {
-        Column(
+    Column(
+        modifier = modifier
+            .padding(2.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 3.dp, vertical = 5.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Box(
             modifier = Modifier
-                .fillMaxSize()
-                .background(background, RoundedCornerShape(14.dp))
-                .clickable(onClick = onClick)
-                .padding(horizontal = 6.dp, vertical = 7.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .size(30.dp)
+                .background(
+                    color = if (isToday) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        Color.Transparent
+                    },
+                    shape = CircleShape,
+                ),
+            contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = date.dayOfMonth.toString(),
                 style = MaterialTheme.typography.labelLarge,
-                color = if (isToday) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                color = if (isToday) {
+                    MaterialTheme.colorScheme.onPrimary
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
                 fontWeight = if (isToday) FontWeight.Bold else FontWeight.Medium,
             )
+        }
 
-            when {
-                shift != null -> {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        when {
+            shift != null -> {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                    ) {
                         Box(
                             modifier = Modifier
-                                .width(20.dp)
+                                .width(18.dp)
                                 .height(4.dp)
                                 .background(accent, CircleShape),
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = compactRange(shift.rangeLabel),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = accent,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                        )
-                    }
-                }
 
-                record?.status != null -> {
+                        if ((record?.overtimeMinutes ?: 0) > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .size(4.dp)
+                                    .background(
+                                        Color(SchedulePalette.Overtime),
+                                        CircleShape,
+                                    ),
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(3.dp))
+
                     Text(
-                        text = record.status.shortCode,
+                        text = compactRange(shift.rangeLabel),
                         style = MaterialTheme.typography.labelMedium,
                         color = accent,
                         fontWeight = FontWeight.Bold,
+                        maxLines = 1,
                     )
                 }
-
-                else -> Spacer(modifier = Modifier.height(20.dp))
             }
+
+            record?.status != null -> {
+                Text(
+                    text = record.status.shortCode,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = accent,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+
+            else -> Spacer(modifier = Modifier.height(18.dp))
         }
     }
 }
@@ -566,7 +605,8 @@ private fun MonthDayCell(
 fun WeekScheduleView(
     focusDate: LocalDate,
     store: ScheduleStore,
-    onDayClick: (LocalDate) -> Unit,
+    onDaySelect: (LocalDate) -> Unit,
+    onEditDay: (LocalDate) -> Unit,
     onSwipePrevious: () -> Unit,
     onSwipeNext: () -> Unit,
 ) {
@@ -574,6 +614,9 @@ fun WeekScheduleView(
     val days = (0L..6L).map(monday::plusDays)
     val currentRecord = store.record(focusDate)
     val currentShift = ShiftPool.byId(currentRecord?.shiftId)
+    val currentAccent = currentShift?.let { Color(it.color) }
+        ?: statusColor(currentRecord?.status)
+        ?: MaterialTheme.colorScheme.outlineVariant
 
     Column(
         modifier = Modifier
@@ -596,21 +639,21 @@ fun WeekScheduleView(
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
+            shape = RoundedCornerShape(22.dp),
             color = MaterialTheme.colorScheme.surface,
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(6.dp),
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    .padding(5.dp),
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
             ) {
                 days.forEach { date ->
                     WeekDayCell(
                         date = date,
                         record = store.record(date),
                         selected = date == focusDate,
-                        onClick = { onDayClick(date) },
+                        onClick = { onDaySelect(date) },
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -620,11 +663,9 @@ fun WeekScheduleView(
         Spacer(modifier = Modifier.height(12.dp))
 
         Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onDayClick(focusDate) },
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(22.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.56f),
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
@@ -633,14 +674,10 @@ fun WeekScheduleView(
                 Box(
                     modifier = Modifier
                         .width(5.dp)
-                        .height(46.dp)
-                        .background(
-                            currentShift?.let { Color(it.color) }
-                                ?: statusColor(currentRecord?.status)
-                                ?: MaterialTheme.colorScheme.outlineVariant,
-                            CircleShape,
-                        ),
+                        .height(48.dp)
+                        .background(currentAccent, CircleShape),
                 )
+
                 Spacer(modifier = Modifier.width(12.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
@@ -653,6 +690,7 @@ fun WeekScheduleView(
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+
                     Text(
                         text = when {
                             currentShift != null -> currentShift.rangeLabel
@@ -662,15 +700,29 @@ fun WeekScheduleView(
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                     )
-                    if (currentShift != null) {
-                        Text(
-                            text = currentShift.purpose,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+
+                    val detail = when {
+                        currentShift != null -> currentShift.purpose
+                        currentRecord?.note?.isNotBlank() == true -> currentRecord.note
+                        else -> "Нажми на карандаш, чтобы изменить день"
                     }
+
+                    Text(
+                        text = detail,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+
+                IconButton(
+                    onClick = { onEditDay(focusDate) },
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Edit,
+                        contentDescription = "Изменить выбранный день",
+                    )
                 }
             }
         }
@@ -690,18 +742,21 @@ private fun WeekDayCell(
         ?: statusColor(record?.status)
         ?: MaterialTheme.colorScheme.outlineVariant
     val isToday = date == LocalDate.now()
-    val background = when {
-        selected -> MaterialTheme.colorScheme.primaryContainer
-        isToday -> MaterialTheme.colorScheme.surfaceVariant
-        else -> Color.Transparent
-    }
+    val background by animateColorAsState(
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            Color.Transparent
+        },
+        label = "weekDayBackground",
+    )
 
     Column(
         modifier = modifier
-            .height(118.dp)
-            .background(background, RoundedCornerShape(16.dp))
+            .height(108.dp)
+            .background(background, RoundedCornerShape(15.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 2.dp, vertical = 9.dp),
+            .padding(horizontal = 2.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
@@ -711,15 +766,37 @@ private fun WeekDayCell(
                 .replace(".", "")
                 .replaceFirstChar { it.uppercaseChar() },
             style = MaterialTheme.typography.labelMedium,
-            color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+            color = if (selected) {
+                MaterialTheme.colorScheme.onPrimaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+            fontWeight = if (isToday) FontWeight.Bold else FontWeight.Medium,
         )
 
-        Text(
-            text = date.dayOfMonth.toString(),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
-        )
+        Box(
+            modifier = Modifier
+                .size(30.dp)
+                .background(
+                    color = when {
+                        isToday && !selected -> MaterialTheme.colorScheme.primary
+                        else -> Color.Transparent
+                    },
+                    shape = CircleShape,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = date.dayOfMonth.toString(),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = when {
+                    isToday && !selected -> MaterialTheme.colorScheme.onPrimary
+                    selected -> MaterialTheme.colorScheme.onPrimaryContainer
+                    else -> MaterialTheme.colorScheme.onSurface
+                },
+            )
+        }
 
         Box(
             modifier = Modifier
@@ -736,7 +813,11 @@ private fun WeekDayCell(
             },
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
-            color = if (record == null) MaterialTheme.colorScheme.onSurfaceVariant else accent,
+            color = if (record == null) {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                accent
+            },
             maxLines = 1,
         )
     }
