@@ -1,10 +1,11 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 
 package com.ivans2001.grafiksz.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,7 +46,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -172,6 +175,7 @@ fun CurrentDayPanel(
     onEdit: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val haptics = LocalHapticFeedback.current
     val accent = recordAccent(record)
     val primary = recordPrimary(record)
     val secondary = recordSecondary(record)
@@ -307,10 +311,12 @@ fun MonthCalendar(
     month: YearMonth,
     store: ScheduleStore,
     onDayClick: (LocalDate) -> Unit,
+    onDayLongPress: (LocalDate) -> Unit,
     onSwipePrevious: () -> Unit,
     onSwipeNext: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val haptics = LocalHapticFeedback.current
     val leadingEmpty = month.atDay(1).dayOfWeek.value - 1
     val totalCells = leadingEmpty + month.lengthOfMonth()
     val rowCount = (totalCells + 6) / 7
@@ -326,8 +332,14 @@ fun MonthCalendar(
                     onDragStart = { total = 0f },
                     onHorizontalDrag = { _, amount -> total += amount },
                     onDragEnd = {
-                        if (total <= -threshold) onSwipeNext()
-                        if (total >= threshold) onSwipePrevious()
+                        if (total <= -threshold) {
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onSwipeNext()
+                        }
+                        if (total >= threshold) {
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onSwipePrevious()
+                        }
                         total = 0f
                     },
                     onDragCancel = { total = 0f },
@@ -374,6 +386,7 @@ fun MonthCalendar(
                             date = date,
                             record = store.record(date),
                             onClick = { onDayClick(date) },
+                            onLongPress = { onDayLongPress(date) },
                             modifier = Modifier
                                 .weight(1f)
                                 .aspectRatio(0.88f),
@@ -392,8 +405,10 @@ private fun MonthDayCell(
     date: LocalDate,
     record: DayRecord?,
     onClick: () -> Unit,
+    onLongPress: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val haptics = LocalHapticFeedback.current
     val shift = ShiftPool.byId(record?.shiftId)
     val accent = recordAccent(record)
     val isToday = date == LocalDate.now()
@@ -413,7 +428,13 @@ private fun MonthDayCell(
         modifier = modifier
             .padding(2.dp)
             .semantics { contentDescription = description }
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onLongPress()
+                },
+            )
             .padding(horizontal = 3.dp, vertical = 5.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween,
@@ -498,10 +519,12 @@ fun WeekCalendar(
     store: ScheduleStore,
     onDaySelect: (LocalDate) -> Unit,
     onEditDay: (LocalDate) -> Unit,
+    onDayLongPress: (LocalDate) -> Unit,
     onSwipePrevious: () -> Unit,
     onSwipeNext: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val haptics = LocalHapticFeedback.current
     val monday = focusDate.minusDays((focusDate.dayOfWeek.value - 1).toLong())
     val days = (0L..6L).map(monday::plusDays)
     val selectedRecord = store.record(focusDate)
@@ -537,6 +560,7 @@ fun WeekCalendar(
                     record = store.record(date),
                     selected = date == focusDate,
                     onClick = { onDaySelect(date) },
+                    onLongPress = { onDayLongPress(date) },
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -563,16 +587,24 @@ private fun WeekDayTile(
     record: DayRecord?,
     selected: Boolean,
     onClick: () -> Unit,
+    onLongPress: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val haptics = LocalHapticFeedback.current
     val shift = ShiftPool.byId(record?.shiftId)
     val accent = recordAccent(record)
     val isToday = date == LocalDate.now()
 
     Surface(
-        onClick = onClick,
         modifier = modifier
-            .height(108.dp),
+            .height(108.dp)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onLongPress()
+                },
+            ),
         shape = RoundedCornerShape(18.dp),
         color = if (selected) {
             MaterialTheme.colorScheme.primaryContainer
@@ -744,6 +776,7 @@ fun MonthScheduleList(
     month: YearMonth,
     store: ScheduleStore,
     onDayClick: (LocalDate) -> Unit,
+    onDayLongPress: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val dates = (1..month.lengthOfMonth()).map(month::atDay)
@@ -764,6 +797,7 @@ fun MonthScheduleList(
                 date = date,
                 record = store.record(date),
                 onClick = { onDayClick(date) },
+                onLongPress = { onDayLongPress(date) },
             )
 
             if (date.dayOfMonth < month.lengthOfMonth()) {
@@ -781,6 +815,7 @@ private fun ScheduleListRow(
     date: LocalDate,
     record: DayRecord?,
     onClick: () -> Unit,
+    onLongPress: () -> Unit,
 ) {
     val accent = recordAccent(record)
     val primary = recordPrimary(record)
@@ -791,7 +826,13 @@ private fun ScheduleListRow(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 72.dp)
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onLongPress()
+                },
+            )
             .padding(vertical = AppSpacing.xs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
