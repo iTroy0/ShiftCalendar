@@ -102,16 +102,18 @@ object ShiftPool {
         val match = Regex(
             """(\d{1,2})[.:](\d{2})\s*(?:до|[-–—])\s*(\d{1,2})[.:](\d{2})""",
             RegexOption.IGNORE_CASE,
-        ).find(raw.trim()) ?: return null
+        ).matchEntire(raw.trim()) ?: return null
 
-        val start = LocalTime.of(
-            match.groupValues[1].toInt(),
-            match.groupValues[2].toInt(),
-        )
-        val end = LocalTime.of(
-            match.groupValues[3].toInt(),
-            match.groupValues[4].toInt(),
-        )
-        return start to end
+        return runCatching {
+            val start = LocalTime.of(
+                match.groupValues[1].toInt(),
+                match.groupValues[2].toInt(),
+            )
+            val end = LocalTime.of(
+                match.groupValues[3].toInt(),
+                match.groupValues[4].toInt(),
+            )
+            start to end
+        }.getOrNull()
     }
 }
