@@ -100,6 +100,8 @@ fun ScheduleScreen(
             FirstRunImportCard(
                 onImport = { showImport = true },
             )
+
+            Box(modifier = Modifier.weight(1f))
         } else {
             val today = LocalDate.now()
             val nextShiftDate = generateSequence(today.plusDays(1)) { it.plusDays(1) }
@@ -112,64 +114,64 @@ fun ScheduleScreen(
                 nextDate = nextShiftDate,
                 nextRecord = nextShiftDate?.let(store::record),
             )
-        }
 
-        PeriodNavigator(
-            label = periodLabel,
-            onPrevious = goPrevious,
-            onNext = goNext,
-            onToday = goToday,
-        )
+            PeriodNavigator(
+                label = periodLabel,
+                onPrevious = goPrevious,
+                onNext = goNext,
+                onToday = goToday,
+            )
 
-        SummaryStrip(
-            workingDays = workingDays,
-            daysOff = daysOff,
-            hours = totalMinutes / 60.0,
-        )
+            SummaryStrip(
+                workingDays = workingDays,
+                daysOff = daysOff,
+                hours = totalMinutes / 60.0,
+            )
 
-        ViewModeSelector(
-            selected = viewMode,
-            onSelect = { selected ->
-                viewModeName = selected.name
-                if (selected == ScheduleViewMode.WEEK && YearMonth.from(focusDate) != month) {
-                    focusDateString = month.atDay(1).toString()
+            ViewModeSelector(
+                selected = viewMode,
+                onSelect = { selected ->
+                    viewModeName = selected.name
+                    if (selected == ScheduleViewMode.WEEK && YearMonth.from(focusDate) != month) {
+                        focusDateString = month.atDay(1).toString()
+                    }
+                },
+            )
+
+            Box(modifier = Modifier.weight(1f)) {
+                when (viewMode) {
+                    ScheduleViewMode.MONTH -> MonthGrid(
+                        month = month,
+                        store = store,
+                        onDayClick = { date ->
+                            focusDateString = date.toString()
+                            editingDateString = date.toString()
+                        },
+                        onSwipePrevious = goPrevious,
+                        onSwipeNext = goNext,
+                    )
+
+                    ScheduleViewMode.WEEK -> WeekScheduleView(
+                        focusDate = focusDate,
+                        store = store,
+                        onDayClick = { date ->
+                            focusDateString = date.toString()
+                            monthString = YearMonth.from(date).toString()
+                            editingDateString = date.toString()
+                        },
+                        onSwipePrevious = goPrevious,
+                        onSwipeNext = goNext,
+                    )
+
+                    ScheduleViewMode.LIST -> MonthList(
+                        month = month,
+                        store = store,
+                        onDayClick = { date ->
+                            focusDateString = date.toString()
+                            editingDateString = date.toString()
+                        },
+                    )
                 }
-            },
-        )
-
-        Box(modifier = Modifier.weight(1f)) {
-            when (viewMode) {
-                ScheduleViewMode.MONTH -> MonthGrid(
-                    month = month,
-                    store = store,
-                    onDayClick = { date ->
-                        focusDateString = date.toString()
-                        editingDateString = date.toString()
-                    },
-                    onSwipePrevious = goPrevious,
-                    onSwipeNext = goNext,
-                )
-
-                ScheduleViewMode.WEEK -> WeekScheduleView(
-                    focusDate = focusDate,
-                    store = store,
-                    onDayClick = { date ->
-                        focusDateString = date.toString()
-                        monthString = YearMonth.from(date).toString()
-                        editingDateString = date.toString()
-                    },
-                    onSwipePrevious = goPrevious,
-                    onSwipeNext = goNext,
-                )
-
-                ScheduleViewMode.LIST -> MonthList(
-                    month = month,
-                    store = store,
-                    onDayClick = { date ->
-                        focusDateString = date.toString()
-                        editingDateString = date.toString()
-                    },
-                )
             }
         }
     }
