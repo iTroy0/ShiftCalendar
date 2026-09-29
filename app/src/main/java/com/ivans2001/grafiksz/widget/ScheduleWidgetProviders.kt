@@ -97,18 +97,24 @@ class TodayWidgetProvider : BaseScheduleWidgetProvider() {
                 item.primary,
             )
 
+            val nextText = if (next != null) {
+                val nextItem =
+                    ScheduleWidgetData.display(records[next])
+
+                "Следующая ${next.format(ScheduleWidgetData.shortDate)} · ${nextItem.primary}"
+            } else {
+                "Следующих смен пока нет"
+            }
+            val detailText = listOf(
+                item.secondary,
+                nextText,
+            )
+                .filter(String::isNotBlank)
+                .joinToString("\n")
+
             setTextViewText(
                 R.id.widget_today_detail,
-                item.secondary.ifBlank {
-                    if (next != null) {
-                        val nextItem =
-                            ScheduleWidgetData.display(records[next])
-
-                        "Следующая ${next.format(ScheduleWidgetData.shortDate)} · ${nextItem.primary}"
-                    } else {
-                        "Следующих смен пока нет"
-                    }
-                },
+                detailText,
             )
 
             setInt(
