@@ -76,19 +76,19 @@ fun SettingsScreen(
                     ThemeOption(
                         label = "Система",
                         selected = store.themeMode == ThemeMode.SYSTEM,
-                        onClick = { store.setThemeMode(ThemeMode.SYSTEM) },
+                        onClick = { store.updateThemeMode(ThemeMode.SYSTEM) },
                         modifier = Modifier.weight(1f),
                     )
                     ThemeOption(
                         label = "Светлая",
                         selected = store.themeMode == ThemeMode.LIGHT,
-                        onClick = { store.setThemeMode(ThemeMode.LIGHT) },
+                        onClick = { store.updateThemeMode(ThemeMode.LIGHT) },
                         modifier = Modifier.weight(1f),
                     )
                     ThemeOption(
                         label = "Тёмная",
                         selected = store.themeMode == ThemeMode.DARK,
-                        onClick = { store.setThemeMode(ThemeMode.DARK) },
+                        onClick = { store.updateThemeMode(ThemeMode.DARK) },
                         modifier = Modifier.weight(1f),
                     )
                 }
