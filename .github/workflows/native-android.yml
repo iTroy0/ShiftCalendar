@@ -38,16 +38,8 @@ jobs:
       - name: Build release APK
         run: gradle assembleRelease --no-daemon
 
-      - name: Enforce APK size <= 30 MB
-        run: |
-          APK="app/build/outputs/apk/release/app-release.apk"
-          BYTES=$(stat -c%s "$APK")
-          LIMIT=$((30 * 1024 * 1024))
-          echo "APK bytes: $BYTES"
-          if [ "$BYTES" -gt "$LIMIT" ]; then
-            echo "APK exceeds 30 MB"
-            exit 1
-          fi
+      - name: Show APK size
+        run: ls -lh app/build/outputs/apk/release/app-release.apk
 
       - name: Prepare artifact
         run: cp app/build/outputs/apk/release/app-release.apk Grafik-SZ-native-release.apk

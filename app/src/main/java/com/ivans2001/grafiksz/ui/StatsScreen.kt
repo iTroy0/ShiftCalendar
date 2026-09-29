@@ -1,35 +1,48 @@
 package com.ivans2001.grafiksz.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.FilterChip
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ChevronLeft
+import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.ivans2001.grafiksz.data.DayStatus
 import com.ivans2001.grafiksz.data.ScheduleStore
@@ -37,6 +50,7 @@ import com.ivans2001.grafiksz.data.ShiftPool
 import com.ivans2001.grafiksz.data.StatsPeriod
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
 import java.util.Locale
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -53,6 +67,7 @@ private data class PeriodStats(
     val shiftCounts: Map<String, Int>,
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StatsScreen(
     store: ScheduleStore,
@@ -68,169 +83,278 @@ fun StatsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(contentPadding)
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(contentPadding),
     ) {
-        Text(
-            "Итоги",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Black,
-        )
-        Text(
-            if (period == StatsPeriod.MONTH) {
-                month.format(statsMonthFormatter).replaceFirstChar { it.uppercaseChar() }
-            } else {
-                month.year.toString()
+        TopAppBar(
+            title = {
+                Text(
+                    text = "Итоги",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
             },
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(
-                selected = period == StatsPeriod.MONTH,
-                onClick = { periodName = StatsPeriod.MONTH.name },
-                label = { Text("Месяц") },
-                modifier = Modifier.weight(1f),
-            )
-            FilterChip(
-                selected = period == StatsPeriod.YEAR,
-                onClick = { periodName = StatsPeriod.YEAR.name },
-                label = { Text("Год") },
-                modifier = Modifier.weight(1f),
-            )
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
         ) {
-            TextButton(
-                onClick = {
+            StatsPeriodSelector(
+                selected = period,
+                onSelect = { periodName = it.name },
+            )
+
+            StatsPeriodNavigator(
+                label = if (period == StatsPeriod.MONTH) {
+                    month.format(statsMonthFormatter).replaceFirstChar { it.uppercaseChar() }
+                } else {
+                    month.year.toString()
+                },
+                onPrevious = {
                     monthString = if (period == StatsPeriod.MONTH) {
                         month.minusMonths(1).toString()
                     } else {
                         YearMonth.of(month.year - 1, month.month).toString()
                     }
                 },
-            ) { Text("‹ Назад") }
-
-            TextButton(
-                onClick = {
+                onNext = {
                     monthString = if (period == StatsPeriod.MONTH) {
                         month.plusMonths(1).toString()
                     } else {
                         YearMonth.of(month.year + 1, month.month).toString()
                     }
                 },
-            ) { Text("Вперёд ›") }
-        }
-
-        MetricGrid(stats)
-
-        if (period == StatsPeriod.YEAR) {
-            Spacer(modifier = Modifier.height(18.dp))
-            Text(
-                "Нагрузка по месяцам",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            YearLoad(store = store, year = month.year)
-        }
 
-        Spacer(modifier = Modifier.height(18.dp))
-        Text(
-            "Типы смен",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-        )
-        Spacer(modifier = Modifier.height(8.dp))
+            WorkloadHero(stats)
 
-        val maxCount = max(1, stats.shiftCounts.values.maxOrNull() ?: 1)
-        ShiftPool.all
-            .filter { (stats.shiftCounts[it.id] ?: 0) > 0 }
-            .sortedByDescending { stats.shiftCounts[it.id] ?: 0 }
-            .forEachIndexed { index, shift ->
-                val count = stats.shiftCounts[shift.id] ?: 0
-                ShiftStatRow(
-                    title = shift.rangeLabel,
-                    subtitle = shift.title + " · " + shift.purpose,
-                    count = count,
-                    fraction = count.toFloat() / maxCount,
-                    color = Color(shift.color),
+            Spacer(modifier = Modifier.height(10.dp))
+
+            InlineStats(stats)
+
+            if (period == StatsPeriod.YEAR) {
+                Spacer(modifier = Modifier.height(22.dp))
+                SectionHeading(
+                    title = "Нагрузка по месяцам",
+                    subtitle = "Часы по графику и переработка",
                 )
-                if (index < stats.shiftCounts.size - 1) {
-                    HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f),
+                Spacer(modifier = Modifier.height(10.dp))
+                YearLoad(store = store, year = month.year)
+            }
+
+            Spacer(modifier = Modifier.height(22.dp))
+            SectionHeading(
+                title = "Типы смен",
+                subtitle = "Какие смены встречались чаще",
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            ShiftDistribution(stats)
+
+            Spacer(modifier = Modifier.height(28.dp))
+        }
+    }
+}
+
+@Composable
+private fun StatsPeriodSelector(
+    selected: StatsPeriod,
+    onSelect: (StatsPeriod) -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(4.dp)
+                .selectableGroup(),
+        ) {
+            listOf(
+                StatsPeriod.MONTH to "Месяц",
+                StatsPeriod.YEAR to "Год",
+            ).forEach { pair ->
+                val period = pair.first
+                val label = pair.second
+                val isSelected = selected == period
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp)
+                        .background(
+                            color = if (isSelected) MaterialTheme.colorScheme.surface else Color.Transparent,
+                            shape = RoundedCornerShape(12.dp),
+                        )
+                        .selectable(
+                            selected = isSelected,
+                            role = Role.RadioButton,
+                            onClick = { onSelect(period) },
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
-
-        if (stats.shiftCounts.isEmpty()) {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-            ) {
-                Text(
-                    "За этот период рабочих смен нет.",
-                    modifier = Modifier.padding(16.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
         }
-
-        Spacer(modifier = Modifier.height(28.dp))
     }
 }
 
 @Composable
-private fun MetricGrid(stats: PeriodStats) {
+private fun StatsPeriodNavigator(
+    label: String,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(onClick = onPrevious) {
+            Icon(
+                imageVector = Icons.Outlined.ChevronLeft,
+                contentDescription = "Предыдущий период",
+            )
+        }
+        Text(
+            text = label,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+        )
+        IconButton(onClick = onNext) {
+            Icon(
+                imageVector = Icons.Outlined.ChevronRight,
+                contentDescription = "Следующий период",
+            )
+        }
+    }
+}
+
+@Composable
+private fun WorkloadHero(stats: PeriodStats) {
     val hours = stats.totalMinutes / 60.0
-    val overtime = stats.overtimeMinutes / 60.0
     val average = if (stats.workingDays > 0) hours / stats.workingDays else 0.0
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatTile(stats.workingDays.toString(), "рабочих дней", Modifier.weight(1f))
-            StatTile(formatHoursStat(hours), "часов", Modifier.weight(1f))
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatTile(stats.daysOff.toString(), "выходных", Modifier.weight(1f))
-            StatTile(formatHoursStat(overtime), "переработка, ч", Modifier.weight(1f))
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatTile(formatHoursStat(average), "часов / день", Modifier.weight(1f))
-            StatTile(stats.leaveDays.toString(), "отпуск / больничный / сессия", Modifier.weight(1f))
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.primaryContainer,
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
+        ) {
+            Text(
+                text = formatHoursStat(hours) + " ч",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            Text(
+                text = stats.workingDays.toString() + " рабочих дней · " +
+                    formatHoursStat(average) + " ч в среднем",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
+            )
         }
     }
 }
 
 @Composable
-private fun StatTile(
-    value: String,
-    label: String,
-    modifier: Modifier = Modifier,
-) {
+private fun InlineStats(stats: PeriodStats) {
     Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Text(
-                value,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Black,
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            InlineStat(
+                value = stats.daysOff.toString(),
+                label = "выходных",
+                modifier = Modifier.weight(1f),
             )
-            Text(
-                label,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            TinyDivider()
+            InlineStat(
+                value = formatHoursStat(stats.overtimeMinutes / 60.0),
+                label = "ч переработки",
+                modifier = Modifier.weight(1f),
+            )
+            TinyDivider()
+            InlineStat(
+                value = stats.leaveDays.toString(),
+                label = "отсутствий",
+                modifier = Modifier.weight(1f),
             )
         }
+    }
+}
+
+@Composable
+private fun InlineStat(
+    value: String,
+    label: String,
+    modifier: Modifier,
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun TinyDivider() {
+    Box(
+        modifier = Modifier
+            .width(1.dp)
+            .height(30.dp)
+            .background(MaterialTheme.colorScheme.outlineVariant),
+    )
+}
+
+@Composable
+private fun SectionHeading(
+    title: String,
+    subtitle: String,
+) {
+    Column {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -246,46 +370,54 @@ private fun YearLoad(
     val maxMinutes = max(1, months.maxOfOrNull { it.second.totalMinutes } ?: 1)
 
     Surface(
-        shape = RoundedCornerShape(18.dp),
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
         color = MaterialTheme.colorScheme.surface,
     ) {
-        Column(modifier = Modifier.padding(horizontal = 12.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(170.dp)
+                .padding(horizontal = 10.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.Bottom,
+        ) {
             months.forEach { pair ->
                 val label = pair.first.month
-                    .getDisplayName(java.time.format.TextStyle.SHORT, statsLocale)
+                    .getDisplayName(TextStyle.SHORT, statsLocale)
                     .replace(".", "")
-                    .replaceFirstChar { it.uppercaseChar() }
+                    .take(3)
                 val value = pair.second.totalMinutes
+                val fraction = if (value <= 0) 0f else value.toFloat() / maxMinutes
 
-                Row(
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Bottom,
                 ) {
-                    Text(label, modifier = Modifier.width(38.dp), fontWeight = FontWeight.Bold)
                     Box(
                         modifier = Modifier
-                            .weight(1f)
-                            .height(8.dp)
-                            .background(
-                                MaterialTheme.colorScheme.surfaceVariant,
-                                CircleShape,
-                            ),
+                            .width(12.dp)
+                            .weight(1f),
+                        contentAlignment = Alignment.BottomCenter,
                     ) {
-                        if (value > 0) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(value.toFloat() / maxMinutes)
-                                    .height(8.dp)
-                                    .background(MaterialTheme.colorScheme.primary, CircleShape),
-                            )
-                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .fillMaxHeight(fraction.coerceIn(0.04f, 1f))
+                                .background(
+                                    color = if (value > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                    shape = RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp),
+                                ),
+                        )
                     }
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.height(7.dp))
                     Text(
-                        formatHoursStat(value / 60.0),
-                        modifier = Modifier.width(46.dp),
-                        fontWeight = FontWeight.Bold,
+                        text = label,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -294,48 +426,105 @@ private fun YearLoad(
 }
 
 @Composable
-private fun ShiftStatRow(
-    title: String,
-    subtitle: String,
-    count: Int,
-    fraction: Float,
-    color: Color,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 10.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .width(5.dp)
-                .height(48.dp)
-                .background(color, CircleShape),
-        )
-        Spacer(modifier = Modifier.width(10.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Text(title, fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
-                Text(count.toString(), fontWeight = FontWeight.Black, color = color)
-            }
+private fun ShiftDistribution(stats: PeriodStats) {
+    val shifts = ShiftPool.all
+        .filter { (stats.shiftCounts[it.id] ?: 0) > 0 }
+        .sortedByDescending { stats.shiftCounts[it.id] ?: 0 }
+    val maxCount = max(1, shifts.maxOfOrNull { stats.shiftCounts[it.id] ?: 0 } ?: 1)
+
+    if (shifts.isEmpty()) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+        ) {
             Text(
-                subtitle,
-                style = MaterialTheme.typography.bodySmall,
+                text = "За этот период рабочих смен нет.",
+                modifier = Modifier.padding(16.dp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(modifier = Modifier.height(6.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(5.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
-            ) {
-                Box(
+        }
+        return
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surface,
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp),
+        ) {
+            shifts.forEachIndexed { index, shift ->
+                val count = stats.shiftCounts[shift.id] ?: 0
+                val fraction = count.toFloat() / maxCount
+
+                Row(
                     modifier = Modifier
-                        .fillMaxWidth(fraction.coerceIn(0f, 1f))
-                        .height(5.dp)
-                        .background(color, CircleShape),
-                )
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(5.dp)
+                            .height(46.dp)
+                            .background(Color(shift.color), CircleShape),
+                    )
+                    Spacer(modifier = Modifier.width(11.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = shift.rangeLabel,
+                                modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Text(
+                                text = count.toString(),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(shift.color),
+                            )
+                        }
+
+                        Text(
+                            text = shift.purpose,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+
+                        Spacer(modifier = Modifier.height(7.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(5.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                    CircleShape,
+                                ),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(fraction.coerceIn(0f, 1f))
+                                    .height(5.dp)
+                                    .background(Color(shift.color), CircleShape),
+                            )
+                        }
+                    }
+                }
+
+                if (index < shifts.lastIndex) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(start = 16.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+                    )
+                }
             }
         }
     }

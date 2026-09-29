@@ -80,7 +80,7 @@ class ScheduleStore(context: Context) {
             employeeName = importedEmployeeName
             preferences.edit()
                 .putString(KEY_EMPLOYEE_NAME, importedEmployeeName)
-                .apply()
+                .commit()
         }
 
         persistRecords()
@@ -96,7 +96,7 @@ class ScheduleStore(context: Context) {
     fun clearAll() {
         recordsState.clear()
         employeeName = ""
-        preferences.edit().clear().apply()
+        preferences.edit().clear().commit()
         themeMode = ThemeMode.SYSTEM
         ScheduleWidgetProvider.updateAll(appContext)
     }
@@ -149,7 +149,7 @@ class ScheduleStore(context: Context) {
 
         preferences.edit()
             .putString(KEY_RECORDS, array.toString())
-            .apply()
+            .commit()
 
         ScheduleWidgetProvider.updateAll(appContext)
     }

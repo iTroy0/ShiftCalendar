@@ -1,24 +1,16 @@
 package com.ivans2001.grafiksz.ui
 
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.unit.dp
 import com.ivans2001.grafiksz.data.DayRecord
 import com.ivans2001.grafiksz.data.DayStatus
 import com.ivans2001.grafiksz.data.ParsedCell
@@ -28,6 +20,12 @@ import com.ivans2001.grafiksz.data.ScheduleViewMode
 import com.ivans2001.grafiksz.data.ShiftPool
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
+import java.util.Locale
+
+private val scheduleLocale = Locale("ru")
+private val monthTitleFormatter = DateTimeFormatter.ofPattern("LLLL yyyy", scheduleLocale)
 
 @Composable
 fun ScheduleScreen(
@@ -74,6 +72,13 @@ fun ScheduleScreen(
         focusDateString = today.toString()
     }
 
+    val periodLabel = when (viewMode) {
+        ScheduleViewMode.WEEK -> weekRangeLabel(focusDate)
+        ScheduleViewMode.MONTH,
+        ScheduleViewMode.LIST,
+        -> month.format(monthTitleFormatter).replaceFirstChar { it.uppercaseChar() }
+    }
+
     val monthRecords = store.records.filterKeys { YearMonth.from(it) == month }
     val workingDays = monthRecords.values.count { it.shiftId != null }
     val daysOff = monthRecords.values.count { it.status == DayStatus.DAY_OFF }
@@ -86,90 +91,68 @@ fun ScheduleScreen(
             .fillMaxSize()
             .padding(contentPadding),
     ) {
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState()),
-        ) {
-            ScheduleHeader(
-                employeeName = store.employeeName,
-                month = month,
-                onPrevious = goPrevious,
-                onNext = goNext,
-                onToday = goToday,
-                onImport = { showImport = true },
-            )
+        ScheduleTopBar(
+            employeeName = store.employeeName,
+            onImport = { showImport = true },
+        )
 
-            SummaryStrip(
-                workingDays = workingDays,
-                daysOff = daysOff,
-                hours = totalMinutes / 60.0,
-            )
+        PeriodNavigator(
+            label = periodLabel,
+            onPrevious = goPrevious,
+            onNext = goNext,
+            onToday = goToday,
+        )
 
-            ViewModeSelector(
-                selected = viewMode,
-                onSelect = { viewModeName = it.name },
-            )
+        SummaryStrip(
+            workingDays = workingDays,
+            daysOff = daysOff,
+            hours = totalMinutes / 60.0,
+        )
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .pointerInput(viewModeName, monthString, focusDateString) {
-                        var totalDrag = 0f
-                        val threshold = 72.dp.toPx()
-
-                        detectHorizontalDragGestures(
-                            onDragStart = { totalDrag = 0f },
-                            onHorizontalDrag = { _, dragAmount ->
-                                totalDrag += dragAmount
-                            },
-                            onDragEnd = {
-                                when {
-                                    totalDrag <= -threshold -> goNext()
-                                    totalDrag >= threshold -> goPrevious()
-                                }
-                                totalDrag = 0f
-                            },
-                            onDragCancel = { totalDrag = 0f },
-                        )
-                    },
-            ) {
-                when (viewMode) {
-                    ScheduleViewMode.MONTH -> MonthGrid(
-                        month = month,
-                        store = store,
-                        onDayClick = { date ->
-                            focusDateString = date.toString()
-                            editingDateString = date.toString()
-                        },
-                    )
-
-                    ScheduleViewMode.WEEK -> WeekScheduleView(
-                        focusDate = if (YearMonth.from(focusDate) == month) focusDate else month.atDay(1),
-                        store = store,
-                        onPreviousWeek = goPrevious,
-                        onNextWeek = goNext,
-                        onDayClick = { date ->
-                            focusDateString = date.toString()
-                            monthString = YearMonth.from(date).toString()
-                            editingDateString = date.toString()
-                        },
-                    )
-
-                    ScheduleViewMode.LIST -> MonthList(
-                        month = month,
-                        store = store,
-                        onDayClick = { date ->
-                            focusDateString = date.toString()
-                            editingDateString = date.toString()
-                        },
-                    )
+        ViewModeSelector(
+            selected = viewMode,
+            onSelect = { selected ->
+                viewModeName = selected.name
+                if (selected == ScheduleViewMode.WEEK && YearMonth.from(focusDate) != month) {
+                    focusDateString = month.atDay(1).toString()
                 }
-            }
+            },
+        )
 
-            Spacer(modifier = Modifier.height(24.dp))
+        Box(modifier = Modifier.weight(1f)) {
+            when (viewMode) {
+                ScheduleViewMode.MONTH -> MonthGrid(
+                    month = month,
+                    store = store,
+                    onDayClick = { date ->
+                        focusDateString = date.toString()
+                        editingDateString = date.toString()
+                    },
+                    onSwipePrevious = goPrevious,
+                    onSwipeNext = goNext,
+                )
+
+                ScheduleViewMode.WEEK -> WeekScheduleView(
+                    focusDate = focusDate,
+                    store = store,
+                    onDayClick = { date ->
+                        focusDateString = date.toString()
+                        monthString = YearMonth.from(date).toString()
+                        editingDateString = date.toString()
+                    },
+                    onSwipePrevious = goPrevious,
+                    onSwipeNext = goNext,
+                )
+
+                ScheduleViewMode.LIST -> MonthList(
+                    month = month,
+                    store = store,
+                    onDayClick = { date ->
+                        focusDateString = date.toString()
+                        editingDateString = date.toString()
+                    },
+                )
+            }
         }
     }
 
@@ -214,5 +197,18 @@ fun ScheduleScreen(
                 showImport = false
             },
         )
+    }
+}
+
+private fun weekRangeLabel(date: LocalDate): String {
+    val monday = date.minusDays((date.dayOfWeek.value - 1).toLong())
+    val sunday = monday.plusDays(6)
+    val startMonth = monday.month.getDisplayName(TextStyle.SHORT, scheduleLocale).replace(".", "")
+    val endMonth = sunday.month.getDisplayName(TextStyle.SHORT, scheduleLocale).replace(".", "")
+
+    return if (monday.month == sunday.month) {
+        "${monday.dayOfMonth}–${sunday.dayOfMonth} $endMonth ${sunday.year}"
+    } else {
+        "${monday.dayOfMonth} $startMonth – ${sunday.dayOfMonth} $endMonth ${sunday.year}"
     }
 }

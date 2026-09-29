@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -17,15 +18,21 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -67,76 +74,150 @@ fun DayEditorSheet(
         )
     }
     var note by remember(date) { mutableStateOf(initial.note) }
+    var confirmDismiss by remember { mutableStateOf(false) }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    fun currentRecord(): DayRecord {
+        val overtimeMinutes = overtimeText
+            .replace(',', '.')
+            .toDoubleOrNull()
+            ?.coerceAtLeast(0.0)
+            ?.times(60)
+            ?.roundToInt()
+            ?: 0
+
+        return DayRecord(
+            shiftId = selectedShiftId,
+            status = selectedStatusName?.let(DayStatus::valueOf),
+            overtimeMinutes = overtimeMinutes,
+            note = note.trim(),
+        )
+    }
+
+    val dirty = currentRecord() != initial
+
+    ModalBottomSheet(
+        onDismissRequest = {
+            if (dirty) confirmDismiss = true else onDismiss()
+        },
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 8.dp),
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 28.dp),
         ) {
             Text(
                 text = date.format(editorDateFormatter).replaceFirstChar { it.uppercaseChar() },
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Black,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
             )
             Text(
-                text = "Выбери смену из пула или статус дня",
+                text = "Смена, статус и заметки на один день",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             Spacer(modifier = Modifier.height(18.dp))
-            Text("Смены", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
 
-            ShiftPool.all.forEach { shift ->
-                val selected = selectedShiftId == shift.id
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 7.dp)
-                        .clickable {
-                            selectedShiftId = shift.id
-                            selectedStatusName = null
-                        },
-                    shape = RoundedCornerShape(14.dp),
-                    color = if (selected) {
-                        Color(shift.color).copy(alpha = 0.16f)
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)
-                    },
+            Text(
+                text = "Смена",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = "Выбирается только из системного пула",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            ShiftPool.all.chunked(2).forEach { pair ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Box(
+                    pair.forEach { shift ->
+                        val selected = selectedShiftId == shift.id
+                        Surface(
                             modifier = Modifier
-                                .size(12.dp)
-                                .background(Color(shift.color), CircleShape),
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(shift.rangeLabel, fontWeight = FontWeight.Black)
-                            Text(
-                                text = shift.title + " · " + shift.purpose,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                                .weight(1f)
+                                .heightIn(min = 86.dp)
+                                .clickable {
+                                    selectedShiftId = shift.id
+                                    selectedStatusName = null
+                                },
+                            shape = RoundedCornerShape(16.dp),
+                            color = if (selected) {
+                                Color(shift.color).copy(alpha = 0.15f)
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f)
+                            },
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(9.dp)
+                                            .background(Color(shift.color), CircleShape),
+                                    )
+                                    Spacer(modifier = Modifier.width(7.dp))
+                                    Text(
+                                        text = shift.rangeLabel,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(5.dp))
+
+                                Text(
+                                    text = shift.purpose,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2,
+                                )
+                            }
                         }
                     }
+
+                    if (pair.size == 1) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
                 }
+
+                Spacer(modifier = Modifier.height(8.dp))
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
-            Text("Статус дня", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = "Статус дня",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
 
             Row(
                 modifier = Modifier
+                    .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
-                    .padding(top = 6.dp),
+                    .padding(top = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                FilterChip(
+                    selected = selectedStatusName == null && selectedShiftId == null,
+                    onClick = {
+                        selectedStatusName = null
+                        selectedShiftId = null
+                    },
+                    label = { Text("Пусто") },
+                )
+
                 DayStatus.entries.forEach { status ->
                     FilterChip(
                         selected = selectedStatusName == status.name,
@@ -150,6 +231,33 @@ fun DayEditorSheet(
             }
 
             Spacer(modifier = Modifier.height(14.dp))
+
+            Text(
+                text = "Переработка",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(top = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                listOf("1", "2", "4").forEach { hours ->
+                    OutlinedButton(
+                        onClick = { overtimeText = hours },
+                    ) {
+                        Text("+$hours ч")
+                    }
+                }
+
+                TextButton(onClick = { overtimeText = "" }) {
+                    Text("Сбросить")
+                }
+            }
+
             OutlinedTextField(
                 value = overtimeText,
                 onValueChange = { value ->
@@ -157,54 +265,83 @@ fun DayEditorSheet(
                         char.isDigit() || char == '.' || char == ','
                     }
                 },
-                label = { Text("Переработка, часов") },
+                label = { Text("Часы переработки") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+
             OutlinedTextField(
                 value = note,
                 onValueChange = { note = it },
                 label = { Text("Заметка") },
+                supportingText = { Text("Например: подмена, встреча, важная задача") },
                 minLines = 2,
                 modifier = Modifier.fillMaxWidth(),
             )
 
             Spacer(modifier = Modifier.height(18.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                OutlinedButton(onClick = onClear, modifier = Modifier.weight(1f)) {
-                    Text("Очистить")
-                }
-                Button(
-                    onClick = {
-                        val overtimeMinutes = overtimeText
-                            .replace(',', '.')
-                            .toDoubleOrNull()
-                            ?.coerceAtLeast(0.0)
-                            ?.times(60)
-                            ?.roundToInt()
-                            ?: 0
 
-                        onSave(
-                            DayRecord(
-                                shiftId = selectedShiftId,
-                                status = selectedStatusName?.let(DayStatus::valueOf),
-                                overtimeMinutes = overtimeMinutes,
-                                note = note.trim(),
-                            ),
-                        )
-                    },
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("Сохранить")
-                }
+            Button(
+                onClick = { onSave(currentRecord()) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 52.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Check,
+                    contentDescription = null,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Сохранить")
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            if (!initial.isEmpty) {
+                TextButton(
+                    onClick = onClear,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.DeleteOutline,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Очистить день",
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
         }
+    }
+
+    if (confirmDismiss) {
+        AlertDialog(
+            onDismissRequest = { confirmDismiss = false },
+            title = { Text("Закрыть без сохранения?") },
+            text = { Text("Изменения этого дня будут потеряны.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmDismiss = false
+                        onDismiss()
+                    },
+                ) {
+                    Text(
+                        text = "Закрыть",
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDismiss = false }) {
+                    Text("Продолжить редактирование")
+                }
+            },
+        )
     }
 }

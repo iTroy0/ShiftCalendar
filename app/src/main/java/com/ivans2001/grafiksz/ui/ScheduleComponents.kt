@@ -1,7 +1,9 @@
 package com.ivans2001.grafiksz.ui
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,22 +13,40 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.FilterChip
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ChevronLeft
+import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.ContentPaste
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ivans2001.grafiksz.data.DayRecord
@@ -34,64 +54,92 @@ import com.ivans2001.grafiksz.data.DayStatus
 import com.ivans2001.grafiksz.data.ScheduleStore
 import com.ivans2001.grafiksz.data.ScheduleViewMode
 import com.ivans2001.grafiksz.data.ShiftPool
-import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 import kotlin.math.roundToInt
 
-private val ruLocale = Locale("ru")
-private val monthFormatter = DateTimeFormatter.ofPattern("LLLL yyyy", ruLocale)
+private val scheduleUiLocale = Locale("ru")
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ScheduleHeader(
+fun ScheduleTopBar(
     employeeName: String,
-    month: YearMonth,
-    onPrevious: () -> Unit,
-    onNext: () -> Unit,
-    onToday: () -> Unit,
     onImport: () -> Unit,
 ) {
-    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
+    TopAppBar(
+        title = {
+            Column {
                 Text(
                     text = employeeName.ifBlank { "График СЗ" },
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Black,
+                    fontWeight = FontWeight.Bold,
                 )
-                Text(
-                    text = month.format(monthFormatter).replaceFirstChar { it.uppercaseChar() },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                if (employeeName.isNotBlank()) {
+                    Text(
+                        text = "График СЗ",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        },
+        actions = {
+            FilledTonalButton(
+                onClick = onImport,
+                modifier = Modifier.padding(end = 8.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.ContentPaste,
+                    contentDescription = null,
+                    modifier = Modifier.width(18.dp),
                 )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Excel")
             }
-            OutlinedButton(onClick = onImport) {
-                Text("Вставить Excel")
-            }
+        },
+    )
+}
+
+@Composable
+fun PeriodNavigator(
+    label: String,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onToday: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(onClick = onPrevious) {
+            Icon(
+                imageVector = Icons.Outlined.ChevronLeft,
+                contentDescription = "Предыдущий период",
+            )
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Text(
+            text = label,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+        )
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TextButton(onClick = onPrevious) { Text("‹") }
-            Text(
-                text = month.month.getDisplayName(TextStyle.FULL, ruLocale)
-                    .replaceFirstChar { it.uppercaseChar() },
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+        TextButton(onClick = onToday) {
+            Text("Сегодня")
+        }
+
+        IconButton(onClick = onNext) {
+            Icon(
+                imageVector = Icons.Outlined.ChevronRight,
+                contentDescription = "Следующий период",
             )
-            TextButton(onClick = onToday) { Text("Сегодня") }
-            TextButton(onClick = onNext) { Text("›") }
         }
     }
 }
@@ -102,38 +150,59 @@ fun SummaryStrip(
     daysOff: Int,
     hours: Double,
 ) {
-    Row(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),
     ) {
-        SummaryTile(workingDays.toString(), "рабочих", Modifier.weight(1f))
-        SummaryTile(daysOff.toString(), "выходных", Modifier.weight(1f))
-        SummaryTile(formatHours(hours), "часов", Modifier.weight(1f))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SummaryValue(workingDays.toString(), "рабочих", Modifier.weight(1f))
+            SummaryDivider()
+            SummaryValue(daysOff.toString(), "выходных", Modifier.weight(1f))
+            SummaryDivider()
+            SummaryValue(formatHours(hours), "часов", Modifier.weight(1f))
+        }
     }
 }
 
 @Composable
-private fun SummaryTile(
+private fun SummaryValue(
     value: String,
     label: String,
-    modifier: Modifier = Modifier,
+    modifier: Modifier,
 ) {
-    Surface(
+    Column(
         modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.62f),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
-            Text(
-                label,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
+}
+
+@Composable
+private fun SummaryDivider() {
+    Box(
+        modifier = Modifier
+            .width(1.dp)
+            .height(30.dp)
+            .background(MaterialTheme.colorScheme.outlineVariant),
+    )
 }
 
 @Composable
@@ -141,23 +210,54 @@ fun ViewModeSelector(
     selected: ScheduleViewMode,
     onSelect: (ScheduleViewMode) -> Unit,
 ) {
-    Row(
+    val options = listOf(
+        ScheduleViewMode.MONTH to "Месяц",
+        ScheduleViewMode.WEEK to "Неделя",
+        ScheduleViewMode.LIST to "Список",
+    )
+
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
     ) {
-        listOf(
-            ScheduleViewMode.MONTH to "Месяц",
-            ScheduleViewMode.WEEK to "Неделя",
-            ScheduleViewMode.LIST to "Список",
-        ).forEach { pair ->
-            FilterChip(
-                selected = selected == pair.first,
-                onClick = { onSelect(pair.first) },
-                label = { Text(pair.second) },
-                modifier = Modifier.weight(1f),
-            )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(4.dp)
+                .selectableGroup(),
+        ) {
+            options.forEach { pair ->
+                val mode = pair.first
+                val label = pair.second
+                val isSelected = selected == mode
+                val background by animateColorAsState(
+                    targetValue = if (isSelected) MaterialTheme.colorScheme.surface else Color.Transparent,
+                    label = "viewModeColor",
+                )
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp)
+                        .background(background, RoundedCornerShape(12.dp))
+                        .selectable(
+                            selected = isSelected,
+                            role = Role.RadioButton,
+                            onClick = { onSelect(mode) },
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
     }
 }
@@ -167,38 +267,75 @@ fun MonthGrid(
     month: YearMonth,
     store: ScheduleStore,
     onDayClick: (LocalDate) -> Unit,
+    onSwipePrevious: () -> Unit,
+    onSwipeNext: () -> Unit,
 ) {
     val leadingEmpty = month.atDay(1).dayOfWeek.value - 1
     val totalCells = leadingEmpty + month.lengthOfMonth()
     val rows = (totalCells + 6) / 7
 
-    Column(modifier = Modifier.padding(horizontal = 12.dp)) {
-        Row(modifier = Modifier.fillMaxWidth()) {
-            listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс").forEach { label ->
-                Text(
-                    label,
-                    modifier = Modifier.weight(1f).padding(vertical = 6.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Bold,
+    Surface(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .pointerInput(month) {
+                var total = 0f
+                val threshold = 72.dp.toPx()
+                detectHorizontalDragGestures(
+                    onDragStart = { total = 0f },
+                    onHorizontalDrag = { _, amount -> total += amount },
+                    onDragEnd = {
+                        if (total <= -threshold) onSwipeNext()
+                        if (total >= threshold) onSwipePrevious()
+                        total = 0f
+                    },
+                    onDragCancel = { total = 0f },
                 )
-            }
-        }
-
-        repeat(rows) { row ->
+            },
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surface,
+    ) {
+        Column(
+            modifier = Modifier
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 8.dp, vertical = 10.dp),
+        ) {
             Row(modifier = Modifier.fillMaxWidth()) {
-                repeat(7) { column ->
-                    val day = row * 7 + column - leadingEmpty + 1
-                    if (day !in 1..month.lengthOfMonth()) {
-                        Spacer(modifier = Modifier.weight(1f).aspectRatio(0.88f))
-                    } else {
-                        val date = month.atDay(day)
-                        MonthDayCell(
-                            date = date,
-                            record = store.record(date),
-                            onClick = { onDayClick(date) },
-                            modifier = Modifier.weight(1f).aspectRatio(0.88f),
-                        )
+                listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс").forEach { label ->
+                    Text(
+                        text = label,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(vertical = 7.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
+
+            repeat(rows) { row ->
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    repeat(7) { column ->
+                        val day = row * 7 + column - leadingEmpty + 1
+                        if (day !in 1..month.lengthOfMonth()) {
+                            Spacer(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .aspectRatio(0.9f),
+                            )
+                        } else {
+                            val date = month.atDay(day)
+                            MonthDayCell(
+                                date = date,
+                                record = store.record(date),
+                                onClick = { onDayClick(date) },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .aspectRatio(0.9f),
+                            )
+                        }
                     }
                 }
             }
@@ -216,50 +353,65 @@ private fun MonthDayCell(
     val shift = ShiftPool.byId(record?.shiftId)
     val accent = shift?.let { Color(it.color) }
         ?: statusColor(record?.status)
-        ?: MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+        ?: Color.Transparent
     val isToday = date == LocalDate.now()
-
-    Surface(
-        modifier = modifier.padding(2.dp),
-        shape = RoundedCornerShape(14.dp),
-        color = if (isToday) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.48f)
-        } else {
-            MaterialTheme.colorScheme.surface
+    val background by animateColorAsState(
+        targetValue = when {
+            isToday -> MaterialTheme.colorScheme.primaryContainer
+            shift != null -> accent.copy(alpha = 0.09f)
+            record?.status != null -> accent.copy(alpha = 0.09f)
+            else -> Color.Transparent
         },
-        tonalElevation = if (isToday) 2.dp else 0.dp,
-    ) {
+        label = "dayBackground",
+    )
+
+    Box(modifier = modifier.padding(2.dp)) {
         Column(
-            modifier = Modifier.fillMaxSize().clickable(onClick = onClick).padding(7.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .background(background, RoundedCornerShape(14.dp))
+                .clickable(onClick = onClick)
+                .padding(horizontal = 6.dp, vertical = 7.dp),
             verticalArrangement = Arrangement.SpaceBetween,
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                date.dayOfMonth.toString(),
+                text = date.dayOfMonth.toString(),
                 style = MaterialTheme.typography.labelLarge,
-                color = if (isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Bold,
+                color = if (isToday) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                fontWeight = if (isToday) FontWeight.Bold else FontWeight.Medium,
             )
-            if (record != null && !record.isEmpty) {
-                Column {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(5.dp)
-                            .background(accent, CircleShape),
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
+
+            when {
+                shift != null -> {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            modifier = Modifier
+                                .width(20.dp)
+                                .height(4.dp)
+                                .background(accent, CircleShape),
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = compactRange(shift.rangeLabel),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = accent,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                        )
+                    }
+                }
+
+                record?.status != null -> {
                     Text(
-                        when {
-                            shift != null -> compactRange(shift.rangeLabel)
-                            record.status != null -> record.status.shortCode
-                            else -> ""
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.ExtraBold,
+                        text = record.status.shortCode,
+                        style = MaterialTheme.typography.labelMedium,
                         color = accent,
-                        maxLines = 1,
+                        fontWeight = FontWeight.Bold,
                     )
                 }
+
+                else -> Spacer(modifier = Modifier.height(20.dp))
             }
         }
     }
@@ -269,28 +421,179 @@ private fun MonthDayCell(
 fun WeekScheduleView(
     focusDate: LocalDate,
     store: ScheduleStore,
-    onPreviousWeek: () -> Unit,
-    onNextWeek: () -> Unit,
     onDayClick: (LocalDate) -> Unit,
+    onSwipePrevious: () -> Unit,
+    onSwipeNext: () -> Unit,
 ) {
-    val start = focusDate.minusDays((focusDate.dayOfWeek.value - DayOfWeek.MONDAY.value).toLong())
+    val monday = focusDate.minusDays((focusDate.dayOfWeek.value - 1).toLong())
+    val days = (0L..6L).map(monday::plusDays)
+    val currentRecord = store.record(focusDate)
+    val currentShift = ShiftPool.byId(currentRecord?.shiftId)
 
-    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton(onClick = onPreviousWeek) { Text("‹ Неделя") }
-            TextButton(onClick = onNextWeek) { Text("Неделя ›") }
-        }
-
-        (0L..6L).forEach { offset ->
-            val date = start.plusDays(offset)
-            ScheduleListRow(date, store.record(date)) { onDayClick(date) }
-            if (offset < 6) {
-                HorizontalDivider(
-                    modifier = Modifier.padding(start = 56.dp),
-                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.18f),
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .pointerInput(focusDate) {
+                var total = 0f
+                val threshold = 72.dp.toPx()
+                detectHorizontalDragGestures(
+                    onDragStart = { total = 0f },
+                    onHorizontalDrag = { _, amount -> total += amount },
+                    onDragEnd = {
+                        if (total <= -threshold) onSwipeNext()
+                        if (total >= threshold) onSwipePrevious()
+                        total = 0f
+                    },
+                    onDragCancel = { total = 0f },
                 )
+            },
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surface,
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                days.forEach { date ->
+                    WeekDayCell(
+                        date = date,
+                        record = store.record(date),
+                        selected = date == focusDate,
+                        onClick = { onDayClick(date) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
         }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onDayClick(focusDate) },
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(5.dp)
+                        .height(46.dp)
+                        .background(
+                            currentShift?.let { Color(it.color) }
+                                ?: statusColor(currentRecord?.status)
+                                ?: MaterialTheme.colorScheme.outlineVariant,
+                            CircleShape,
+                        ),
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = focusDate.dayOfWeek
+                            .getDisplayName(TextStyle.FULL, scheduleUiLocale)
+                            .replaceFirstChar { it.uppercaseChar() } +
+                            ", " + focusDate.dayOfMonth + " " +
+                            focusDate.month.getDisplayName(TextStyle.FULL, scheduleUiLocale),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = when {
+                            currentShift != null -> currentShift.rangeLabel
+                            currentRecord?.status != null -> currentRecord.status.title
+                            else -> "Смена не назначена"
+                        },
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    if (currentShift != null) {
+                        Text(
+                            text = currentShift.purpose,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WeekDayCell(
+    date: LocalDate,
+    record: DayRecord?,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier,
+) {
+    val shift = ShiftPool.byId(record?.shiftId)
+    val accent = shift?.let { Color(it.color) }
+        ?: statusColor(record?.status)
+        ?: MaterialTheme.colorScheme.outlineVariant
+    val isToday = date == LocalDate.now()
+    val background = when {
+        selected -> MaterialTheme.colorScheme.primaryContainer
+        isToday -> MaterialTheme.colorScheme.surfaceVariant
+        else -> Color.Transparent
+    }
+
+    Column(
+        modifier = modifier
+            .height(118.dp)
+            .background(background, RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 2.dp, vertical = 9.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = date.dayOfWeek
+                .getDisplayName(TextStyle.SHORT, scheduleUiLocale)
+                .replace(".", "")
+                .replaceFirstChar { it.uppercaseChar() },
+            style = MaterialTheme.typography.labelMedium,
+            color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        Text(
+            text = date.dayOfMonth.toString(),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+        )
+
+        Box(
+            modifier = Modifier
+                .width(20.dp)
+                .height(4.dp)
+                .background(accent, CircleShape),
+        )
+
+        Text(
+            text = when {
+                shift != null -> compactRange(shift.rangeLabel)
+                record?.status != null -> record.status.shortCode
+                else -> "—"
+            },
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = if (record == null) MaterialTheme.colorScheme.onSurfaceVariant else accent,
+            maxLines = 1,
+        )
     }
 }
 
@@ -300,14 +603,30 @@ fun MonthList(
     store: ScheduleStore,
     onDayClick: (LocalDate) -> Unit,
 ) {
-    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-        (1..month.lengthOfMonth()).forEach { day ->
-            val date = month.atDay(day)
-            ScheduleListRow(date, store.record(date)) { onDayClick(date) }
-            if (day < month.lengthOfMonth()) {
+    val dates = (1..month.lengthOfMonth()).map(month::atDay)
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            start = 16.dp,
+            end = 16.dp,
+            top = 4.dp,
+            bottom = 20.dp,
+        ),
+    ) {
+        items(
+            items = dates,
+            key = { it.toString() },
+        ) { date ->
+            ScheduleListRow(
+                date = date,
+                record = store.record(date),
+                onClick = { onDayClick(date) },
+            )
+            if (date.dayOfMonth < month.lengthOfMonth()) {
                 HorizontalDivider(
-                    modifier = Modifier.padding(start = 56.dp),
-                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.18f),
+                    modifier = Modifier.padding(start = 58.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
                 )
             }
         }
@@ -323,49 +642,66 @@ private fun ScheduleListRow(
     val shift = ShiftPool.byId(record?.shiftId)
     val accent = shift?.let { Color(it.color) }
         ?: statusColor(record?.status)
-        ?: MaterialTheme.colorScheme.outline
+        ?: MaterialTheme.colorScheme.outlineVariant
     val isToday = date == LocalDate.now()
 
     Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 68.dp)
+            .clickable(onClick = onClick)
+            .padding(vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(modifier = Modifier.width(48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            modifier = Modifier.width(48.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
             Text(
-                date.dayOfWeek.getDisplayName(TextStyle.SHORT, ruLocale).replace(".", "").uppercase(),
-                style = MaterialTheme.typography.labelSmall,
+                text = date.dayOfWeek
+                    .getDisplayName(TextStyle.SHORT, scheduleUiLocale)
+                    .replace(".", "")
+                    .uppercase(),
+                style = MaterialTheme.typography.labelMedium,
                 color = if (isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.SemiBold,
             )
             Text(
-                date.dayOfMonth.toString(),
-                style = MaterialTheme.typography.titleMedium,
+                text = date.dayOfMonth.toString(),
+                style = MaterialTheme.typography.titleLarge,
                 color = if (isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Black,
+                fontWeight = FontWeight.Bold,
             )
         }
 
-        Box(modifier = Modifier.width(4.dp).height(44.dp).background(accent, CircleShape))
+        Box(
+            modifier = Modifier
+                .width(4.dp)
+                .height(42.dp)
+                .background(accent, CircleShape),
+        )
+
         Spacer(modifier = Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                when {
+                text = when {
                     shift != null -> shift.rangeLabel
                     record?.status != null -> record.status.title
                     else -> "Не заполнено"
                 },
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = if (record == null) FontWeight.Normal else FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium,
                 color = if (record == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                fontWeight = if (record == null) FontWeight.Medium else FontWeight.SemiBold,
             )
+
             Text(
-                when {
-                    shift != null -> shift.title + " · " + shift.purpose
+                text = when {
+                    shift != null -> shift.purpose
                     record?.note?.isNotBlank() == true -> record.note
                     else -> "Нажми, чтобы изменить"
                 },
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -374,8 +710,8 @@ private fun ScheduleListRow(
 
         if ((record?.overtimeMinutes ?: 0) > 0) {
             Text(
-                "+" + formatMinutes(record!!.overtimeMinutes),
-                style = MaterialTheme.typography.labelMedium,
+                text = "+" + formatMinutes(record!!.overtimeMinutes),
+                style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.error,
                 fontWeight = FontWeight.Bold,
             )
@@ -385,15 +721,17 @@ private fun ScheduleListRow(
 
 @Composable
 fun statusColor(status: DayStatus?): Color? = when (status) {
-    DayStatus.DAY_OFF -> Color(0xFF7A8192)
-    DayStatus.VACATION -> Color(0xFF2E9D68)
-    DayStatus.SICK -> Color(0xFFD84B45)
-    DayStatus.STUDY -> Color(0xFF7A58C7)
-    DayStatus.K_MARK -> Color(0xFF5671C8)
+    DayStatus.DAY_OFF -> Color(0xFF747B8A)
+    DayStatus.VACATION -> Color(0xFF27815B)
+    DayStatus.SICK -> Color(0xFFC9463F)
+    DayStatus.STUDY -> Color(0xFF7456B7)
+    DayStatus.K_MARK -> Color(0xFF5268B8)
     null -> null
 }
 
-private fun compactRange(value: String): String = value.replace(":00", "").replace("00:00", "0")
+private fun compactRange(value: String): String = value
+    .replace(":00", "")
+    .replace("00:00", "0")
 
 private fun formatHours(hours: Double): String {
     val rounded = (hours * 10).roundToInt() / 10.0
@@ -404,8 +742,8 @@ private fun formatMinutes(minutes: Int): String {
     val hours = minutes / 60
     val remainder = minutes % 60
     return when {
-        remainder == 0 -> hours.toString() + " ч"
-        hours == 0 -> remainder.toString() + " мин"
-        else -> hours.toString() + " ч " + remainder.toString() + " мин"
+        remainder == 0 -> "$hours ч"
+        hours == 0 -> "$remainder мин"
+        else -> "$hours ч $remainder мин"
     }
 }
