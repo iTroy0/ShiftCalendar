@@ -1,114 +1,115 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Switch, StyleSheet } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { ShiftType } from '../../constants/shifts';
-import { scheduleShiftReminder, schedulePreShiftAlarms } from '../../utils/notifications';
+import { View, StyleSheet, ScrollView } from 'react-native';
+import { ThemeColors } from '../../constants/colors';
+import { CalendarInfo } from '../../hooks/useShiftData';
+import { TimeFormat, formatHourOfDay, formatMinutesAsDuration } from '../../utils/time';
+import { Chip, SectionLabel } from '../ui/primitives';
+import { SettingsCard, SettingsRow } from './SettingsRow';
 
-type Props = {
-  colors: any;
-  notificationsEnabled: boolean;
-  onToggleNotifications: (v: boolean) => void;
-  notificationHour: number;
-  setNotificationHour: (h: number) => void;
-  preShiftAlarm: boolean;
-  onTogglePreShiftAlarm: (v: boolean) => void;
-  shiftData: Record<string, string>;
-  allShifts: ShiftType[];
-  notifHours: number[];
-};
+const REMINDER_HOURS = [17, 18, 19, 20, 21, 22, 23];
+const ALARM_LEADS = [15, 30, 45, 60, 90, 120];
 
-export function NotificationsSection({
-  colors,
-  notificationsEnabled,
-  onToggleNotifications,
-  notificationHour,
-  setNotificationHour,
-  preShiftAlarm,
-  onTogglePreShiftAlarm,
-  shiftData,
-  allShifts,
-  notifHours,
-}: Props) {
+interface Props {
+  colors: ThemeColors;
+  timeFormat: TimeFormat;
+  remindersEnabled: boolean;
+  onToggleReminders: (value: boolean) => void;
+  reminderHour: number;
+  onReminderHour: (hour: number) => void;
+  alarmEnabled: boolean;
+  onToggleAlarm: (value: boolean) => void;
+  alarmLead: number;
+  onAlarmLead: (minutes: number) => void;
+  calendars: CalendarInfo[];
+  primaryCalendarId: string;
+  onPrimaryCalendar: (id: string) => void;
+  onTest: () => void;
+}
+
+function ChipRow({ children }: { children: React.ReactNode }) {
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+      {children}
+    </ScrollView>
+  );
+}
+
+export function NotificationsSection(props: Props) {
+  const { colors } = props;
   return (
     <>
-      <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>NOTIFICATIONS</Text>
-      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <View style={styles.notifRow}>
-          <MaterialCommunityIcons name="bell-outline" size={20} color={notificationsEnabled ? colors.primary : colors.textSecondary} />
-          <View style={styles.notifInfo}>
-            <Text style={[styles.notifLabel, { color: colors.text }]}>Shift Reminders</Text>
-            <Text style={[styles.notifDesc, { color: colors.textSecondary }]}>
-              Get notified the evening before your shift
-            </Text>
-          </View>
-          <Switch
-            value={notificationsEnabled}
-            onValueChange={onToggleNotifications}
-            trackColor={{ false: colors.border, true: colors.primary + '60' }}
-            thumbColor={notificationsEnabled ? colors.primary : colors.textSecondary}
-          />
-        </View>
-        {notificationsEnabled && (
-          <>
-            <View style={[styles.divider, { backgroundColor: colors.border, marginVertical: 10 }]} />
-            <Text style={[styles.notifTimeLabel, { color: colors.textSecondary }]}>Reminder Time</Text>
-            <View style={styles.notifTimeRow}>
-              {notifHours.map((h) => (
-                <TouchableOpacity
+      <SectionLabel colors={colors}>Reminders</SectionLabel>
+      <SettingsCard colors={colors}>
+        <SettingsRow
+          icon="bell-ring-outline"
+          title="Evening reminder"
+          subtitle="A heads-up the evening before each shift or leave day"
+          colors={colors}
+          switchValue={props.remindersEnabled}
+          onSwitch={props.onToggleReminders}
+        />
+        {props.remindersEnabled && (
+          <View style={styles.sub}>
+            <ChipRow>
+              {REMINDER_HOURS.map((h) => (
+                <Chip
                   key={h}
-                  style={[
-                    styles.notifTimeChip,
-                    {
-                      backgroundColor: notificationHour === h ? colors.primary : colors.surfaceVariant,
-                      borderColor: notificationHour === h ? colors.primary : colors.border,
-                    },
-                  ]}
-                  onPress={() => {
-                    setNotificationHour(h);
-                    scheduleShiftReminder(shiftData, allShifts, h).catch(console.error);
-                  }}
-                >
-                  <Text style={[styles.notifTimeText, { color: notificationHour === h ? '#FFF' : colors.text }]}>
-                    {h > 12 ? `${h - 12} PM` : `${h} AM`}
-                  </Text>
-                </TouchableOpacity>
+                  label={formatHourOfDay(h, props.timeFormat)}
+                  selected={props.reminderHour === h}
+                  onPress={() => props.onReminderHour(h)}
+                  colors={colors}
+                  compact
+                />
               ))}
-            </View>
-          </>
-        )}
-      </View>
-
-      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, marginTop: 10 }]}>
-        <View style={styles.notifRow}>
-          <MaterialCommunityIcons name="alarm" size={20} color={preShiftAlarm ? '#EF4444' : colors.textSecondary} />
-          <View style={styles.notifInfo}>
-            <Text style={[styles.notifLabel, { color: colors.text }]}>Pre-Shift Alarm</Text>
-            <Text style={[styles.notifDesc, { color: colors.textSecondary }]}>
-              Alert 1 hour before your shift starts
-            </Text>
+            </ChipRow>
           </View>
-          <Switch
-            value={preShiftAlarm}
-            onValueChange={onTogglePreShiftAlarm}
-            trackColor={{ false: colors.border, true: '#EF4444' + '60' }}
-            thumbColor={preShiftAlarm ? '#EF4444' : colors.textSecondary}
-          />
-        </View>
-      </View>
+        )}
+        <SettingsRow
+          icon="alarm"
+          iconColor={colors.danger}
+          title="Pre-shift alarm"
+          subtitle="Loud alarm before your shift starts, even in Do Not Disturb"
+          colors={colors}
+          switchValue={props.alarmEnabled}
+          onSwitch={props.onToggleAlarm}
+        />
+        {props.alarmEnabled && (
+          <View style={styles.sub}>
+            <ChipRow>
+              {ALARM_LEADS.map((m) => (
+                <Chip
+                  key={m}
+                  label={`${formatMinutesAsDuration(m).replace(' hours', 'h').replace(' hour', 'h')} before`}
+                  selected={props.alarmLead === m}
+                  onPress={() => props.onAlarmLead(m)}
+                  colors={colors}
+                  color={colors.danger}
+                  compact
+                />
+              ))}
+            </ChipRow>
+          </View>
+        )}
+        {props.calendars.length > 1 && (props.remindersEnabled || props.alarmEnabled) && (
+          <View style={styles.sub}>
+            <SettingsRow icon="calendar-account" title="Remind me about" subtitle="Also used by the home-screen widget" colors={colors} style={styles.subRow} />
+            <ChipRow>
+              {props.calendars.map((c) => (
+                <Chip key={c.id} label={c.name} color={c.color} selected={props.primaryCalendarId === c.id} onPress={() => props.onPrimaryCalendar(c.id)} colors={colors} compact />
+              ))}
+            </ChipRow>
+          </View>
+        )}
+        {(props.remindersEnabled || props.alarmEnabled) && (
+          <SettingsRow icon="send-outline" title="Send a test notification" subtitle="Arrives in about 5 seconds" colors={colors} onPress={props.onTest} />
+        )}
+      </SettingsCard>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  sectionTitle: { fontSize: 13, fontWeight: '700', letterSpacing: 0.8, marginBottom: 8, marginTop: 16, marginLeft: 4 },
-  card: { borderRadius: 16, borderWidth: 1, padding: 16 },
-  divider: { height: 1 },
-  notifRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  notifInfo: { flex: 1 },
-  notifLabel: { fontSize: 15, fontWeight: '600' },
-  notifDesc: { fontSize: 12, marginTop: 1 },
-  notifTimeLabel: { fontSize: 12, fontWeight: '600', marginBottom: 8 },
-  notifTimeRow: { flexDirection: 'row', gap: 6 },
-  notifTimeChip: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1 },
-  notifTimeText: { fontSize: 13, fontWeight: '700' },
+  sub: { paddingBottom: 12 },
+  subRow: { paddingBottom: 6 },
+  chips: { paddingHorizontal: 14, gap: 8 },
 });

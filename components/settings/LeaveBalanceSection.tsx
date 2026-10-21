@@ -1,56 +1,77 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { LeaveType } from '../../constants/leaveTypes';
+import { ThemeColors } from '../../constants/colors';
+import { haptic } from '../../utils/haptics';
+import { Tap } from '../ui/Tap';
+import { SectionLabel } from '../ui/primitives';
+import { SettingsCard, SettingsRow } from './SettingsRow';
 
-type LeaveType = { id: string; label: string; icon: string; color: string; defaultDays: number };
-
-type Props = {
-  colors: any;
+interface Props {
+  colors: ThemeColors;
+  calendarName: string;
   leaveTypes: LeaveType[];
   leaveBalances: Record<string, number>;
   setLeaveBalance: (id: string, days: number) => void;
-};
+}
 
-export function LeaveBalanceSection({ colors, leaveTypes, leaveBalances, setLeaveBalance }: Props) {
+function DaysStepper({ value, onChange, colors, label }: { value: number; onChange: (v: number) => void; colors: ThemeColors; label: string }) {
+  const [text, setText] = useState(String(value));
+  useEffect(() => setText(String(value)), [value]);
+  const step = (d: number) => {
+    haptic.selection();
+    onChange(Math.max(0, Math.min(365, value + d)));
+  };
+  return (
+    <View style={[styles.stepper, { backgroundColor: colors.surfaceVariant }]}>
+      <Tap onPress={() => step(-1)} disabled={value <= 0} accessibilityLabel={`Fewer ${label} days`} style={[styles.stepBtn, { opacity: value <= 0 ? 0.35 : 1 }]}>
+        <MaterialCommunityIcons name="minus" size={16} color={colors.text} />
+      </Tap>
+      <TextInput
+        value={text}
+        onChangeText={(t) => {
+          const digits = t.replace(/[^0-9]/g, '').slice(0, 3);
+          setText(digits);
+          if (digits) onChange(Math.min(parseInt(digits, 10), 365));
+        }}
+        onBlur={() => setText(String(value))}
+        keyboardType="number-pad"
+        accessibilityLabel={`${label} days per year`}
+        style={[styles.stepValue, { color: colors.text }]}
+      />
+      <Tap onPress={() => step(1)} accessibilityLabel={`More ${label} days`} style={styles.stepBtn}>
+        <MaterialCommunityIcons name="plus" size={16} color={colors.text} />
+      </Tap>
+    </View>
+  );
+}
+
+export function LeaveBalanceSection({ colors, calendarName, leaveTypes, leaveBalances, setLeaveBalance }: Props) {
   return (
     <>
-      <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>LEAVE BALANCE</Text>
-      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Text style={[styles.hint, { color: colors.textSecondary }]}>
-          Set your annual leave allocation for each leave type.
-        </Text>
-        {leaveTypes.map((lt, i) => (
-          <View key={lt.id}>
-            {i > 0 && <View style={[styles.divider, { backgroundColor: colors.border, marginVertical: 12 }]} />}
-            <View style={styles.leaveBalanceRow}>
-              <MaterialCommunityIcons name={lt.icon as any} size={20} color={lt.color} />
-              <Text style={[styles.leaveBalanceLabel, { color: colors.text }]}>{lt.label}</Text>
-              <TextInput
-                style={[styles.leaveBalanceInput, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
-                value={String(leaveBalances[lt.id] ?? lt.defaultDays)}
-                onChangeText={(t) => {
-                  const val = parseInt(t.replace(/[^0-9]/g, ''), 10);
-                  setLeaveBalance(lt.id, isNaN(val) ? 0 : val);
-                }}
-                keyboardType="numeric"
-                maxLength={3}
-              />
-              <Text style={[styles.rateUnit, { color: colors.textSecondary }]}>days</Text>
-            </View>
-          </View>
+      <SectionLabel colors={colors}>{`Leave allowance · ${calendarName}`}</SectionLabel>
+      <SettingsCard colors={colors}>
+        {leaveTypes.map((lt) => (
+          <SettingsRow
+            key={lt.id}
+            icon={lt.icon as any}
+            iconColor={lt.color}
+            title={lt.label}
+            subtitle={lt.paid ? 'Paid · days per year' : 'Unpaid · days per year'}
+            colors={colors}
+            right={<DaysStepper value={leaveBalances[lt.id] ?? lt.defaultDays} onChange={(v) => setLeaveBalance(lt.id, v)} colors={colors} label={lt.label} />}
+          />
         ))}
-      </View>
+      </SettingsCard>
+      <Text style={[styles.footnote, { color: colors.textMuted }]}>Remaining days for the current year are shown in Stats.</Text>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  sectionTitle: { fontSize: 13, fontWeight: '700', letterSpacing: 0.8, marginBottom: 8, marginTop: 16, marginLeft: 4 },
-  card: { borderRadius: 16, borderWidth: 1, padding: 16 },
-  hint: { fontSize: 12, lineHeight: 17, marginBottom: 8 },
-  divider: { height: 1 },
-  leaveBalanceRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  leaveBalanceLabel: { flex: 1, fontSize: 14, fontWeight: '600' },
-  leaveBalanceInput: { width: 60, borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, fontSize: 16, fontWeight: '700', textAlign: 'center' },
-  rateUnit: { fontSize: 14, fontWeight: '600' },
+  stepper: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, padding: 3 },
+  stepBtn: { width: 32, height: 32, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  stepValue: { width: 38, textAlign: 'center', fontSize: 15, fontWeight: '800', paddingVertical: 0 },
+  footnote: { fontSize: 12, marginTop: 6, marginHorizontal: 4 },
 });

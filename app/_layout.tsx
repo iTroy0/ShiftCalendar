@@ -1,111 +1,72 @@
 import React, { useEffect } from 'react';
-import { Platform, View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { Platform, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { StatusBar } from 'expo-status-bar';
 import * as NavigationBar from 'expo-navigation-bar';
 import * as SplashScreen from 'expo-splash-screen';
-import { ThemeProvider, useAppSettings } from '../hooks/ThemeContext';
+import * as SystemUI from 'expo-system-ui';
+import { SettingsProvider, useAppSettings } from '../hooks/SettingsContext';
 import { ShiftProvider, useShifts } from '../hooks/ShiftContext';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { Onboarding } from '../components/Onboarding';
 import { useDeepLinkHandler } from '../hooks/useDeepLinkHandler';
+import { useBackgroundSync } from '../hooks/useBackgroundSync';
 
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
-function InnerLayout() {
-  const { isDark, colors, onboardingComplete, completeOnboarding } = useAppSettings();
-  const { loading, allShifts, setShiftsBulk, setNote, setOvertime } = useShifts();
+function AppShell() {
+  const { isDark, colors, loaded, onboardingComplete } = useAppSettings();
+  const { loading } = useShifts();
+  const ready = loaded && !loading;
 
-  useDeepLinkHandler({ loading, allShifts, setShiftsBulk, setNote, setOvertime });
+  useDeepLinkHandler();
+  useBackgroundSync();
 
   useEffect(() => {
     if (Platform.OS === 'android') {
-      NavigationBar.setVisibilityAsync('hidden');
-      NavigationBar.setBehaviorAsync('overlay-swipe');
+      NavigationBar.setVisibilityAsync('hidden').catch(() => {});
     }
   }, []);
 
   useEffect(() => {
-    if (Platform.OS === 'android') {
-      NavigationBar.setBackgroundColorAsync(colors.background);
-    }
+    SystemUI.setBackgroundColorAsync(colors.background).catch(() => {});
   }, [colors.background]);
 
   useEffect(() => {
-    if (!loading) {
-      SplashScreen.hideAsync();
-    }
-  }, [loading]);
+    if (ready) SplashScreen.hideAsync().catch(() => {});
+  }, [ready]);
 
-  if (loading) {
-    return (
-      <View style={[splashStyles.container, { backgroundColor: colors.background }]}>
-        <StatusBar style={isDark ? 'light' : 'dark'} />
-        <View style={[splashStyles.iconWrap, { backgroundColor: colors.primary + '15' }]}>
-          <Text style={[splashStyles.iconText, { color: colors.primary }]}>SC</Text>
-        </View>
-        <Text style={[splashStyles.title, { color: colors.text }]}>ShiftCalendar</Text>
-        <ActivityIndicator size="small" color={colors.primary} style={splashStyles.spinner} />
-      </View>
-    );
-  }
-
-  if (!onboardingComplete) {
-    return (
-      <View style={{ flex: 1, backgroundColor: colors.background }}>
-        <StatusBar style={isDark ? 'light' : 'dark'} />
-        <Onboarding onComplete={completeOnboarding} colors={colors} />
-      </View>
-    );
-  }
+  // The native splash stays up until settings and data are loaded, so there's no theme flash.
+  if (!ready) return <View style={{ flex: 1, backgroundColor: colors.background }} />;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" />
-      </Stack>
-    </GestureHandlerRootView>
+      {onboardingComplete ? (
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+          <Stack.Screen name="(tabs)" />
+        </Stack>
+      ) : (
+        <Onboarding />
+      )}
+    </View>
   );
 }
 
-const splashStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  iconText: {
-    fontSize: 28,
-    fontWeight: '900',
-    letterSpacing: -1,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-  },
-  spinner: {
-    marginTop: 24,
-  },
-});
-
 export default function RootLayout() {
   return (
-    <ErrorBoundary>
-      <ThemeProvider>
-        <ShiftProvider>
-          <InnerLayout />
-        </ShiftProvider>
-      </ThemeProvider>
-    </ErrorBoundary>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ErrorBoundary>
+        <SettingsProvider>
+          <ShiftProvider>
+            <BottomSheetModalProvider>
+              <AppShell />
+            </BottomSheetModalProvider>
+          </ShiftProvider>
+        </SettingsProvider>
+      </ErrorBoundary>
+    </GestureHandlerRootView>
   );
 }

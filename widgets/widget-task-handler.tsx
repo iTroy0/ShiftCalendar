@@ -1,64 +1,43 @@
-import React from 'react';
-import { Appearance } from 'react-native';
 import type { WidgetTaskHandlerProps } from 'react-native-android-widget';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { startOfWeek, addDays, format, getDay, getDate } from 'date-fns';
-import { ShiftWeekWidget } from './ShiftWeekWidget';
-import { ShiftType } from '../constants/shifts';
+import { DEFAULT_SHIFTS, ShiftType } from '../constants/shifts';
+import { DEFAULT_LEAVE_TYPES } from '../constants/leaveTypes';
+import { WeekStart } from '../utils/dates';
+import { buildWidgetModel } from './widgetModel';
+import { renderShiftWidget } from './ShiftWeekWidget';
 
-function getShiftByCode(allShifts: ShiftType[], code: string): ShiftType | undefined {
-  return allShifts.find((s) => s.code === code);
+function parse<T>(raw: string | null | undefined, fallback: T): T {
+  if (!raw) return fallback;
+  try {
+    const value = JSON.parse(raw);
+    return value ?? fallback;
+  } catch {
+    return fallback;
+  }
 }
 
-function getCurrentWeekDays(weekStart: number) {
-  const today = new Date();
-  const todayStr = format(today, 'yyyy-MM-dd');
-  const weekStartDate = startOfWeek(today, { weekStartsOn: weekStart as 0 | 1 });
-  const dayLetters = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+/** Reads what the widget needs straight from storage (runs headless, without the app UI). */
+async function loadWidget() {
+  const pairs = new Map(
+    await AsyncStorage.multiGet(['week_start', 'time_format', 'theme_mode', 'primary_calendar', 'all_shifts_v2', 'calendars_list'])
+  );
+  const calendars = parse<{ id: string; name: string }[]>(pairs.get('calendars_list'), []);
+  const wanted = pairs.get('primary_calendar') || 'default';
+  const calendar = calendars.find((c) => c.id === wanted) ?? calendars.find((c) => c.id === 'default');
+  const calId = calendar?.id ?? 'default';
+  const data = new Map(await AsyncStorage.multiGet([`shift_data_${calId}`, `leave_data_${calId}`]));
+  const week = pairs.get('week_start');
 
-  const days = [];
-  for (let i = 0; i < 7; i++) {
-    const d = addDays(weekStartDate, i);
-    const dateStr = format(d, 'yyyy-MM-dd');
-    days.push({
-      dateStr,
-      dayLetter: dayLetters[getDay(d)],
-      dayNum: String(getDate(d)),
-      isToday: dateStr === todayStr,
-    });
-  }
-  return days;
-}
-
-async function getWidgetData() {
-  const [weekStartStr, activeCalId, allShiftsJson, themeMode] = await Promise.all([
-    AsyncStorage.getItem('week_start'),
-    AsyncStorage.getItem('active_calendar'),
-    AsyncStorage.getItem('all_shifts_v2'),
-    AsyncStorage.getItem('theme_mode'),
-  ]);
-
-  const weekStart = weekStartStr === '1' ? 1 : 0;
-  const calId = activeCalId || 'default';
-  let allShifts: ShiftType[] = [];
-  try { if (allShiftsJson) allShifts = JSON.parse(allShiftsJson); } catch {}
-
-  // Resolve theme: respect user preference, fall back to system
-  let isDark = true;
-  if (themeMode === 'light') {
-    isDark = false;
-  } else if (themeMode === 'dark') {
-    isDark = true;
-  } else {
-    // 'system' or unset — detect from system
-    isDark = Appearance.getColorScheme() !== 'light';
-  }
-
-  const shiftDataJson = await AsyncStorage.getItem(`shift_data_${calId}`);
-  let shiftData: Record<string, string> = {};
-  try { if (shiftDataJson) shiftData = JSON.parse(shiftDataJson); } catch {}
-
-  return { weekStart, shiftData, allShifts, isDark };
+  const model = buildWidgetModel({
+    shifts: parse<Record<string, string>>(data.get(`shift_data_${calId}`), {}),
+    leave: parse<Record<string, string>>(data.get(`leave_data_${calId}`), {}),
+    allShifts: parse<ShiftType[]>(pairs.get('all_shifts_v2'), DEFAULT_SHIFTS),
+    leaveTypes: DEFAULT_LEAVE_TYPES,
+    weekStart: (week === '1' || week === '6' ? Number(week) : 0) as WeekStart,
+    timeFormat: pairs.get('time_format') === '12h' ? '12h' : '24h',
+    calendarName: calendar?.name ?? 'My Shifts',
+  });
+  return renderShiftWidget(model, pairs.get('theme_mode') || 'system');
 }
 
 export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
@@ -66,23 +45,9 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
     case 'WIDGET_ADDED':
     case 'WIDGET_UPDATE':
     case 'WIDGET_RESIZED':
-    case 'WIDGET_CLICK': {
-      const { weekStart, shiftData, allShifts, isDark } = await getWidgetData();
-      const weekDays = getCurrentWeekDays(weekStart);
-
-      const days = weekDays.map((day) => {
-        const code = shiftData[day.dateStr];
-        const shift = code ? getShiftByCode(allShifts, code) : undefined;
-        return {
-          ...day,
-          shiftCode: shift?.code || '',
-          shiftColor: shift?.color || '',
-        };
-      });
-
-      props.renderWidget(<ShiftWeekWidget days={days} isDark={isDark} />);
+    case 'WIDGET_CLICK':
+      props.renderWidget(await loadWidget());
       break;
-    }
     default:
       break;
   }

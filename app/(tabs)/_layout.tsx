@@ -1,38 +1,48 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useAppSettings } from '../../hooks/ThemeContext';
+import { useAppSettings } from '../../hooks/SettingsContext';
+import { haptic } from '../../utils/haptics';
+
+type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+
+function tabIcon(active: IconName, inactive: IconName) {
+  return ({ color, focused }: { color: string; focused: boolean }) => (
+    <MaterialCommunityIcons name={focused ? active : inactive} size={24} color={color} />
+  );
+}
 
 export default function TabLayout() {
-  const { colors, isDark } = useAppSettings();
+  const { colors } = useAppSettings();
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs
+      screenListeners={{ tabPress: () => haptic.selection() }}
       screenOptions={{
         headerShown: false,
+        sceneStyle: { backgroundColor: colors.background },
+        // Each tab item adds 5px padding around a 28px icon and the label, so leave ~56px of content.
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
           borderTopWidth: 0.5,
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 4,
+          height: 60 + insets.bottom,
+          paddingBottom: insets.bottom + 2,
+          paddingTop: 2,
+          elevation: 0,
         },
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textSecondary,
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
-        },
+        tabBarActiveTintColor: colors.primaryText,
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '700', marginTop: 2 },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Calendar',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="calendar-month" size={size} color={color} />
-          ),
+          tabBarIcon: tabIcon('calendar-month', 'calendar-month-outline'),
           tabBarAccessibilityLabel: 'Calendar tab',
         }}
       />
@@ -40,9 +50,7 @@ export default function TabLayout() {
         name="stats"
         options={{
           title: 'Stats',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="chart-bar" size={size} color={color} />
-          ),
+          tabBarIcon: tabIcon('chart-box', 'chart-box-outline'),
           tabBarAccessibilityLabel: 'Statistics tab',
         }}
       />
@@ -50,9 +58,7 @@ export default function TabLayout() {
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="cog-outline" size={size} color={color} />
-          ),
+          tabBarIcon: tabIcon('cog', 'cog-outline'),
           tabBarAccessibilityLabel: 'Settings tab',
         }}
       />

@@ -1,8 +1,10 @@
+import { parseHHMM } from '../utils/time';
+
 export interface ShiftType {
   code: string;
   label: string;
   color: string;
-  startTime: string;
+  startTime: string; // 'HH:MM', or '' for day-off types
   endTime: string;
   icon: string;
   isDefault: boolean;
@@ -21,7 +23,8 @@ export const DEFAULT_SHIFTS: ShiftType[] = [
   {
     code: 'A',
     label: 'Afternoon',
-    color: '#3B82F6',
+    // Cyan rather than blue: blue sat too close to Night's indigo (hard to tell apart, worse with CVD).
+    color: '#06B6D4',
     startTime: '15:00',
     endTime: '23:00',
     icon: 'weather-sunset-up',
@@ -47,28 +50,40 @@ export const DEFAULT_SHIFTS: ShiftType[] = [
   },
 ];
 
-export const HOURS_PER_SHIFT = 8;
+/** A shift counts as work when it has both a start and an end time. */
+export function isWorkingShift(shift: ShiftType | undefined): boolean {
+  return !!shift && !!parseHHMM(shift.startTime) && !!parseHHMM(shift.endTime);
+}
+
+export function getShiftMinutes(shift: ShiftType): number {
+  const start = parseHHMM(shift.startTime);
+  const end = parseHHMM(shift.endTime);
+  if (!start || !end) return 0;
+  const startMin = start[0] * 60 + start[1];
+  let endMin = end[0] * 60 + end[1];
+  if (endMin <= startMin) endMin += 24 * 60; // overnight shift
+  return endMin - startMin;
+}
 
 export function getShiftHours(shift: ShiftType): number {
-  if (!shift.startTime || !shift.endTime) return 0;
-  const [sh, sm] = shift.startTime.split(':').map(Number);
-  const [eh, em] = shift.endTime.split(':').map(Number);
-  let startMin = sh * 60 + sm;
-  let endMin = eh * 60 + em;
-  if (endMin <= startMin) endMin += 24 * 60; // overnight shift
-  return (endMin - startMin) / 60;
+  return getShiftMinutes(shift) / 60;
 }
 
 export const AVAILABLE_COLORS = [
-  '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#6366F1',
-  '#8B5CF6', '#EC4899', '#F97316', '#14B8A6', '#6B7280',
-  '#84CC16', '#06B6D4',
+  '#6366F1', '#3B82F6', '#0EA5E9', '#06B6D4',
+  '#14B8A6', '#10B981', '#84CC16', '#F59E0B',
+  '#F97316', '#EF4444', '#F43F5E', '#EC4899',
+  '#A855F7', '#8B5CF6', '#78716C', '#6B7280',
 ];
 
 export const AVAILABLE_ICONS = [
-  'weather-sunny', 'weather-sunset-up', 'weather-night', 'home-variant',
-  'briefcase', 'hospital-building', 'school', 'store',
-  'car', 'airplane', 'run', 'food',
-  'phone', 'laptop', 'wrench', 'heart-pulse',
-  'account-group', 'shield', 'fire', 'star',
+  'weather-sunny', 'weather-sunset-up', 'weather-sunset-down', 'weather-night',
+  'home-variant', 'bed', 'palm-tree', 'coffee',
+  'briefcase', 'hospital-building', 'stethoscope', 'medical-bag',
+  'school', 'store', 'cash-register', 'factory',
+  'truck', 'car', 'airplane', 'package-variant',
+  'wrench', 'hard-hat', 'chef-hat', 'food',
+  'phone', 'headset', 'laptop', 'shield',
+  'police-badge', 'fire', 'heart-pulse', 'account-group',
+  'star', 'lightning-bolt', 'run', 'book-open-variant',
 ];

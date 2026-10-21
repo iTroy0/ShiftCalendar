@@ -1,0 +1,15 @@
+<div class="page" onswipe="swiped">
+  <picker-view ref="monthPicker" class="month" type="text" range="{{monthLabels}}" selected="{{monthPos}}" onchange="pickMonth"></picker-view>
+  <div class="weekdays">
+    <text for="{{weekdays}}" tid="id" class="weekday" style="color: {{$item.color}};">{{$item.label}}</text>
+  </div>
+  <div for="{{week in weeks}}" tid="id" class="week" style="height: {{rowHeight}};">
+    <div for="{{day in week.days}}" tid="id" class="cell" style="width: {{cellSize}}; height: {{cellSize}}; border-radius: {{cellRadius}}; background-color: {{day.bg}}; border-color: {{day.ring}}; border-width: {{day.ringWidth}};" onclick="select(day.id)">
+      <text class="num" style="color: {{day.fg}}; font-size: {{numSize}};">{{day.num}}</text>
+    </div>
+  </div>
+  <div class="info">
+    <text class="info-title">{{infoTitle}}</text>
+    <text class="info-detail">{{infoDetail}}</text>
+  </div>
+</div>

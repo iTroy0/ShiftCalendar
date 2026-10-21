@@ -1,819 +1,604 @@
-import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, useWindowDimensions, ScrollView } from 'react-native';
-import { Calendar } from 'react-native-calendars';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { View, StyleSheet, useWindowDimensions, ScrollView, BackHandler, LayoutChangeEvent } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import BottomSheet from '@gorhom/bottom-sheet';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withSpring,
-  interpolate,
-  runOnJS,
-} from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
-import { format, addMonths, subMonths, addWeeks, subWeeks, parseISO, eachDayOfInterval } from 'date-fns';
-import { useAppSettings } from '../../hooks/ThemeContext';
+import { useFocusEffect } from 'expo-router';
+import BottomSheet, { BottomSheetModal } from '@gorhom/bottom-sheet';
+import { format } from 'date-fns';
+import { useAppSettings } from '../../hooks/SettingsContext';
 import { useShifts } from '../../hooks/ShiftContext';
-import { MonthHeader } from '../../components/MonthHeader';
-import { DaySheet } from '../../components/DaySheet';
-import { RepeatSheet } from '../../components/RepeatSheet';
-import { CalendarDay } from '../../components/CalendarDay';
-import { Toast } from '../../components/Toast';
+import { useToday } from '../../hooks/useToday';
+import { ShiftType } from '../../constants/shifts';
+import { ShiftTemplate } from '../../constants/templates';
+import { AssignmentSnapshot } from '../../hooks/useShiftData';
+import {
+  fromDateKey,
+  monthFromIndex,
+  monthIndexOf,
+  monthKeyOf,
+  toDateKey,
+  weekIndexOf,
+  weekStartFromIndex,
+  WeekStart,
+} from '../../utils/dates';
+import { getUpcoming } from '../../utils/schedule';
+import { computeStats, monthRange } from '../../utils/statsCalculation';
+import { haptic } from '../../utils/haptics';
+import { CalendarHeader } from '../../components/calendar/CalendarHeader';
+import { Pager } from '../../components/calendar/Pager';
+import { MonthGrid, WeekdayHeader } from '../../components/calendar/MonthGrid';
+import { WeekAgenda } from '../../components/calendar/WeekAgenda';
+import { CalendarMode, ModeBar, ToolRow } from '../../components/calendar/ToolRow';
+import { Brush, PaintPalette } from '../../components/calendar/PaintPalette';
+import { MonthPickerModal } from '../../components/calendar/MonthPickerModal';
+import { MonthSummary } from '../../components/calendar/MonthSummary';
 import { CalendarSwitcher } from '../../components/CalendarSwitcher';
-import { WeekView } from '../../components/WeekView';
+import { DaySheet } from '../../components/DaySheet';
+import { QUICK_FILL_COLLAPSED, RepeatSheet } from '../../components/RepeatSheet';
 import { TemplateSheet } from '../../components/TemplateSheet';
 import { NotesSearchSheet } from '../../components/NotesSearchSheet';
-import { ShiftTemplate } from '../../constants/templates';
-import { SwapRequest } from '../../hooks/useShiftData';
+import { Toast, ToastMessage } from '../../components/Toast';
 
-const SWIPE_THRESHOLD = 50;
+const GRID_PADDING = 8;
+const PALETTE_SPACE = 76;
+const SIDE_PANE_WIDTH = 330;
 
-function isSameMonth(a: Date, b: Date) {
-  return a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+function weekTitle(index: number, weekStart: WeekStart) {
+  const start = weekStartFromIndex(index, weekStart);
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
+  const sameMonth = start.getMonth() === end.getMonth();
+  return {
+    title: sameMonth ? `${format(start, 'MMM d')} – ${format(end, 'd')}` : `${format(start, 'MMM d')} – ${format(end, 'MMM d')}`,
+    year: format(end, 'yyyy'),
+  };
 }
 
 export default function CalendarScreen() {
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const isLandscape = screenWidth > screenHeight;
-  const cellWidth = Math.min(Math.floor((screenWidth - 20) / 7), isLandscape ? 48 : 56);
-  const { colors, weekStart } = useAppSettings();
+  const { colors, isDark, weekStart, timeFormat, showShiftTimes, baseRate, overtimeRate, paidLeaveHours } = useAppSettings();
   const {
-    shiftData,
-    notesData,
-    overtimeData,
-    swapsData,
-    leaveData,
-    leaveTypes,
-    setShift,
-    clearShift,
-    setShiftsBulk,
-    setNote,
-    setOvertime,
-    setLeave,
-    clearLeave,
-    allShifts,
-    getShiftByCode,
-    lastUsedShift,
-    offerSwap,
-    cancelSwap,
-    calendars,
-    activeCalendar,
-    switchCalendar,
+    shiftData, leaveData, notesData, overtimeData, swapsData, allShifts, leaveTypes, getShiftByCode, getLeaveType,
+    lastUsedShift, calendars, activeCalendarId, switchCalendar, setShift, clearShift, setLeave, clearLeave, clearDay,
+    applyShiftEntries, restoreAssignments, snapshotAssignments,
   } = useShifts();
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const { width: winW, height: winH } = useWindowDimensions();
+  const twoPane = winW > winH && winW >= 640;
+
+  const today = useToday();
+  const todayDate = fromDateKey(today);
+  const todayMonthIdx = monthIndexOf(todayDate);
+  const todayWeekIdx = weekIndexOf(todayDate, weekStart);
+
+  const [view, setView] = useState<'month' | 'week'>('month');
+  const [monthIdx, setMonthIdx] = useState(todayMonthIdx);
+  const [weekIdx, setWeekIdx] = useState(todayWeekIdx);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [repeatMode, setRepeatMode] = useState(false);
+  const [mode, setMode] = useState<CalendarMode>('normal');
+  const [brush, setBrush] = useState<Brush | null>(null);
+  const [paintHistory, setPaintHistory] = useState<AssignmentSnapshot[]>([]);
   const [patternStart, setPatternStart] = useState<string | null>(null);
   const [patternEnd, setPatternEnd] = useState<string | null>(null);
-  const [toastMsg, setToastMsg] = useState('');
-  const [toastVisible, setToastVisible] = useState(false);
-  const [toastUndo, setToastUndo] = useState<(() => void) | undefined>(undefined);
-  const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
-  const [templateMode, setTemplateMode] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<ShiftTemplate | null>(null);
-  const [templateStart, setTemplateStart] = useState<string | null>(null);
-  const daySheetRef = useRef<BottomSheet>(null);
-  const repeatSheetRef = useRef<BottomSheet>(null);
-  const templateSheetRef = useRef<BottomSheet>(null);
-  const notesSearchRef = useRef<BottomSheet>(null);
+  const [templateStart, setTemplateStart] = useState(today);
+  const [activeTemplate, setActiveTemplate] = useState<ShiftTemplate | null>(null);
+  const [preview, setPreview] = useState<Map<string, ShiftType | null> | null>(null);
+  const [toast, setToast] = useState<ToastMessage | null>(null);
+  const [monthPickerOpen, setMonthPickerOpen] = useState(false);
+  const [gridSize, setGridSize] = useState({ width: 0, height: 0 });
 
-  const monthKey = format(currentMonth, 'yyyy-MM');
-  const [todayStr, setTodayStr] = useState(() => format(new Date(), 'yyyy-MM-dd'));
-  const isCurrentMonth = isSameMonth(currentMonth, new Date());
+  const daySheetRef = useRef<BottomSheetModal>(null);
+  const notesRef = useRef<BottomSheetModal>(null);
+  const repeatRef = useRef<BottomSheet>(null);
+  const templateRef = useRef<BottomSheet>(null);
+  const daySheetOpen = useRef(false);
+  const notesOpen = useRef(false);
+  const toastId = useRef(0);
 
-  // Refresh todayStr across midnight
+  // Keep the visible week when the week-start preference changes.
+  const prevWeekStart = useRef(weekStart);
   useEffect(() => {
-    const check = () => {
-      const now = format(new Date(), 'yyyy-MM-dd');
-      if (now !== todayStr) setTodayStr(now);
-    };
-    const id = setInterval(check, 60000);
-    return () => clearInterval(id);
-  }, [todayStr]);
+    if (prevWeekStart.current === weekStart) return;
+    const start = weekStartFromIndex(weekIdx, prevWeekStart.current);
+    const mid = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 3);
+    prevWeekStart.current = weekStart;
+    setWeekIdx(weekIndexOf(mid, weekStart));
+  }, [weekStart, weekIdx]);
 
-  const goToToday = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setCurrentMonth(new Date());
+  const showToast = useCallback((message: string, undo?: () => void, tone: ToastMessage['tone'] = 'success') => {
+    toastId.current += 1;
+    setToast({ id: toastId.current, message, undo, tone });
   }, []);
 
-  const showToast = useCallback((msg: string, undoFn?: () => void) => {
-    setToastMsg(msg);
-    setToastUndo(() => undoFn);
-    setToastVisible(true);
-  }, []);
-
-  // Animation shared values
-  const translateX = useSharedValue(0);
-  const animOpacity = useSharedValue(1);
-
-  const SPRING_CONFIG = { damping: 20, stiffness: 220, mass: 0.8 };
-
-  const changeMonth = useCallback((dir: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (viewMode === 'week') {
-      setCurrentMonth((d) => (dir > 0 ? addWeeks(d, 1) : subWeeks(d, 1)));
-    } else {
-      setCurrentMonth((d) => (dir > 0 ? addMonths(d, 1) : subMonths(d, 1)));
+  const openDaySheet = useCallback((key: string) => {
+    setSelectedDate(key);
+    if (!daySheetOpen.current) {
+      daySheetOpen.current = true;
+      daySheetRef.current?.present();
     }
-  }, [viewMode]);
-
-  const handlePrev = useCallback(() => {
-    translateX.value = -screenWidth * 0.35;
-    animOpacity.value = 0.15;
-    translateX.value = withSpring(0, SPRING_CONFIG);
-    animOpacity.value = withTiming(1, { duration: 280 });
-    changeMonth(-1);
-  }, [changeMonth]);
-
-  const handleNext = useCallback(() => {
-    translateX.value = screenWidth * 0.35;
-    animOpacity.value = 0.15;
-    translateX.value = withSpring(0, SPRING_CONFIG);
-    animOpacity.value = withTiming(1, { duration: 280 });
-    changeMonth(1);
-  }, [changeMonth]);
-
-  // Swipe gesture
-  const panGesture = Gesture.Pan()
-    .activeOffsetX([-20, 20])
-    .onUpdate((e) => {
-      translateX.value = e.translationX * 0.5;
-      animOpacity.value = interpolate(
-        Math.abs(e.translationX),
-        [0, screenWidth * 0.4],
-        [1, 0.5],
-        'clamp'
-      );
-    })
-    .onEnd((e) => {
-      if (e.translationX < -SWIPE_THRESHOLD) {
-        translateX.value = screenWidth * 0.35;
-        animOpacity.value = 0.15;
-        translateX.value = withSpring(0, SPRING_CONFIG);
-        animOpacity.value = withTiming(1, { duration: 280 });
-        runOnJS(changeMonth)(1);
-      } else if (e.translationX > SWIPE_THRESHOLD) {
-        translateX.value = -screenWidth * 0.35;
-        animOpacity.value = 0.15;
-        translateX.value = withSpring(0, SPRING_CONFIG);
-        animOpacity.value = withTiming(1, { duration: 280 });
-        runOnJS(changeMonth)(-1);
-      } else {
-        translateX.value = withSpring(0, SPRING_CONFIG);
-        animOpacity.value = withTiming(1, { duration: 150 });
-      }
-    });
-
-  const calendarAnimStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-    opacity: animOpacity.value,
-  }));
-
-  const patternDates = useMemo(() => {
-    if (!patternStart) return new Set<string>();
-    const set = new Set<string>();
-    if (patternEnd) {
-      eachDayOfInterval({ start: parseISO(patternStart), end: parseISO(patternEnd) })
-        .forEach((d) => set.add(format(d, 'yyyy-MM-dd')));
-    } else {
-      set.add(patternStart);
-    }
-    return set;
-  }, [patternStart, patternEnd]);
-
-  const markedDates = useMemo(() => {
-    const marks: Record<string, any> = {};
-    const days = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
-    for (let d = 1; d <= days; d++) {
-      marks[`${monthKey}-${String(d).padStart(2, '0')}`] = { customStyles: {} };
-    }
-    return marks;
-  }, [monthKey, currentMonth]);
-
-  const handleDayPress = useCallback(
-    (dateString: string) => {
-      if (templateMode && selectedTemplate) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        setTemplateStart(dateString);
-        templateSheetRef.current?.snapToIndex(2);
-        return;
-      }
-      if (repeatMode) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        if (!patternStart || (patternStart && patternEnd)) {
-          setPatternStart(dateString);
-          setPatternEnd(null);
-          repeatSheetRef.current?.snapToIndex(0);
-        } else {
-          if (dateString === patternStart) return;
-          if (dateString < patternStart) {
-            setPatternEnd(patternStart);
-            setPatternStart(dateString);
-          } else {
-            setPatternEnd(dateString);
-          }
-        }
-        return;
-      }
-      setSelectedDate(dateString);
-      daySheetRef.current?.snapToIndex(0);
-    },
-    [repeatMode, patternStart, patternEnd, templateMode, selectedTemplate]
-  );
-
-  // Long-press quick-assign
-  const handleDayLongPress = useCallback(
-    (dateString: string) => {
-      if (repeatMode || templateMode) return;
-      if (!lastUsedShift) {
-        showToast('No recent shift. Tap a day to assign one first.');
-        return;
-      }
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      const prevCode = shiftData[dateString];
-      setShift(dateString, lastUsedShift);
-      const shift = getShiftByCode(lastUsedShift);
-      const label = shift?.label || lastUsedShift;
-      showToast(`${label} assigned`, () => {
-        // Undo: restore previous state
-        if (prevCode) {
-          setShift(dateString, prevCode);
-        } else {
-          clearShift(dateString);
-        }
-      });
-    },
-    [repeatMode, templateMode, lastUsedShift, shiftData, setShift, clearShift, getShiftByCode, showToast]
-  );
-
-  const handleSelectShift = useCallback(
-    (code: string) => {
-      if (selectedDate) {
-        setShift(selectedDate, code);
-        clearLeave(selectedDate);
-      }
-    },
-    [selectedDate, setShift, clearLeave]
-  );
-
-  const handleClear = useCallback(() => {
-    if (!selectedDate) return;
-    const prevCode = shiftData[selectedDate];
-    const prevLeaveId = leaveData[selectedDate];
-    clearShift(selectedDate);
-    clearLeave(selectedDate);
-    if (prevCode || prevLeaveId) {
-      showToast('Day cleared', () => {
-        if (prevCode) setShift(selectedDate, prevCode);
-        if (prevLeaveId) setLeave(selectedDate, prevLeaveId);
-      });
-    }
-  }, [selectedDate, shiftData, leaveData, clearShift, clearLeave, setShift, setLeave, showToast]);
-
-  const handleSaveNote = useCallback(
-    (note: string) => {
-      if (selectedDate) setNote(selectedDate, note);
-    },
-    [selectedDate, setNote]
-  );
-
-  const handleSetOvertime = useCallback(
-    (hours: number) => {
-      if (selectedDate) setOvertime(selectedDate, hours);
-    },
-    [selectedDate, setOvertime]
-  );
-
-  const handleApplyPattern = useCallback(
-    (entries: Record<string, string>) => {
-      // Save previous state for undo
-      const prevEntries: Record<string, string | undefined> = {};
-      Object.keys(entries).forEach((date) => {
-        prevEntries[date] = shiftData[date];
-      });
-
-      setShiftsBulk(entries);
-      const count = Object.keys(entries).length;
-      showToast(`Pattern applied to ${count} days`, () => {
-        // Undo: restore previous entries
-        const restore: Record<string, string> = {};
-        const toClear: string[] = [];
-        Object.entries(prevEntries).forEach(([date, code]) => {
-          if (code) restore[date] = code;
-          else toClear.push(date);
-        });
-        if (Object.keys(restore).length > 0) setShiftsBulk(restore);
-        toClear.forEach((d) => clearShift(d));
-      });
-      setRepeatMode(false);
-      setPatternStart(null);
-      setPatternEnd(null);
-      repeatSheetRef.current?.close();
-    },
-    [shiftData, setShiftsBulk, clearShift, showToast]
-  );
-
-  const toggleRepeatMode = useCallback(() => {
-    if (repeatMode) {
-      setRepeatMode(false);
-      setPatternStart(null);
-      setPatternEnd(null);
-      repeatSheetRef.current?.close();
-    } else {
-      setRepeatMode(true);
-      setPatternStart(null);
-      setPatternEnd(null);
-      setTemplateMode(false);
-      setSelectedTemplate(null);
-      setTemplateStart(null);
-      templateSheetRef.current?.close();
-      daySheetRef.current?.close();
-      repeatSheetRef.current?.snapToIndex(0);
-    }
-  }, [repeatMode]);
-
-  const toggleTemplateMode = useCallback(() => {
-    if (templateMode) {
-      setTemplateMode(false);
-      setSelectedTemplate(null);
-      setTemplateStart(null);
-      templateSheetRef.current?.close();
-    } else {
-      setTemplateMode(true);
-      setSelectedTemplate(null);
-      setTemplateStart(null);
-      setRepeatMode(false);
-      setPatternStart(null);
-      setPatternEnd(null);
-      repeatSheetRef.current?.close();
-      daySheetRef.current?.close();
-      templateSheetRef.current?.snapToIndex(1);
-    }
-  }, [templateMode]);
-
-  const handleSelectTemplate = useCallback((template: ShiftTemplate) => {
-    setSelectedTemplate(template);
-    setTemplateStart(null);
   }, []);
 
-  const handleApplyTemplate = useCallback(
-    (entries: Record<string, string>) => {
-      const prevEntries: Record<string, string | undefined> = {};
-      Object.keys(entries).forEach((date) => {
-        prevEntries[date] = shiftData[date];
-      });
-      setShiftsBulk(entries);
-      const count = Object.keys(entries).length;
-      showToast(`Template applied to ${count} days`, () => {
-        const restore: Record<string, string> = {};
-        const toClear: string[] = [];
-        Object.entries(prevEntries).forEach(([date, code]) => {
-          if (code) restore[date] = code;
-          else toClear.push(date);
-        });
-        if (Object.keys(restore).length > 0) setShiftsBulk(restore);
-        toClear.forEach((d) => clearShift(d));
-      });
-      setTemplateMode(false);
-      setSelectedTemplate(null);
-      setTemplateStart(null);
-      templateSheetRef.current?.close();
-    },
-    [shiftData, setShiftsBulk, clearShift, showToast]
-  );
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
 
-  const handleTemplateBack = useCallback(() => {
-    setSelectedTemplate(null);
-    setTemplateStart(null);
-  }, []);
-
-  const handleTemplateClose = useCallback(() => {
-    setTemplateMode(false);
-    setSelectedTemplate(null);
-    setTemplateStart(null);
-  }, []);
-
-  const allShiftCodes = useMemo(
-    () => allShifts.map((s) => ({ code: s.code, label: s.label })),
-    [allShifts]
-  );
-
-  const handleNotesSearchSelect = useCallback((date: string) => {
-    setSelectedDate(date);
-    daySheetRef.current?.snapToIndex(0);
-  }, []);
-
-  const openNotesSearch = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    notesSearchRef.current?.snapToIndex(0);
-  }, []);
-
-  const clearPattern = useCallback(() => {
+  // Idempotent: sheets call this from onClose, which may fire again after we close them.
+  const exitMode = useCallback(() => {
+    const current = modeRef.current;
+    if (current === 'normal') return;
+    modeRef.current = 'normal';
+    setMode('normal');
+    setPreview(null);
     setPatternStart(null);
     setPatternEnd(null);
+    setActiveTemplate(null);
+    setPaintHistory([]);
+    if (current === 'repeat') repeatRef.current?.close();
+    if (current === 'template') templateRef.current?.close();
   }, []);
 
-  const handleSetLeave = useCallback(
-    (id: string) => {
-      if (selectedDate) {
-        setLeave(selectedDate, id);
-        clearShift(selectedDate);
+  const enterMode = useCallback(
+    (next: CalendarMode) => {
+      haptic.light();
+      daySheetRef.current?.dismiss();
+      setPreview(null);
+      modeRef.current = next;
+      setMode(next);
+      if (next === 'paint') {
+        setPaintHistory([]);
+        setBrush((b) => b ?? (lastUsedShift && getShiftByCode(lastUsedShift) ? { kind: 'shift', code: lastUsedShift } : allShifts[0] ? { kind: 'shift', code: allShifts[0].code } : null));
+      } else if (next === 'repeat') {
+        setPatternStart(null);
+        setPatternEnd(null);
+        repeatRef.current?.snapToIndex(0);
+      } else if (next === 'template') {
+        const viewedMonth = monthFromIndex(monthIdx);
+        setTemplateStart(monthIdx === todayMonthIdx || view === 'week' ? selectedDate ?? today : toDateKey(viewedMonth));
+        templateRef.current?.snapToIndex(2);
       }
     },
-    [selectedDate, setLeave, clearShift]
+    [allShifts, getShiftByCode, lastUsedShift, monthIdx, todayMonthIdx, selectedDate, today, view]
   );
 
-  const handleToastHide = useCallback(() => {
-    setToastVisible(false);
-    setToastUndo(undefined);
+  // --- Day interactions (read through a ref so cells keep stable callbacks) ---
+  const paint = (key: string) => {
+    if (!brush) return;
+    const before = snapshotAssignments([key]);
+    const cur = before[key];
+    if (brush.kind === 'erase') {
+      if (!cur.shift && !cur.leave) return;
+      clearDay(key);
+    } else if (brush.kind === 'shift') {
+      if (cur.shift === brush.code && !cur.leave) clearShift(key);
+      else setShift(key, brush.code);
+    } else if (cur.leave === brush.id) {
+      clearLeave(key);
+    } else {
+      setLeave(key, brush.id);
+    }
+    haptic.selection();
+    setPaintHistory((h) => [...h.slice(-99), before]);
+  };
+
+  const selectPatternDay = (key: string) => {
+    haptic.light();
+    if (!patternStart || patternEnd) {
+      setPatternStart(key);
+      setPatternEnd(null);
+      return;
+    }
+    if (key < patternStart) {
+      setPatternEnd(patternStart);
+      setPatternStart(key);
+    } else {
+      setPatternEnd(key);
+    }
+    // Stay collapsed so the repeated pattern can be previewed on the calendar.
+    repeatRef.current?.snapToIndex(0);
+  };
+
+  const handleDayPress = (key: string) => {
+    if (mode === 'paint') return paint(key);
+    if (mode === 'repeat') return selectPatternDay(key);
+    if (mode === 'template') {
+      haptic.light();
+      setTemplateStart(key);
+      if (!activeTemplate) templateRef.current?.snapToIndex(2);
+      return;
+    }
+    haptic.light();
+    openDaySheet(key);
+  };
+
+  const handleDayLongPress = (key: string) => {
+    if (mode === 'paint') return openDaySheet(key);
+    if (mode !== 'normal') return;
+    const shift = lastUsedShift ? getShiftByCode(lastUsedShift) : undefined;
+    if (!shift) {
+      showToast('Assign a shift once, then long-press any day to repeat it.', undefined, 'info');
+      return;
+    }
+    const before = snapshotAssignments([key]);
+    setShift(key, shift.code);
+    haptic.heavy();
+    showToast(`${shift.label} · ${format(fromDateKey(key), 'EEE, MMM d')}`, () => restoreAssignments(before));
+  };
+
+  // A swipe between months must never also count as a tap on the day where it started.
+  const panUntil = useRef(0);
+  const onPanStateChange = useCallback((active: boolean) => {
+    panUntil.current = active ? Number.MAX_SAFE_INTEGER : Date.now() + 150;
   }, []);
 
-  const calendarTheme = useMemo(
-    () => ({
-      backgroundColor: 'transparent',
-      calendarBackground: 'transparent',
-      textSectionTitleColor: colors.textSecondary,
-      dayTextColor: colors.text,
-      textDisabledColor: colors.textSecondary + '40',
-      monthTextColor: colors.text,
-      todayTextColor: colors.primary,
-    }),
-    [colors]
-  );
+  const pressRef = useRef(handleDayPress);
+  const longPressRef = useRef(handleDayLongPress);
+  pressRef.current = handleDayPress;
+  longPressRef.current = handleDayLongPress;
+  const onDayPress = useCallback((key: string) => {
+    if (Date.now() < panUntil.current) return;
+    pressRef.current(key);
+  }, []);
+  const onDayLongPress = useCallback((key: string) => {
+    if (Date.now() < panUntil.current) return;
+    longPressRef.current(key);
+  }, []);
 
-  const leaveInfoMap = useMemo(() => {
-    const map = new Map<string, { color: string; icon: string; code: string }>();
-    leaveTypes.forEach(lt => map.set(lt.id, { color: lt.color, icon: lt.icon, code: lt.code }));
-    return map;
-  }, [leaveTypes]);
+  const undoPaint = () => {
+    const last = paintHistory[paintHistory.length - 1];
+    if (!last) return;
+    restoreAssignments(last);
+    setPaintHistory((h) => h.slice(0, -1));
+    haptic.light();
+  };
 
-  const renderDay = useCallback(
-    ({ date, state }: any) => {
-      const ds = date?.dateString;
-      const code = ds ? shiftData[ds] : undefined;
-      const shift = code ? getShiftByCode(code) : undefined;
-      const hasNote = ds ? !!notesData[ds] : false;
-      const hasOvertime = ds ? (overtimeData[ds] || 0) > 0 : false;
-      const hasSwap = ds ? !!swapsData[ds] : false;
-      const leaveId = ds ? leaveData[ds] : undefined;
-      const leaveInfo = leaveId ? leaveInfoMap.get(leaveId) : undefined;
-      const inPattern = ds ? patternDates.has(ds) : false;
-
-      return (
-        <CalendarDay
-          date={date}
-          state={state}
-          monthKey={monthKey}
-          shift={shift}
-          hasNote={hasNote}
-          hasOvertime={hasOvertime}
-          hasSwap={hasSwap}
-          leaveInfo={leaveInfo}
-          isToday={ds === todayStr}
-          isSelected={!repeatMode && ds === selectedDate}
-          isPatternStart={repeatMode && ds === patternStart}
-          isPatternEnd={repeatMode && ds === patternEnd}
-          isInPattern={repeatMode && inPattern}
-          onPress={handleDayPress}
-          onLongPress={handleDayLongPress}
-          cellWidth={cellWidth}
-          colors={colors}
-        />
-      );
+  const handleApplyEntries = useCallback(
+    (entries: Record<string, string | null>, summary: string) => {
+      const before = applyShiftEntries(entries);
+      haptic.success();
+      showToast(summary, () => restoreAssignments(before));
+      exitMode();
     },
-    [shiftData, notesData, overtimeData, swapsData, leaveData, leaveInfoMap, getShiftByCode, monthKey, todayStr, selectedDate, patternDates, repeatMode, patternStart, patternEnd, handleDayPress, handleDayLongPress, cellWidth, screenWidth, colors]
+    [applyShiftEntries, restoreAssignments, showToast, exitMode]
   );
 
-  const calendarContent = (
-    <>
-      <MonthHeader
-        currentDate={currentMonth}
-        onPrev={handlePrev}
-        onNext={handleNext}
-        textColor={colors.text}
-        compact={isLandscape}
-      />
+  // --- Navigation ---
+  const goToday = () => {
+    haptic.light();
+    setMonthIdx(todayMonthIdx);
+    setWeekIdx(todayWeekIdx);
+  };
 
-      {/* Top row: Today pill + View mode toggle */}
-      <View style={[styles.topRow, isLandscape && styles.topRowCompact]}>
-        {!isCurrentMonth ? (
-          <TouchableOpacity
-            style={[styles.todayPill, { backgroundColor: colors.primary }]}
-            onPress={goToToday}
-            activeOpacity={0.7}
-            accessibilityLabel="Go to today"
-            accessibilityRole="button"
-          >
-            <MaterialCommunityIcons name="calendar-today" size={14} color="#FFF" />
-            <Text style={styles.todayPillText}>Today</Text>
-          </TouchableOpacity>
-        ) : <View />}
+  const step = (dir: 1 | -1) => {
+    haptic.selection();
+    if (view === 'month') setMonthIdx((i) => i + dir);
+    else setWeekIdx((i) => i + dir);
+  };
 
-        <View style={styles.topRowRight}>
-        <TouchableOpacity
-          style={[styles.templatePill, { backgroundColor: colors.surface, borderColor: colors.border }]}
-          onPress={openNotesSearch}
-          activeOpacity={0.7}
-        >
-          <MaterialCommunityIcons name="note-search-outline" size={14} color={colors.textSecondary} />
-        </TouchableOpacity>
-        {viewMode === 'month' && (
-          <TouchableOpacity
-            style={[
-              styles.templatePill,
-              {
-                backgroundColor: templateMode ? colors.primary : colors.surface,
-                borderColor: templateMode ? colors.primary : colors.border,
-              },
-            ]}
-            onPress={toggleTemplateMode}
-            activeOpacity={0.7}
-          >
-            <MaterialCommunityIcons
-              name={templateMode ? 'close' : 'view-grid-outline'}
-              size={14}
-              color={templateMode ? '#FFF' : colors.textSecondary}
-            />
-          </TouchableOpacity>
-        )}
-        {viewMode === 'month' && (
-          <TouchableOpacity
-            style={[
-              styles.repeatPill,
-              {
-                backgroundColor: repeatMode ? colors.primary : colors.surface,
-                borderColor: repeatMode ? colors.primary : colors.border,
-              },
-            ]}
-            onPress={toggleRepeatMode}
-            activeOpacity={0.7}
-          >
-            <MaterialCommunityIcons
-              name={repeatMode ? 'close' : 'repeat'}
-              size={14}
-              color={repeatMode ? '#FFF' : colors.textSecondary}
-            />
-            <Text style={[styles.repeatPillText, { color: repeatMode ? '#FFF' : colors.textSecondary }]}>
-              {repeatMode ? 'Cancel' : 'Repeat'}
-            </Text>
-          </TouchableOpacity>
-        )}
-        <View style={[styles.viewToggle, { backgroundColor: colors.surfaceVariant, borderColor: colors.border }]}>
-          <TouchableOpacity
-            style={[styles.viewToggleBtn, viewMode === 'month' && { backgroundColor: colors.primary }]}
-            onPress={() => setViewMode('month')}
-          >
-            <MaterialCommunityIcons
-              name="calendar-month-outline"
-              size={16}
-              color={viewMode === 'month' ? '#FFF' : colors.textSecondary}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.viewToggleBtn, viewMode === 'week' && { backgroundColor: colors.primary }]}
-            onPress={() => setViewMode('week')}
-          >
-            <MaterialCommunityIcons
-              name="view-week-outline"
-              size={16}
-              color={viewMode === 'week' ? '#FFF' : colors.textSecondary}
-            />
-          </TouchableOpacity>
-        </View>
-        </View>
-      </View>
+  const toggleView = () => {
+    haptic.selection();
+    if (view === 'month') {
+      const month = monthFromIndex(monthIdx);
+      let anchor = month;
+      if (selectedDate && monthKeyOf(fromDateKey(selectedDate)) === monthKeyOf(month)) anchor = fromDateKey(selectedDate);
+      else if (monthIdx === todayMonthIdx) anchor = todayDate;
+      setWeekIdx(weekIndexOf(anchor, weekStart));
+      setView('week');
+    } else {
+      const start = weekStartFromIndex(weekIdx, weekStart);
+      setMonthIdx(monthIndexOf(new Date(start.getFullYear(), start.getMonth(), start.getDate() + 3)));
+      setView('month');
+    }
+  };
 
-      <CalendarSwitcher
-        calendars={calendars}
-        activeCalendarId={activeCalendar.id}
-        onSwitch={switchCalendar}
+  const pickMonth = (index: number) => {
+    setMonthPickerOpen(false);
+    haptic.selection();
+    setMonthIdx(index);
+    setWeekIdx(weekIndexOf(monthFromIndex(index), weekStart));
+  };
+
+  const openNotes = () => {
+    haptic.light();
+    notesOpen.current = true;
+    notesRef.current?.present();
+  };
+
+  const selectFromNotes = useCallback(
+    (key: string) => {
+      const d = fromDateKey(key);
+      setMonthIdx(monthIndexOf(d));
+      setWeekIdx(weekIndexOf(d, weekStart));
+      setTimeout(() => openDaySheet(key), 250);
+    },
+    [weekStart, openDaySheet]
+  );
+
+  // Android back: close sheets and modes before leaving the screen.
+  const backState = useRef({ mode, monthPickerOpen });
+  backState.current = { mode, monthPickerOpen };
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        if (daySheetOpen.current) {
+          daySheetRef.current?.dismiss();
+          return true;
+        }
+        if (notesOpen.current) {
+          notesRef.current?.dismiss();
+          return true;
+        }
+        if (backState.current.mode !== 'normal') {
+          exitMode();
+          return true;
+        }
+        return false;
+      });
+      return () => sub.remove();
+    }, [exitMode])
+  );
+
+  // --- Derived ---
+  const upcoming = useMemo(
+    () => getUpcoming({ shifts: shiftData, leave: leaveData, getShiftByCode, getLeaveType, timeFormat, now: todayDate }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [shiftData, leaveData, getShiftByCode, getLeaveType, timeFormat, today]
+  );
+
+  const monthStats = useMemo(() => {
+    if (!twoPane) return null;
+    const m = monthFromIndex(monthIdx);
+    return computeStats({
+      shifts: shiftData, overtime: overtimeData, leave: leaveData, allShifts, leaveTypes,
+      baseRate, overtimeRate, paidLeaveHours, ...monthRange(m.getFullYear(), m.getMonth()),
+    });
+  }, [twoPane, monthIdx, shiftData, overtimeData, leaveData, allShifts, leaveTypes, baseRate, overtimeRate, paidLeaveHours]);
+
+  const viewedMonth = monthFromIndex(monthIdx);
+  const header =
+    view === 'month' ? { title: format(viewedMonth, 'MMMM'), year: format(viewedMonth, 'yyyy') } : weekTitle(weekIdx, weekStart);
+  const showToday = view === 'month' ? monthIdx !== todayMonthIdx : weekIdx !== todayWeekIdx;
+
+  // Keep the whole month visible above the paint palette or a collapsed quick-fill sheet.
+  // (In landscape there isn't enough height to shrink for a sheet; it can be dragged down instead.)
+  const quickFill = (mode === 'repeat' || mode === 'template') && !twoPane;
+  const bottomSpace = mode === 'paint' ? PALETTE_SPACE : quickFill ? QUICK_FILL_COLLAPSED : 0;
+  const gridW = Math.max(gridSize.width - GRID_PADDING * 2, 0);
+  const gridH = Math.max(gridSize.height - bottomSpace - 6, 0);
+  const rangeStart = mode === 'repeat' ? patternStart : mode === 'template' ? templateStart : null;
+  const rangeEnd = mode === 'repeat' ? patternEnd : null;
+  const livePreview = mode === 'repeat' || mode === 'template' ? preview : null;
+
+  const renderMonth = (index: number) => (
+    <View style={{ paddingHorizontal: GRID_PADDING }}>
+      <MonthGrid
+        monthIndex={index}
+        weekStart={weekStart}
+        width={gridW}
+        height={gridH}
+        shifts={shiftData}
+        leave={leaveData}
+        notes={notesData}
+        overtime={overtimeData}
+        swaps={swapsData}
+        getShiftByCode={getShiftByCode}
+        getLeaveType={getLeaveType}
+        todayKey={today}
+        selectedDate={mode === 'normal' || mode === 'paint' ? selectedDate : null}
+        rangeStart={rangeStart}
+        rangeEnd={rangeEnd}
+        preview={livePreview}
+        showTime={showShiftTimes}
+        timeFormat={timeFormat}
         colors={colors}
+        isDark={isDark}
+        onDayPress={onDayPress}
+        onDayLongPress={onDayLongPress}
       />
+    </View>
+  );
 
-      {templateMode && viewMode === 'month' && (
-        <View style={[styles.hintBar, { backgroundColor: colors.primary + '0C' }]}>
-          <View style={[styles.hintDot, { backgroundColor: colors.primary }]} />
-          <Text style={[styles.hintText, { color: colors.primary }]}>
-            {!selectedTemplate
-              ? 'Pick a template from the sheet below'
-              : !templateStart
-              ? 'Now tap a start date on the calendar'
-              : 'Choose how far to apply'}
-          </Text>
-        </View>
+  const renderWeek = (index: number) => (
+    <WeekAgenda
+      weekIndex={index}
+      weekStart={weekStart}
+      shifts={shiftData}
+      leave={leaveData}
+      notes={notesData}
+      overtime={overtimeData}
+      swaps={swapsData}
+      getShiftByCode={getShiftByCode}
+      getLeaveType={getLeaveType}
+      todayKey={today}
+      selectedDate={selectedDate}
+      preview={livePreview}
+      timeFormat={timeFormat}
+      colors={colors}
+      bottomInset={bottomSpace}
+      onDayPress={onDayPress}
+      onDayLongPress={onDayLongPress}
+    />
+  );
+
+  const modeBar =
+    mode === 'paint' ? (
+      <ModeBar
+        colors={colors}
+        icon="brush-variant"
+        text="Tap days to paint. Tap again to remove."
+        doneLabel="Done"
+        onDone={exitMode}
+        onUndo={undoPaint}
+        undoDisabled={paintHistory.length === 0}
+      />
+    ) : mode === 'repeat' ? (
+      <ModeBar
+        colors={colors}
+        icon="repeat"
+        text={!patternStart ? 'Tap the first day of the pattern' : !patternEnd ? 'Now tap the last day' : 'Previewing · apply below or tap to restart'}
+        doneLabel="Cancel"
+        onDone={exitMode}
+      />
+    ) : mode === 'template' ? (
+      <ModeBar
+        colors={colors}
+        icon="view-grid-plus-outline"
+        text={activeTemplate ? `Starts ${format(fromDateKey(templateStart), 'MMM d')} · tap a day to move` : 'Pick a rotation below'}
+        doneLabel="Cancel"
+        onDone={exitMode}
+      />
+    ) : null;
+
+  const controls = (
+    <>
+      <CalendarHeader
+        title={header.title}
+        year={header.year}
+        upcoming={upcoming}
+        isEmpty={Object.keys(shiftData).length === 0 && Object.keys(leaveData).length === 0}
+        showToday={showToday}
+        view={view}
+        colors={colors}
+        compact={twoPane}
+        onTitlePress={() => setMonthPickerOpen(true)}
+        onToday={goToday}
+        onSearch={openNotes}
+        onToggleView={toggleView}
+        onPrev={() => step(-1)}
+        onNext={() => step(1)}
+      />
+      <CalendarSwitcher calendars={calendars} activeCalendarId={activeCalendarId} onSwitch={switchCalendar} colors={colors} />
+      {modeBar ?? (
+        <ToolRow
+          colors={colors}
+          onPaint={() => enterMode('paint')}
+          onRepeat={() => enterMode('repeat')}
+          onTemplate={() => enterMode('template')}
+          canRepeat
+        />
       )}
-
-      {repeatMode && viewMode === 'month' && (
-        <View style={[styles.hintBar, { backgroundColor: colors.primary + '0C' }]}>
-          <View style={[styles.hintDot, { backgroundColor: colors.primary }]} />
-          <Text style={[styles.hintText, { color: colors.primary }]}>
-            {!patternStart
-              ? 'Tap the first day of your pattern'
-              : !patternEnd
-              ? 'Now tap the last day'
-              : `${patternDates.size} days selected`}
-          </Text>
-        </View>
-      )}
-
-      {/* Swipeable calendar / week view */}
-      <GestureDetector gesture={panGesture}>
-        <Animated.View style={[isLandscape ? styles.calendarWrapLandscape : styles.calendarWrap, calendarAnimStyle]}>
-          {viewMode === 'month' ? (
-            <Calendar
-              key={monthKey + weekStart + activeCalendar.id}
-              current={monthKey + '-01'}
-              markingType="custom"
-              markedDates={markedDates}
-              dayComponent={renderDay}
-              hideArrows
-              renderHeader={() => <View />}
-              firstDay={weekStart}
-              theme={calendarTheme}
-              style={styles.calendar}
-            />
-          ) : (
-            <WeekView
-              currentDate={currentMonth}
-              weekStart={weekStart}
-              shiftData={shiftData}
-              notesData={notesData}
-              overtimeData={overtimeData}
-              getShiftByCode={getShiftByCode}
-              onDayPress={handleDayPress}
-              selectedDate={selectedDate}
-              colors={colors}
-            />
-          )}
-        </Animated.View>
-      </GestureDetector>
     </>
   );
 
-  return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      {isLandscape ? (
-        <ScrollView
-          style={styles.container}
-          contentContainerStyle={styles.calendarPanelScrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {calendarContent}
-        </ScrollView>
-      ) : (
-        <View style={styles.calendarPanelFull}>
-          {calendarContent}
+  const onGridLayout = (e: LayoutChangeEvent) => {
+    const { width, height } = e.nativeEvent.layout;
+    setGridSize((s) => (s.width === width && s.height === height ? s : { width, height }));
+  };
+
+  const calendarBody = (
+    <View style={styles.flex}>
+      {view === 'month' && (
+        <View style={[styles.weekdays, { paddingHorizontal: GRID_PADDING }]}>
+          {gridW > 0 && (
+            <WeekdayHeader
+              weekStart={weekStart}
+              colors={colors}
+              width={gridW}
+              todayWeekday={monthIdx === todayMonthIdx ? todayDate.getDay() : null}
+            />
+          )}
         </View>
       )}
+      <View style={styles.flex} onLayout={onGridLayout}>
+        {gridSize.width > 0 && gridSize.height > 0 && (
+          view === 'month' ? (
+            <Pager
+              key="month"
+              index={monthIdx}
+              onIndexChange={(i) => {
+                haptic.selection();
+                setMonthIdx(i);
+              }}
+              renderPage={renderMonth}
+              width={gridSize.width}
+              onPanStateChange={onPanStateChange}
+            />
+          ) : (
+            <Pager
+              key="week"
+              index={weekIdx}
+              onIndexChange={setWeekIdx}
+              renderPage={renderWeek}
+              width={gridSize.width}
+              onPanStateChange={onPanStateChange}
+            />
+          )
+        )}
+      </View>
+    </View>
+  );
 
-      <DaySheet
-        ref={daySheetRef}
-        selectedDate={selectedDate}
-        currentShift={
-          selectedDate && shiftData[selectedDate] ? getShiftByCode(shiftData[selectedDate]) : undefined
-        }
-        currentNote={selectedDate ? notesData[selectedDate] || '' : ''}
-        currentOvertime={selectedDate ? overtimeData[selectedDate] || 0 : 0}
-        allShifts={allShifts}
-        onSelectShift={handleSelectShift}
-        onClear={handleClear}
-        onSaveNote={handleSaveNote}
-        onSetOvertime={handleSetOvertime}
-        currentSwap={selectedDate ? swapsData[selectedDate] : undefined}
-        allShiftCodes={allShiftCodes}
-        onOfferSwap={offerSwap}
-        onCancelSwap={cancelSwap}
-        currentLeaveId={selectedDate ? leaveData[selectedDate] : undefined}
-        leaveTypes={leaveTypes}
-        onSetLeave={handleSetLeave}
-        onClearLeave={clearLeave}
-        colors={colors}
-      />
+  return (
+    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.flex, { backgroundColor: colors.background }]}>
+      {twoPane ? (
+        <View style={styles.row}>
+          <ScrollView style={{ width: SIDE_PANE_WIDTH, flexGrow: 0 }} contentContainerStyle={styles.sidePane} showsVerticalScrollIndicator={false}>
+            {controls}
+            {monthStats && view === 'month' && <MonthSummary stats={monthStats} allShifts={allShifts} leaveTypes={leaveTypes} colors={colors} />}
+          </ScrollView>
+          {calendarBody}
+        </View>
+      ) : (
+        <>
+          {controls}
+          {calendarBody}
+        </>
+      )}
+
+      {mode === 'paint' && (
+        <PaintPalette shifts={allShifts} leaveTypes={leaveTypes} brush={brush} onSelect={(b) => { haptic.selection(); setBrush(b); }} colors={colors} />
+      )}
 
       <RepeatSheet
-        ref={repeatSheetRef}
-        shiftData={shiftData}
-        getShiftByCode={getShiftByCode}
-        onApplyPattern={handleApplyPattern}
-        onClearPattern={clearPattern}
-        currentMonth={currentMonth}
+        ref={repeatRef}
+        active={mode === 'repeat'}
         patternStart={patternStart}
         patternEnd={patternEnd}
-        colors={colors}
+        onReset={() => {
+          setPatternStart(null);
+          setPatternEnd(null);
+          repeatRef.current?.snapToIndex(0);
+        }}
+        onClose={exitMode}
+        onApply={handleApplyEntries}
+        onPreview={setPreview}
       />
-
       <TemplateSheet
-        ref={templateSheetRef}
-        allShifts={allShifts}
-        getShiftByCode={getShiftByCode}
-        selectedTemplate={selectedTemplate}
-        templateStart={templateStart}
-        onSelectTemplate={handleSelectTemplate}
-        onApply={handleApplyTemplate}
-        onClose={handleTemplateClose}
-        onBack={handleTemplateBack}
-        currentMonth={currentMonth}
-        colors={colors}
+        ref={templateRef}
+        active={mode === 'template'}
+        startKey={templateStart}
+        onStartChange={setTemplateStart}
+        onClose={exitMode}
+        onApply={handleApplyEntries}
+        onPreview={setPreview}
+        onTemplateChange={setActiveTemplate}
       />
-
+      <DaySheet
+        ref={daySheetRef}
+        dateKey={selectedDate}
+        onDismiss={() => {
+          daySheetOpen.current = false;
+          setSelectedDate(null);
+        }}
+        onToast={showToast}
+      />
       <NotesSearchSheet
-        ref={notesSearchRef}
-        notesData={notesData}
-        onSelectDate={handleNotesSearchSelect}
+        ref={notesRef}
+        onSelectDate={selectFromNotes}
+        onDismiss={() => {
+          notesOpen.current = false;
+        }}
+      />
+      <MonthPickerModal
+        visible={monthPickerOpen}
+        monthIndex={view === 'month' ? monthIdx : monthIndexOf(weekStartFromIndex(weekIdx, weekStart))}
+        todayIndex={todayMonthIdx}
         colors={colors}
+        onSelect={pickMonth}
+        onClose={() => setMonthPickerOpen(false)}
       />
-
-      <Toast
-        message={toastMsg}
-        visible={toastVisible}
-        onHide={handleToastHide}
-        onUndo={toastUndo}
-      />
+      <Toast toast={toast} onHide={() => setToast(null)} />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    marginBottom: 4,
-  },
-  topRowCompact: {
-    marginBottom: 2,
-  },
-  todayPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 5,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    gap: 5,
-  },
-  todayPillText: {
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  viewToggle: {
-    flexDirection: 'row',
-    borderRadius: 10,
-    borderWidth: 1,
-    padding: 2,
-  },
-  viewToggleBtn: {
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-  },
-  calendarWrap: { flex: 1, overflow: 'hidden' },
-  calendarWrapLandscape: { overflow: 'hidden' },
-  calendar: { marginHorizontal: 6 },
-  calendarPanelScrollContent: {
-    paddingBottom: 8,
-  },
-  calendarPanelFull: {
-    flex: 1,
-  },
-  topRowRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  templatePill: {
-    width: 44,
-    height: 40,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  repeatPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    gap: 4,
-  },
-  repeatPillText: { fontSize: 12, fontWeight: '700' },
-  hintBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 16,
-    marginBottom: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    gap: 8,
-  },
-  hintDot: { width: 6, height: 6, borderRadius: 3 },
-  hintText: { fontSize: 12, fontWeight: '600' },
+  flex: { flex: 1 },
+  row: { flex: 1, flexDirection: 'row' },
+  sidePane: { paddingBottom: 24 },
+  weekdays: { minHeight: 26 },
 });

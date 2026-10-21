@@ -1,415 +1,384 @@
-import React, { useState, useRef, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Alert,
-  useWindowDimensions,
-} from 'react-native';
+import React, { useCallback, useRef, useState } from 'react';
+import { Text, StyleSheet, ScrollView, Alert, Linking, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import BottomSheet from '@gorhom/bottom-sheet';
-import * as Haptics from 'expo-haptics';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useAppSettings } from '../../hooks/ThemeContext';
+import { BottomSheetModal } from '@gorhom/bottom-sheet';
+import { useAppSettings } from '../../hooks/SettingsContext';
 import { useShifts } from '../../hooks/ShiftContext';
-import { ShiftType, AVAILABLE_COLORS } from '../../constants/shifts';
-import { ThemeMode } from '../../hooks/useTheme';
+import { CalendarInfo } from '../../hooks/useShiftData';
+import { ShiftType } from '../../constants/shifts';
+import { Type } from '../../constants/theme';
+import { haptic } from '../../utils/haptics';
+import { requestNotificationPermissions, sendTestNotification } from '../../utils/notifications';
+import {
+  ExportOptions,
+  backupAll,
+  describeBackup,
+  describeImport,
+  exportCSV,
+  exportPDF,
+  inspectBackup,
+  parseCSVContent,
+  pickBackupFile,
+  pickCSVFile,
+  restoreBackup,
+} from '../../utils/exportImport';
 import { ShiftEditor } from '../../components/ShiftEditor';
-import { exportCSV, exportPDF, importCSV, backupAll, restoreBackup } from '../../utils/exportImport';
-import { requestNotificationPermissions, scheduleShiftReminder, schedulePreShiftAlarms, cancelAllReminders } from '../../utils/notifications';
-
+import { Toast, ToastMessage } from '../../components/Toast';
+import { ShiftsSection } from '../../components/settings/ShiftsSection';
 import { CalendarsSection } from '../../components/settings/CalendarsSection';
-import { AppearanceSection } from '../../components/settings/AppearanceSection';
+import { CalendarEditor } from '../../components/settings/CalendarEditor';
+import { CurrencySheet } from '../../components/settings/CurrencySheet';
+import { NotificationsSection } from '../../components/settings/NotificationsSection';
 import { PayEarningsSection } from '../../components/settings/PayEarningsSection';
 import { LeaveBalanceSection } from '../../components/settings/LeaveBalanceSection';
-import { NotificationsSection } from '../../components/settings/NotificationsSection';
-import { ImportExportSection } from '../../components/settings/ImportExportSection';
-import { ShiftsSection } from '../../components/settings/ShiftsSection';
+import { AppearanceSection } from '../../components/settings/AppearanceSection';
+import { DataSection } from '../../components/settings/DataSection';
 import { AboutSection } from '../../components/settings/AboutSection';
 
 export default function SettingsScreen() {
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const isLandscape = screenWidth > screenHeight;
-  const {
-    colors, themeMode, setThemeMode, weekStart, setWeekStart,
-    baseRate, setBaseRate,
-    overtimeRate, setOvertimeRate,
-    currencyCode, setCurrencyCode,
-    notificationsEnabled, setNotificationsEnabled,
-    notificationHour, setNotificationHour,
-    preShiftAlarm, setPreShiftAlarm,
-  } = useAppSettings();
-  const {
-    allShifts,
-    shiftData,
-    notesData,
-    overtimeData,
-    addCustomShift,
-    updateCustomShift,
-    deleteCustomShift,
-    moveShift,
-    setShiftsBulk,
-    setNote,
-    setOvertime,
-    leaveBalances,
-    leaveTypes,
-    setLeaveBalance,
-    calendars,
-    activeCalendar,
-    addCalendar,
-    deleteCalendar,
-    switchCalendar,
-  } = useShifts();
+  const settings = useAppSettings();
+  const { colors, updateSetting, reloadSettings } = settings;
+  const data = useShifts();
+  const { width } = useWindowDimensions();
 
-  const [editorVisible, setEditorVisible] = useState(false);
+  const shiftEditorRef = useRef<BottomSheetModal>(null);
+  const calendarEditorRef = useRef<BottomSheetModal>(null);
+  const currencyRef = useRef<BottomSheetModal>(null);
   const [editingShift, setEditingShift] = useState<ShiftType | null>(null);
-  const editorRef = useRef<BottomSheet>(null);
-
-  const [showNewCal, setShowNewCal] = useState(false);
-  const [newCalName, setNewCalName] = useState('');
-  const [newCalColor, setNewCalColor] = useState(AVAILABLE_COLORS[0]);
-
-  const [exportBusy, setExportBusy] = useState(false);
+  const [editingCalendar, setEditingCalendar] = useState<CalendarInfo | null>(null);
   const [showPrivacy, setShowPrivacy] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState<number | null>(new Date().getMonth());
-  const [showMonthPicker, setShowMonthPicker] = useState(false);
-  const currentYear = new Date().getFullYear();
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
-  ];
-  const selectedLabel = selectedMonth !== null ? `${monthNames[selectedMonth]} ${currentYear}` : `Whole Year ${currentYear}`;
+  const [busy, setBusy] = useState<string | null>(null);
+  const [exportYear, setExportYear] = useState(new Date().getFullYear());
+  const [exportMonth, setExportMonth] = useState<number | null>(new Date().getMonth());
+  const [toast, setToast] = useState<ToastMessage | null>(null);
+  const toastId = useRef(0);
 
-  const [baseRateText, setBaseRateText] = useState(baseRate > 0 ? String(baseRate) : '');
-  const [otRateText, setOtRateText] = useState(overtimeRate > 0 ? String(overtimeRate) : '');
-  const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
+  const showToast = useCallback((message: string, tone: ToastMessage['tone'] = 'success') => {
+    toastId.current += 1;
+    setToast({ id: toastId.current, message, tone });
+  }, []);
 
-  useEffect(() => {
-    setBaseRateText(baseRate > 0 ? String(baseRate) : '');
-  }, [baseRate]);
-
-  useEffect(() => {
-    setOtRateText(overtimeRate > 0 ? String(overtimeRate) : '');
-  }, [overtimeRate]);
-
-  useEffect(() => {
-    if (notificationsEnabled) {
-      scheduleShiftReminder(shiftData, allShifts, notificationHour).catch(console.error);
-    }
-    if (preShiftAlarm) {
-      schedulePreShiftAlarms(shiftData, allShifts).catch(console.error);
-    }
-  }, [notificationsEnabled, shiftData, allShifts, notificationHour, preShiftAlarm]);
-
-  const handleToggleNotifications = async (value: boolean) => {
-    if (value) {
-      const granted = await requestNotificationPermissions();
-      if (!granted) {
-        Alert.alert('Permission Required', 'Please enable notifications in your device settings.');
-        return;
-      }
-      setNotificationsEnabled(true);
-      await scheduleShiftReminder(shiftData, allShifts, notificationHour);
-      if (preShiftAlarm) {
-        await schedulePreShiftAlarms(shiftData, allShifts);
-      }
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } else {
-      setNotificationsEnabled(false);
-      await cancelAllReminders();
-      if (preShiftAlarm) {
-        await schedulePreShiftAlarms(shiftData, allShifts);
-      }
-    }
-  };
-
-  const handleTogglePreShiftAlarm = async (value: boolean) => {
-    if (value) {
-      const granted = await requestNotificationPermissions();
-      if (!granted) {
-        Alert.alert('Permission Required', 'Please enable notifications in your device settings.');
-        return;
-      }
-      setPreShiftAlarm(true);
-      await schedulePreShiftAlarms(shiftData, allShifts);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } else {
-      setPreShiftAlarm(false);
-      // Re-schedule only evening reminders if those are still on
-      await cancelAllReminders();
-      if (notificationsEnabled) {
-        await scheduleShiftReminder(shiftData, allShifts, notificationHour);
-      }
-    }
-  };
-
-  const handleExportCSV = async (month: number | null) => {
-    try {
-      setExportBusy(true);
-      await exportCSV(currentYear, month, shiftData, notesData, overtimeData, allShifts, activeCalendar.name);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (e: any) {
-      Alert.alert('Export Failed', e.message || 'Something went wrong');
-    } finally {
-      setExportBusy(false);
-    }
-  };
-
-  const handleExportPDF = async (month: number | null) => {
-    try {
-      setExportBusy(true);
-      await exportPDF(currentYear, month, shiftData, notesData, overtimeData, allShifts, activeCalendar.name);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (e: any) {
-      Alert.alert('Export Failed', e.message || 'Something went wrong');
-    } finally {
-      setExportBusy(false);
-    }
-  };
-
-  const handleImportCSV = async () => {
-    try {
-      setExportBusy(true);
-      const result = await importCSV(allShifts);
-      if (!result) {
-        setExportBusy(false);
-        return;
-      }
-      Alert.alert(
-        'Import CSV',
-        `Found ${result.rowCount} rows. This will merge into "${activeCalendar.name}". Existing entries for matching dates will be overwritten.`,
-        [
-          { text: 'Cancel', style: 'cancel', onPress: () => setExportBusy(false) },
-          {
-            text: 'Import',
-            onPress: () => {
-              if (Object.keys(result.shiftEntries).length > 0) setShiftsBulk(result.shiftEntries);
-              Object.entries(result.noteEntries).forEach(([date, note]) => setNote(date, note));
-              Object.entries(result.overtimeEntries).forEach(([date, hours]) => setOvertime(date, hours));
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              Alert.alert('Done', `Imported ${result.rowCount} days into "${activeCalendar.name}"`);
-              setExportBusy(false);
-            },
-          },
-        ]
-      );
-    } catch (e: any) {
-      Alert.alert('Import Failed', e.message || 'Something went wrong');
-      setExportBusy(false);
-    }
-  };
-
-  const handleBackup = async () => {
-    try {
-      setExportBusy(true);
-      await backupAll();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (e: any) {
-      Alert.alert('Backup Failed', e.message || 'Something went wrong');
-    } finally {
-      setExportBusy(false);
-    }
-  };
-
-  const handleRestore = async () => {
-    try {
-      setExportBusy(true);
-      const result = await restoreBackup();
-      if (!result) {
-        setExportBusy(false);
-        return;
-      }
-      Alert.alert('Restore Complete', `Restored ${result.keyCount} entries. Please restart the app for changes to take effect.`);
-    } catch (e: any) {
-      Alert.alert('Restore Failed', e.message || 'Invalid backup file');
-    } finally {
-      setExportBusy(false);
-    }
-  };
-
-  const openNewShift = () => {
-    setEditingShift(null);
-    setEditorVisible(true);
-  };
-  const openEditShift = (shift: ShiftType) => {
+  // --- Shift types ---
+  const openShiftEditor = (shift: ShiftType | null) => {
     setEditingShift(shift);
-    setEditorVisible(true);
+    shiftEditorRef.current?.present();
   };
-  const handleSaveShift = (shift: ShiftType) => {
-    if (editingShift) updateCustomShift(editingShift.code, shift);
-    else addCustomShift(shift);
-    setEditorVisible(false);
+  const saveShift = (shift: ShiftType) => {
+    if (editingShift) data.updateCustomShift(editingShift.code, shift);
+    else data.addCustomShift(shift);
+    showToast(editingShift ? `${shift.label} updated` : `${shift.label} added`);
   };
-  const handleDeleteShift = (code: string) => {
-    const shift = allShifts.find((s) => s.code === code);
-    const label = shift?.label || code;
-    Alert.alert(
-      'Delete Shift',
-      `Delete "${label}"? All calendar assignments using this shift will be removed.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-            deleteCustomShift(code);
-            setEditorVisible(false);
-          },
-        },
-      ]
-    );
+  const deleteShift = (code: string) => {
+    const label = data.allShifts.find((s) => s.code === code)?.label ?? code;
+    if (data.deleteCustomShift(code)) showToast(`${label} deleted`);
   };
 
-  const handleAddCalendar = () => {
-    if (!newCalName.trim()) {
-      Alert.alert('Error', 'Calendar name is required');
-      return;
+  // --- Calendars ---
+  const openCalendarEditor = (calendar: CalendarInfo | null) => {
+    setEditingCalendar(calendar);
+    calendarEditorRef.current?.present();
+  };
+  const saveCalendar = (name: string, color: string) => {
+    if (editingCalendar) {
+      data.renameCalendar(editingCalendar.id, name, color);
+      showToast('Calendar updated');
+    } else {
+      const id = `cal_${Date.now()}`;
+      data.addCalendar({ id, name, color });
+      data.switchCalendar(id);
+      showToast(`${name} created`);
     }
-    const id = 'cal_' + Date.now();
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    addCalendar({ id, name: newCalName.trim(), color: newCalColor });
-    setNewCalName('');
-    setShowNewCal(false);
-    switchCalendar(id);
   };
-
-  const handleDeleteCalendar = (calId: string, name: string) => {
-    Alert.alert('Delete Calendar', `Delete "${name}" and all its data?`, [
+  const deleteCalendar = (calendar: CalendarInfo) => {
+    Alert.alert('Delete calendar?', `“${calendar.name}” and all of its shifts, notes and leave will be permanently deleted.`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
         onPress: () => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-          deleteCalendar(calId);
+          haptic.heavy();
+          data.deleteCalendar(calendar.id);
+          if (settings.primaryCalendarId === calendar.id) updateSetting('primaryCalendarId', 'default');
+          showToast(`${calendar.name} deleted`);
         },
       },
     ]);
   };
 
-  const themeModes: { value: ThemeMode; label: string; icon: string }[] = [
-    { value: 'light', label: 'Light', icon: 'white-balance-sunny' },
-    { value: 'dark', label: 'Dark', icon: 'moon-waning-crescent' },
-    { value: 'system', label: 'System', icon: 'cellphone' },
-  ];
+  // --- Notifications ---
+  const ensurePermission = async () => {
+    const granted = await requestNotificationPermissions();
+    if (!granted) {
+      Alert.alert('Notifications are off', 'Allow notifications for ShiftCalendar in your device settings to get reminders.', [
+        { text: 'Not now', style: 'cancel' },
+        { text: 'Open settings', onPress: () => Linking.openSettings().catch(() => {}) },
+      ]);
+    }
+    return granted;
+  };
+  const toggleReminders = async (value: boolean) => {
+    if (value && !(await ensurePermission())) return;
+    haptic.light();
+    updateSetting('notificationsEnabled', value);
+  };
+  const toggleAlarm = async (value: boolean) => {
+    if (value && !(await ensurePermission())) return;
+    haptic.light();
+    updateSetting('preShiftAlarm', value);
+  };
+  const sendTest = async () => {
+    const ok = await sendTestNotification(settings.preShiftAlarm ? 'alarm' : 'reminder');
+    if (ok) showToast('Test notification on its way', 'info');
+    else Alert.alert('Could not send', 'Notifications are unavailable or not allowed on this device.');
+  };
 
-  const notifHours = [18, 19, 20, 21, 22];
+  // --- Data ---
+  const exportOptions = (): ExportOptions => ({
+    year: exportYear,
+    month: exportMonth,
+    data: { shifts: data.shiftData, notes: data.notesData, overtime: data.overtimeData, leave: data.leaveData },
+    allShifts: data.allShifts,
+    leaveTypes: data.leaveTypes,
+    calendarName: data.activeCalendar.name,
+    weekStart: settings.weekStart,
+    timeFormat: settings.timeFormat,
+    baseRate: settings.baseRate,
+    overtimeRate: settings.overtimeRate,
+    paidLeaveHours: settings.paidLeaveHours,
+    currencyCode: settings.currencyCode,
+  });
+
+  const run = async (key: string, task: () => Promise<boolean | void>, success?: string) => {
+    setBusy(key);
+    try {
+      const done = await task();
+      if (done !== false && success) {
+        haptic.success();
+        showToast(success);
+      }
+    } catch (e: any) {
+      Alert.alert('Something went wrong', e?.message || 'Please try again.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const importCSV = async () => {
+    setBusy('import');
+    let content: string | null = null;
+    try {
+      content = await pickCSVFile();
+    } catch (e: any) {
+      Alert.alert('Could not open file', e?.message || 'Please try again.');
+    } finally {
+      setBusy(null);
+    }
+    if (!content) return;
+    const result = parseCSVContent(content, data.allShifts, data.leaveTypes);
+    if (!result || result.days === 0) {
+      Alert.alert('Nothing to import', 'This file has no ShiftCalendar days in it. Export a CSV from the app to see the expected format.');
+      return;
+    }
+    Alert.alert('Import spreadsheet?', `${describeImport(result)}\n\nImporting into “${data.activeCalendar.name}”. Matching dates are replaced.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Import',
+        onPress: () => {
+          data.importDays(result);
+          haptic.success();
+          showToast(`Imported ${result.days} days`);
+        },
+      },
+    ]);
+  };
+
+  const restore = async () => {
+    setBusy('restore');
+    let content: string | null = null;
+    try {
+      content = await pickBackupFile();
+    } catch (e: any) {
+      Alert.alert('Could not open file', e?.message || 'Please try again.');
+    } finally {
+      setBusy(null);
+    }
+    if (!content) return;
+    let summary;
+    try {
+      summary = inspectBackup(content);
+    } catch (e: any) {
+      Alert.alert('Not a backup', e?.message || 'This file can’t be restored.');
+      return;
+    }
+    Alert.alert('Restore backup?', describeBackup(summary), [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Restore',
+        style: 'destructive',
+        onPress: () =>
+          run(
+            'restore',
+            async () => {
+              await restoreBackup(summary);
+              await Promise.all([data.reload(), reloadSettings()]);
+            },
+            'Backup restored'
+          ),
+      },
+    ]);
+  };
+
+  const resetAll = () => {
+    Alert.alert('Erase all data?', 'Every calendar, shift, note and setting will be deleted from this device. Make a backup first if you might want it back.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Erase everything',
+        style: 'destructive',
+        onPress: async () => {
+          haptic.heavy();
+          await data.resetAllData();
+          await reloadSettings();
+        },
+      },
+    ]);
+  };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={[styles.scrollContent, isLandscape && styles.scrollContentLandscape]} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.screenTitle, { color: colors.text }]}>Settings</Text>
+    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.flex, { backgroundColor: colors.background }]}>
+      <ScrollView
+        contentContainerStyle={[styles.scroll, width >= 700 && styles.scrollWide]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
+        <Text style={[Type.display, styles.title, { color: colors.text }]} accessibilityRole="header">
+          Settings
+        </Text>
 
         <ShiftsSection
           colors={colors}
-          allShifts={allShifts}
-          onNewShift={openNewShift}
-          onEditShift={openEditShift}
-          onDeleteShift={handleDeleteShift}
-          onMoveShift={moveShift}
+          timeFormat={settings.timeFormat}
+          allShifts={data.allShifts}
+          onNewShift={() => openShiftEditor(null)}
+          onEditShift={openShiftEditor}
+          onMoveShift={data.moveShift}
         />
 
         <CalendarsSection
           colors={colors}
-          calendars={calendars}
-          activeCalendar={activeCalendar}
-          showNewCal={showNewCal}
-          setShowNewCal={setShowNewCal}
-          newCalName={newCalName}
-          setNewCalName={setNewCalName}
-          newCalColor={newCalColor}
-          setNewCalColor={setNewCalColor}
-          onAddCalendar={handleAddCalendar}
-          onDeleteCalendar={handleDeleteCalendar}
-        />
-
-        <LeaveBalanceSection
-          colors={colors}
-          leaveTypes={leaveTypes}
-          leaveBalances={leaveBalances}
-          setLeaveBalance={setLeaveBalance}
-        />
-
-        <PayEarningsSection
-          colors={colors}
-          currencyCode={currencyCode}
-          setCurrencyCode={setCurrencyCode}
-          showCurrencyPicker={showCurrencyPicker}
-          setShowCurrencyPicker={setShowCurrencyPicker}
-          baseRateText={baseRateText}
-          setBaseRateText={setBaseRateText}
-          setBaseRate={setBaseRate}
-          otRateText={otRateText}
-          setOtRateText={setOtRateText}
-          setOvertimeRate={setOvertimeRate}
+          calendars={data.calendars}
+          activeCalendarId={data.activeCalendarId}
+          primaryCalendarId={settings.primaryCalendarId}
+          onSwitch={data.switchCalendar}
+          onEdit={openCalendarEditor}
+          onNew={() => openCalendarEditor(null)}
         />
 
         <NotificationsSection
           colors={colors}
-          notificationsEnabled={notificationsEnabled}
-          onToggleNotifications={handleToggleNotifications}
-          notificationHour={notificationHour}
-          setNotificationHour={setNotificationHour}
-          preShiftAlarm={preShiftAlarm}
-          onTogglePreShiftAlarm={handleTogglePreShiftAlarm}
-          shiftData={shiftData}
-          allShifts={allShifts}
-          notifHours={notifHours}
+          timeFormat={settings.timeFormat}
+          remindersEnabled={settings.notificationsEnabled}
+          onToggleReminders={toggleReminders}
+          reminderHour={settings.notificationHour}
+          onReminderHour={(h) => {
+            haptic.selection();
+            updateSetting('notificationHour', h);
+          }}
+          alarmEnabled={settings.preShiftAlarm}
+          onToggleAlarm={toggleAlarm}
+          alarmLead={settings.alarmLeadMinutes}
+          onAlarmLead={(m) => {
+            haptic.selection();
+            updateSetting('alarmLeadMinutes', m);
+          }}
+          calendars={data.calendars}
+          primaryCalendarId={data.calendars.some((c) => c.id === settings.primaryCalendarId) ? settings.primaryCalendarId : 'default'}
+          onPrimaryCalendar={(id) => {
+            haptic.selection();
+            updateSetting('primaryCalendarId', id);
+          }}
+          onTest={sendTest}
+        />
+
+        <PayEarningsSection
+          colors={colors}
+          currencyCode={settings.currencyCode}
+          onCurrencyPress={() => currencyRef.current?.present()}
+          baseRate={settings.baseRate}
+          setBaseRate={(v) => updateSetting('baseRate', v)}
+          overtimeRate={settings.overtimeRate}
+          setOvertimeRate={(v) => updateSetting('overtimeRate', v)}
+          paidLeaveHours={settings.paidLeaveHours}
+          setPaidLeaveHours={(v) => updateSetting('paidLeaveHours', v)}
+        />
+
+        <LeaveBalanceSection
+          colors={colors}
+          calendarName={data.activeCalendar.name}
+          leaveTypes={data.leaveTypes}
+          leaveBalances={data.leaveBalances}
+          setLeaveBalance={data.setLeaveBalance}
         />
 
         <AppearanceSection
           colors={colors}
-          themeMode={themeMode}
-          setThemeMode={setThemeMode}
-          weekStart={weekStart}
-          setWeekStart={setWeekStart}
-          themeModes={themeModes}
+          themeMode={settings.themeMode}
+          setThemeMode={(v) => updateSetting('themeMode', v)}
+          weekStart={settings.weekStart}
+          setWeekStart={(v) => updateSetting('weekStart', v)}
+          timeFormat={settings.timeFormat}
+          setTimeFormat={(v) => updateSetting('timeFormat', v)}
+          showShiftTimes={settings.showShiftTimes}
+          setShowShiftTimes={(v) => updateSetting('showShiftTimes', v)}
+          hapticsEnabled={settings.hapticsEnabled}
+          setHapticsEnabled={(v) => updateSetting('hapticsEnabled', v)}
         />
 
-        <ImportExportSection
+        <DataSection
           colors={colors}
-          activeCalendarName={activeCalendar.name}
-          exportBusy={exportBusy}
-          selectedMonth={selectedMonth}
-          setSelectedMonth={setSelectedMonth}
-          showMonthPicker={showMonthPicker}
-          setShowMonthPicker={setShowMonthPicker}
-          selectedLabel={selectedLabel}
-          monthNames={monthNames}
-          onExportCSV={handleExportCSV}
-          onExportPDF={handleExportPDF}
-          onImportCSV={handleImportCSV}
-          onBackup={handleBackup}
-          onRestore={handleRestore}
+          calendarName={data.activeCalendar.name}
+          busy={busy}
+          year={exportYear}
+          setYear={setExportYear}
+          month={exportMonth}
+          setMonth={setExportMonth}
+          onExportCSV={() => run('csv', () => exportCSV(exportOptions()), 'Spreadsheet exported')}
+          onExportPDF={() => run('pdf', () => exportPDF(exportOptions()), 'PDF exported')}
+          onImportCSV={importCSV}
+          onBackup={() => run('backup', backupAll, 'Backup saved')}
+          onRestore={restore}
+          onReset={resetAll}
         />
 
-        <AboutSection
-          colors={colors}
-          showPrivacy={showPrivacy}
-          setShowPrivacy={setShowPrivacy}
-        />
+        <AboutSection colors={colors} showPrivacy={showPrivacy} setShowPrivacy={setShowPrivacy} />
       </ScrollView>
 
-      {editorVisible && (
-        <ShiftEditor
-          ref={editorRef}
-          editingShift={editingShift}
-          existingCodes={allShifts.map((s) => s.code)}
-          onSave={handleSaveShift}
-          onDelete={handleDeleteShift}
-          onClose={() => setEditorVisible(false)}
-          colors={colors}
-        />
-      )}
+      <ShiftEditor
+        ref={shiftEditorRef}
+        editingShift={editingShift}
+        existingCodes={data.allShifts.map((s) => s.code)}
+        canDelete={data.allShifts.length > 1}
+        onSave={saveShift}
+        onDelete={deleteShift}
+        onDismiss={() => setEditingShift(null)}
+      />
+      <CalendarEditor
+        ref={calendarEditorRef}
+        calendar={editingCalendar}
+        usedColors={data.calendars.map((c) => c.color)}
+        onSave={saveCalendar}
+        onDelete={deleteCalendar}
+        onDismiss={() => setEditingCalendar(null)}
+      />
+      <CurrencySheet ref={currencyRef} value={settings.currencyCode} onSelect={(code) => updateSetting('currencyCode', code)} />
+      <Toast toast={toast} onHide={() => setToast(null)} />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  scrollContent: { padding: 16, paddingBottom: 40 },
-  scrollContentLandscape: { maxWidth: 700, alignSelf: 'center', width: '100%' },
-  screenTitle: { fontSize: 30, fontWeight: '800', marginBottom: 20, marginTop: 8 },
+  flex: { flex: 1 },
+  scroll: { padding: 16, paddingBottom: 48 },
+  scrollWide: { maxWidth: 720, width: '100%', alignSelf: 'center' },
+  title: { marginTop: 4, marginBottom: 4 },
 });

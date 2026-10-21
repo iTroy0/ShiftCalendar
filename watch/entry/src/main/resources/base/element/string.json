@@ -1,0 +1,12 @@
+{
+  "string": [
+    {
+      "name": "MainAbility_desc",
+      "value": "Your shift rotation as a month calendar"
+    },
+    {
+      "name": "MainAbility_label",
+      "value": "ShiftCalendar"
+    }
+  ]
+}

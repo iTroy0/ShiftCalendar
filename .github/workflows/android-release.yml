@@ -1,0 +1,85 @@
+name: Android release build
+
+# Builds the release APK and attaches it to a draft GitHub release for the version in app.json.
+# The APK is signed with the project's debug keystore, like earlier releases, so it installs over
+# them and keeps users' data. Run it from the Actions tab ("Run workflow").
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate the Android project
+        run: npx expo prebuild --platform android --no-install
+        env:
+          CI: 1
+
+      - name: Build the release APK
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon -Dorg.gradle.jvmargs="-Xmx6g -XX:MaxMetaspaceSize=1g"
+
+      - name: Name the APK
+        id: apk
+        run: |
+          version=$(node -p "require('./app.json').expo.version")
+          file="ShiftCalendar-v${version}.apk"
+          mv android/app/build/outputs/apk/release/app-release.apk "$file"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.apk.outputs.file }}
+          path: ${{ steps.apk.outputs.file }}
+          retention-days: 14
+
+      - name: Draft the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.apk.outputs.version }}
+          FILE: ${{ steps.apk.outputs.file }}
+        run: |
+          tag="v${VERSION}"
+          # Release notes come from this version's section of CHANGELOG.md.
+          awk -v v="$VERSION" '/^## /{p = ($2 == v); next} p' CHANGELOG.md > notes.md
+          [ -s notes.md ] || echo "ShiftCalendar ${tag}." > notes.md
+          printf '\n### Install\n\nDownload the APK below and install it on your Android device. It updates earlier versions in place and keeps your data.\n' >> notes.md
+
+          state=$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft 2>/dev/null || echo none)
+          if [ "$state" = "false" ]; then
+            echo "::error::${tag} is already published. Bump the version in app.json before building again."
+            exit 1
+          elif [ "$state" = "true" ]; then
+            gh release upload "$tag" "$FILE" --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --notes-file notes.md --target "$GITHUB_SHA"
+          else
+            gh release create "$tag" "$FILE" --repo "$GITHUB_REPOSITORY" --draft --title "ShiftCalendar ${tag}" --notes-file notes.md --target "$GITHUB_SHA"
+          fi
+          url=$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json url --jq .url)
+          echo "Draft release: $url" | tee -a "$GITHUB_STEP_SUMMARY"

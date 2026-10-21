@@ -2,129 +2,130 @@ import { useEffect, useCallback, useRef } from 'react';
 import { Platform, Alert, NativeModules, DeviceEventEmitter } from 'react-native';
 import * as Linking from 'expo-linking';
 import { readAsStringAsync, cacheDirectory, copyAsync } from 'expo-file-system/legacy';
-import * as Haptics from 'expo-haptics';
-import { ShiftType } from '../constants/shifts';
-import { parseCSVContent, restoreBackupFromContent } from '../utils/exportImport';
+import { haptic } from '../utils/haptics';
+import { useShifts } from './ShiftContext';
+import { useAppSettings } from './SettingsContext';
+import {
+  parseCSVContent,
+  describeImport,
+  inspectBackup,
+  describeBackup,
+  restoreBackup,
+} from '../utils/exportImport';
 
-interface Deps {
-  loading: boolean;
-  allShifts: ShiftType[];
-  setShiftsBulk: (entries: Record<string, string>) => void;
-  setNote: (date: string, note: string) => void;
-  setOvertime: (date: string, hours: number) => void;
-}
-
-export function useDeepLinkHandler({ loading, allShifts, setShiftsBulk, setNote, setOvertime }: Deps) {
+/** Handles CSV and backup files opened with the app from a file manager or another app. */
+export function useDeepLinkHandler() {
+  const { loading, allShifts, leaveTypes, importDays, activeCalendar, reload } = useShifts();
+  const { reloadSettings } = useAppSettings();
   const handledUrl = useRef<string | null>(null);
 
-  const handleIncomingURL = useCallback(async (url: string) => {
-    if (!url) return;
-    if (handledUrl.current === url) return;
-    handledUrl.current = url;
+  const handleIncomingURL = useCallback(
+    async (url: string) => {
+      if (!url || handledUrl.current === url) return;
+      if (!url.startsWith('file://') && !url.startsWith('content://')) return;
+      handledUrl.current = url;
 
-    if (!url.startsWith('file://') && !url.startsWith('content://')) return;
-
-    try {
-      let readableUri = url;
-      if (Platform.OS === 'android' && url.startsWith('content://')) {
-        const tempPath = cacheDirectory + 'incoming_file_' + Date.now();
-        await copyAsync({ from: url, to: tempPath });
-        readableUri = tempPath;
-      }
-      const content = await readAsStringAsync(readableUri);
-
-      // Try JSON backup first
+      let content: string;
       try {
-        const parsed = JSON.parse(content);
-        if (parsed.data && typeof parsed.data === 'object' && parsed.version) {
-          Alert.alert(
-            'Restore Backup',
-            'This looks like a ShiftCalendar backup. Restore all data from this file?',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Restore',
-                onPress: async () => {
-                  try {
-                    const result = await restoreBackupFromContent(content);
-                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    Alert.alert('Restore Complete', `Restored ${result.keyCount} entries. Please restart the app for changes to take effect.`);
-                  } catch (e: any) {
-                    Alert.alert('Restore Failed', e.message || 'Invalid backup file');
-                  }
-                },
-              },
-            ]
-          );
-          return;
+        let readableUri = url;
+        if (Platform.OS === 'android' && url.startsWith('content://')) {
+          const tempPath = cacheDirectory + 'incoming_file_' + Date.now();
+          await copyAsync({ from: url, to: tempPath });
+          readableUri = tempPath;
         }
-      } catch {
-        // Not valid JSON — try CSV below
+        content = await readAsStringAsync(readableUri);
+      } catch (e) {
+        console.error('Failed to read incoming file:', e);
+        Alert.alert('Could not open file', 'The file could not be read. It may be in an unsupported format.');
+        return;
       }
 
-      // Try CSV import
-      const lines = content.split(/\r?\n/).filter((l: string) => l.trim());
-      if (lines.length >= 2 && lines[0].toLowerCase().includes('date')) {
-        const result = parseCSVContent(content, allShifts);
-        if (result && result.rowCount > 0) {
-          Alert.alert(
-            'Import CSV',
-            `Found ${result.rowCount} rows of shift data. Import into the active calendar?`,
-            [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Import',
-                onPress: () => {
-                  if (Object.keys(result.shiftEntries).length > 0) setShiftsBulk(result.shiftEntries);
-                  Object.entries(result.noteEntries).forEach(([date, note]) => setNote(date, note));
-                  Object.entries(result.overtimeEntries).forEach(([date, hours]) => setOvertime(date, hours));
-                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                  Alert.alert('Done', `Imported ${result.rowCount} days into the active calendar.`);
-                },
+      const trimmed = content.trimStart().replace(/^﻿/, '');
+      if (trimmed.startsWith('{')) {
+        try {
+          const summary = inspectBackup(trimmed);
+          Alert.alert('Restore backup?', describeBackup(summary), [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Restore',
+              style: 'destructive',
+              onPress: async () => {
+                try {
+                  await restoreBackup(summary);
+                  await Promise.all([reload(), reloadSettings()]);
+                  haptic.success();
+                  Alert.alert('Backup restored', 'Your calendars and settings are back.');
+                } catch (e: any) {
+                  Alert.alert('Restore failed', e?.message || 'The backup could not be restored.');
+                }
               },
-            ]
-          );
-          return;
+            },
+          ]);
+        } catch (e: any) {
+          Alert.alert('Unrecognized file', e?.message || 'This file is not a ShiftCalendar backup.');
         }
+        return;
       }
 
-      Alert.alert('Unknown File', 'This file does not appear to be a ShiftCalendar CSV or backup file.');
-    } catch (e: any) {
-      console.error('Failed to process incoming file:', e);
-      Alert.alert('Error', 'Could not read the file. It may be in an unsupported format.');
-    }
-  }, [allShifts, setShiftsBulk, setNote, setOvertime]);
+      const result = parseCSVContent(content, allShifts, leaveTypes);
+      if (result && result.days > 0) {
+        Alert.alert('Import CSV?', `${describeImport(result)}\n\nImport into "${activeCalendar.name}"? Matching dates are replaced.`, [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Import',
+            onPress: () => {
+              importDays(result);
+              haptic.success();
+              Alert.alert('Import complete', `Imported ${result.days} days into "${activeCalendar.name}".`);
+            },
+          },
+        ]);
+        return;
+      }
+
+      Alert.alert('Unrecognized file', 'This file does not look like a ShiftCalendar CSV export or backup.');
+    },
+    [allShifts, leaveTypes, importDays, activeCalendar.name, reload, reloadSettings]
+  );
+
+  // Listeners always call the latest handler without re-subscribing (and re-reading the launch URL).
+  const handlerRef = useRef(handleIncomingURL);
+  handlerRef.current = handleIncomingURL;
 
   useEffect(() => {
     if (loading) return;
+    const handle = (url: string) => handlerRef.current(url);
 
     if (Platform.OS === 'android' && NativeModules.FileIntentModule) {
-      NativeModules.FileIntentModule.getFileUri().then((uri: string | null) => {
-        if (uri) {
-          NativeModules.FileIntentModule.clearFileUri();
-          handleIncomingURL(uri);
-        }
-      });
+      NativeModules.FileIntentModule.getFileUri()
+        .then((uri: string | null) => {
+          if (uri) {
+            NativeModules.FileIntentModule.clearFileUri();
+            handle(uri);
+          }
+        })
+        .catch(() => {});
     } else {
-      Linking.getInitialURL().then((url) => {
-        if (url) handleIncomingURL(url);
-      });
+      Linking.getInitialURL()
+        .then((url) => {
+          if (url) handle(url);
+        })
+        .catch(() => {});
     }
 
-    const fileIntentSub = Platform.OS === 'android'
-      ? DeviceEventEmitter.addListener('onFileIntent', (uri: string) => {
-          NativeModules.FileIntentModule?.clearFileUri();
-          handleIncomingURL(uri);
-        })
-      : null;
+    const fileIntentSub =
+      Platform.OS === 'android'
+        ? DeviceEventEmitter.addListener('onFileIntent', (uri: string) => {
+            NativeModules.FileIntentModule?.clearFileUri();
+            handle(uri);
+          })
+        : null;
 
-    const linkingSub = Linking.addEventListener('url', (event) => {
-      handleIncomingURL(event.url);
-    });
+    const linkingSub = Linking.addEventListener('url', (event) => handle(event.url));
 
     return () => {
       linkingSub.remove();
       fileIntentSub?.remove();
     };
-  }, [loading, handleIncomingURL]);
+  }, [loading]);
 }

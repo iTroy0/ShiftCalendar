@@ -1,64 +1,81 @@
-import React, { useEffect, useRef, useCallback } from 'react';
-import { Animated, Text, StyleSheet, View, TouchableOpacity } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Text, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Tap } from './ui/Tap';
+import { haptic } from '../utils/haptics';
 
-interface Props {
+export interface ToastMessage {
+  id: number;
   message: string;
-  visible: boolean;
-  onHide: () => void;
-  type?: 'success' | 'info';
-  onUndo?: () => void;
+  undo?: () => void;
+  tone?: 'success' | 'info' | 'warning';
 }
 
-export function Toast({ message, visible, onHide, type = 'success', onUndo }: Props) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(-30)).current;
+interface Props {
+  toast: ToastMessage | null;
+  onHide: () => void;
+}
+
+const TONES = {
+  success: { bg: '#0F766E', icon: 'check-circle' as const },
+  info: { bg: '#3730A3', icon: 'information' as const },
+  warning: { bg: '#B45309', icon: 'alert-circle' as const },
+};
+
+/** Top snackbar. A new toast (new id) restarts the timer even while one is showing. */
+export function Toast({ toast, onHide }: Props) {
+  const insets = useSafeAreaInsets();
+  const anim = useRef(new Animated.Value(0)).current;
   const onHideRef = useRef(onHide);
-  const onUndoRef = useRef(onUndo);
   onHideRef.current = onHide;
-  onUndoRef.current = onUndo;
 
   useEffect(() => {
-    if (visible) {
-      Animated.parallel([
-        Animated.timing(opacity, { toValue: 1, duration: 250, useNativeDriver: true }),
-        Animated.timing(translateY, { toValue: 0, duration: 250, useNativeDriver: true }),
-      ]).start();
+    if (!toast) return;
+    anim.setValue(0);
+    Animated.spring(anim, { toValue: 1, useNativeDriver: true, damping: 18, stiffness: 220 }).start();
+    const timer = setTimeout(() => {
+      Animated.timing(anim, { toValue: 0, duration: 220, useNativeDriver: true }).start(({ finished }) => {
+        if (finished) onHideRef.current();
+      });
+    }, toast.undo ? 5000 : 2600);
+    return () => clearTimeout(timer);
+  }, [toast, anim]);
 
-      const timer = setTimeout(() => {
-        Animated.parallel([
-          Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
-          Animated.timing(translateY, { toValue: -30, duration: 300, useNativeDriver: true }),
-        ]).start(() => onHideRef.current());
-      }, onUndoRef.current ? 4000 : 2500);
-
-      return () => clearTimeout(timer);
-    }
-  }, [visible]);
-
-  if (!visible) return null;
-
-  const bg = type === 'success' ? '#10B981' : '#3B82F6';
-  const icon = type === 'success' ? 'check-circle' : 'information';
+  if (!toast) return null;
+  const tone = TONES[toast.tone ?? 'success'];
 
   return (
     <Animated.View
-      style={[styles.container, { backgroundColor: bg, opacity, transform: [{ translateY }] }]}
       pointerEvents="box-none"
+      accessibilityLiveRegion="polite"
+      style={[
+        styles.container,
+        {
+          top: insets.top + 10,
+          backgroundColor: tone.bg,
+          opacity: anim,
+          transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [-24, 0] }) }],
+        },
+      ]}
     >
-      <MaterialCommunityIcons name={icon} size={20} color="#FFF" />
-      <Text style={styles.text}>{message}</Text>
-      {onUndo && (
-        <TouchableOpacity
+      <MaterialCommunityIcons name={tone.icon} size={20} color="#FFF" />
+      <Text style={styles.text} numberOfLines={2}>
+        {toast.message}
+      </Text>
+      {toast.undo && (
+        <Tap
           style={styles.undoBtn}
+          accessibilityLabel="Undo"
           onPress={() => {
-            onUndo();
-            onHide();
+            haptic.light();
+            toast.undo?.();
+            onHideRef.current();
           }}
-          activeOpacity={0.7}
         >
+          <MaterialCommunityIcons name="undo-variant" size={16} color="#FFF" />
           <Text style={styles.undoText}>Undo</Text>
-        </TouchableOpacity>
+        </Tap>
       )}
     </Animated.View>
   );
@@ -67,37 +84,31 @@ export function Toast({ message, visible, onHide, type = 'success', onUndo }: Pr
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 60,
-    left: 20,
-    right: 20,
+    left: 16,
+    right: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    borderRadius: 14,
+    paddingVertical: 12,
+    paddingLeft: 16,
+    paddingRight: 10,
+    borderRadius: 16,
     gap: 10,
     zIndex: 999,
-    elevation: 10,
+    elevation: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
   },
-  text: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: '700',
-    flex: 1,
-  },
+  text: { color: '#FFF', fontSize: 14, fontWeight: '700', flex: 1 },
   undoBtn: {
-    backgroundColor: '#FFFFFF30',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.18)',
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingVertical: 8,
+    borderRadius: 10,
   },
-  undoText: {
-    color: '#FFF',
-    fontSize: 13,
-    fontWeight: '800',
-  },
+  undoText: { color: '#FFF', fontSize: 13, fontWeight: '800' },
 });

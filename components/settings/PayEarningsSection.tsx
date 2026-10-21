@@ -1,146 +1,107 @@
-import React from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { CURRENCIES, getCurrencySymbol } from '../../constants/currencies';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { ThemeColors } from '../../constants/colors';
+import { getCurrency } from '../../constants/currencies';
+import { SectionLabel } from '../ui/primitives';
+import { SettingsCard, SettingsRow } from './SettingsRow';
 
-type Props = {
-  colors: any;
+interface Props {
+  colors: ThemeColors;
   currencyCode: string;
-  setCurrencyCode: (code: string) => void;
-  showCurrencyPicker: boolean;
-  setShowCurrencyPicker: (v: boolean) => void;
-  baseRateText: string;
-  setBaseRateText: (v: string) => void;
+  onCurrencyPress: () => void;
+  baseRate: number;
   setBaseRate: (v: number) => void;
-  otRateText: string;
-  setOtRateText: (v: string) => void;
+  overtimeRate: number;
   setOvertimeRate: (v: number) => void;
-};
+  paidLeaveHours: number;
+  setPaidLeaveHours: (v: number) => void;
+}
 
-export function PayEarningsSection({
+/** Number field that keeps the user's text while typing and saves every valid value. */
+function NumberField({
+  value,
+  onCommit,
   colors,
-  currencyCode,
-  setCurrencyCode,
-  showCurrencyPicker,
-  setShowCurrencyPicker,
-  baseRateText,
-  setBaseRateText,
-  setBaseRate,
-  otRateText,
-  setOtRateText,
-  setOvertimeRate,
-}: Props) {
+  prefix,
+  suffix,
+  max,
+  label,
+}: {
+  value: number;
+  onCommit: (v: number) => void;
+  colors: ThemeColors;
+  prefix?: string;
+  suffix: string;
+  max: number;
+  label: string;
+}) {
+  const [text, setText] = useState(value > 0 ? String(value) : '');
+  useEffect(() => {
+    setText((prev) => (parseFloat(prev || '0') === value ? prev : value > 0 ? String(value) : ''));
+  }, [value]);
+
+  return (
+    <View style={[styles.field, { backgroundColor: colors.surfaceVariant, borderColor: colors.border }]}>
+      {prefix ? <Text style={[styles.affix, { color: colors.textSecondary }]}>{prefix}</Text> : null}
+      <TextInput
+        value={text}
+        onChangeText={(t) => {
+          const cleaned = t.replace(',', '.').replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+          setText(cleaned);
+          const n = parseFloat(cleaned);
+          onCommit(Number.isFinite(n) ? Math.min(n, max) : 0);
+        }}
+        placeholder="0"
+        placeholderTextColor={colors.textMuted}
+        keyboardType="decimal-pad"
+        maxLength={9}
+        accessibilityLabel={label}
+        style={[styles.input, { color: colors.text }]}
+      />
+      <Text style={[styles.affix, { color: colors.textMuted }]}>{suffix}</Text>
+    </View>
+  );
+}
+
+export function PayEarningsSection(props: Props) {
+  const { colors } = props;
+  const currency = getCurrency(props.currencyCode);
   return (
     <>
-      <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>PAY & EARNINGS</Text>
-      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Text style={[styles.label, { color: colors.text }]}>Currency</Text>
-        <TouchableOpacity
-          style={[styles.monthPickerBtn, { backgroundColor: colors.surfaceVariant, borderColor: colors.border, marginBottom: 12 }]}
-          onPress={() => setShowCurrencyPicker(!showCurrencyPicker)}
-        >
-          <Text style={[styles.rateSymbol, { color: colors.primary }]}>{getCurrencySymbol(currencyCode)}</Text>
-          <Text style={[styles.monthPickerText, { color: colors.text }]}>
-            {CURRENCIES.find((c) => c.code === currencyCode)?.name || currencyCode}
-          </Text>
-          <MaterialCommunityIcons name={showCurrencyPicker ? 'chevron-up' : 'chevron-down'} size={20} color={colors.textSecondary} />
-        </TouchableOpacity>
-
-        {showCurrencyPicker && (
-          <View style={[styles.currencyGrid, { borderColor: colors.border }]}>
-            {CURRENCIES.map((c) => (
-              <TouchableOpacity
-                key={c.code}
-                style={[
-                  styles.currencyChip,
-                  {
-                    backgroundColor: currencyCode === c.code ? colors.primary : colors.surfaceVariant,
-                    borderColor: currencyCode === c.code ? colors.primary : colors.border,
-                  },
-                ]}
-                onPress={() => { setCurrencyCode(c.code); setShowCurrencyPicker(false); }}
-              >
-                <Text style={[styles.currencySymbol, { color: currencyCode === c.code ? '#FFF' : colors.primary }]}>
-                  {c.symbol}
-                </Text>
-                <Text style={[styles.currencyCode, { color: currencyCode === c.code ? '#FFFFFFCC' : colors.text }]}>
-                  {c.code}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        <Text style={[styles.label, { color: colors.text }]}>Base Hourly Rate</Text>
-        <Text style={[styles.hint, { color: colors.textSecondary }]}>
-          Your regular hourly pay rate for pay estimates.
-        </Text>
-        <View style={styles.rateRow}>
-          <Text style={[styles.rateSymbol, { color: colors.primary }]}>{getCurrencySymbol(currencyCode)}</Text>
-          <TextInput
-            style={[styles.rateInput, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
-            value={baseRateText}
-            onChangeText={(t) => {
-              const cleaned = t.replace(/[^0-9.]/g, '');
-              setBaseRateText(cleaned);
-            }}
-            onBlur={() => {
-              const val = parseFloat(baseRateText);
-              setBaseRate(!isNaN(val) && val >= 0 ? val : 0);
-            }}
-            placeholder="0.00"
-            placeholderTextColor={colors.textSecondary}
-            keyboardType="numeric"
-            maxLength={8}
-          />
-          <Text style={[styles.rateUnit, { color: colors.textSecondary }]}>/hour</Text>
-        </View>
-
-        <View style={[styles.divider, { backgroundColor: colors.border, marginVertical: 14 }]} />
-
-        <Text style={[styles.label, { color: colors.text }]}>Overtime Hourly Rate</Text>
-        <Text style={[styles.hint, { color: colors.textSecondary }]}>
-          Overtime hourly rate for extra hours logged.
-        </Text>
-        <View style={styles.rateRow}>
-          <Text style={[styles.rateSymbol, { color: colors.primary }]}>{getCurrencySymbol(currencyCode)}</Text>
-          <TextInput
-            style={[styles.rateInput, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
-            value={otRateText}
-            onChangeText={(t) => {
-              const cleaned = t.replace(/[^0-9.]/g, '');
-              setOtRateText(cleaned);
-            }}
-            onBlur={() => {
-              const val = parseFloat(otRateText);
-              setOvertimeRate(!isNaN(val) && val >= 0 ? val : 0);
-            }}
-            placeholder="0.00"
-            placeholderTextColor={colors.textSecondary}
-            keyboardType="numeric"
-            maxLength={8}
-          />
-          <Text style={[styles.rateUnit, { color: colors.textSecondary }]}>/hour</Text>
-        </View>
-      </View>
+      <SectionLabel colors={colors}>Pay</SectionLabel>
+      <SettingsCard colors={colors}>
+        <SettingsRow icon="cash-multiple" iconColor={colors.success} title="Currency" value={`${currency.symbol} · ${currency.code}`} colors={colors} onPress={props.onCurrencyPress} />
+        <SettingsRow
+          icon="briefcase-clock-outline"
+          title="Hourly rate"
+          subtitle="Used for pay estimates in Stats"
+          colors={colors}
+          right={<NumberField value={props.baseRate} onCommit={props.setBaseRate} colors={colors} prefix={currency.symbol} suffix="/h" max={1e6} label="Hourly rate" />}
+        />
+        <SettingsRow
+          icon="clock-plus-outline"
+          iconColor={colors.overtimeAccent}
+          title="Overtime rate"
+          subtitle="Per extra hour you log"
+          colors={colors}
+          right={<NumberField value={props.overtimeRate} onCommit={props.setOvertimeRate} colors={colors} prefix={currency.symbol} suffix="/h" max={1e6} label="Overtime rate" />}
+        />
+        <SettingsRow
+          icon="umbrella-beach"
+          iconColor={colors.success}
+          title="Paid leave day"
+          subtitle="Hours credited for each paid leave day"
+          colors={colors}
+          right={<NumberField value={props.paidLeaveHours} onCommit={props.setPaidLeaveHours} colors={colors} suffix="h" max={24} label="Hours per paid leave day" />}
+        />
+      </SettingsCard>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  sectionTitle: { fontSize: 13, fontWeight: '700', letterSpacing: 0.8, marginBottom: 8, marginTop: 16, marginLeft: 4 },
-  card: { borderRadius: 16, borderWidth: 1, padding: 16 },
-  label: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
-  hint: { fontSize: 12, lineHeight: 17, marginBottom: 8 },
-  divider: { height: 1 },
-  currencyGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14, paddingBottom: 14, borderBottomWidth: 1 },
-  currencyChip: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, gap: 4 },
-  currencySymbol: { fontSize: 14, fontWeight: '800' },
-  currencyCode: { fontSize: 12, fontWeight: '600' },
-  rateRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
-  rateSymbol: { fontSize: 20, fontWeight: '800' },
-  rateInput: { flex: 1, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 18, fontWeight: '700' },
-  rateUnit: { fontSize: 14, fontWeight: '600' },
-  monthPickerBtn: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, gap: 8 },
-  monthPickerText: { flex: 1, fontSize: 15, fontWeight: '600' },
+  // Fixed width: a TextInput's intrinsic width (large on web) must never squeeze the row's label.
+  field: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: 1, paddingHorizontal: 10, height: 42, width: 124 },
+  affix: { fontSize: 14, fontWeight: '700' },
+  input: { flex: 1, minWidth: 0, fontSize: 16, fontWeight: '800', textAlign: 'right', paddingHorizontal: 4, paddingVertical: 0 },
 });

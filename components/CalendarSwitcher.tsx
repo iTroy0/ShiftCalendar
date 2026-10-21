@@ -1,49 +1,49 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { CalendarInfo } from '../hooks/useShiftData';
+import { ThemeColors } from '../constants/colors';
+import { haptic } from '../utils/haptics';
+import { readableTextColor, withAlpha } from '../utils/color';
+import { Tap } from './ui/Tap';
 
 interface Props {
   calendars: CalendarInfo[];
   activeCalendarId: string;
   onSwitch: (calId: string) => void;
-  colors: {
-    text: string;
-    textSecondary: string;
-    border: string;
-  };
+  colors: ThemeColors;
 }
 
+/** Horizontal calendar chips; hidden when there is only one calendar. */
 export const CalendarSwitcher = React.memo(function CalendarSwitcher({ calendars, activeCalendarId, onSwitch, colors }: Props) {
   if (calendars.length <= 1) return null;
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={styles.scrollView}
-      contentContainerStyle={styles.container}
-    >
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scroll} contentContainerStyle={styles.container}>
       {calendars.map((cal) => {
-        const isActive = cal.id === activeCalendarId;
+        const active = cal.id === activeCalendarId;
         return (
-          <TouchableOpacity
+          <Tap
             key={cal.id}
+            onPress={() => {
+              if (active) return;
+              haptic.selection();
+              onSwitch(cal.id);
+            }}
+            accessibilityLabel={`${cal.name} calendar`}
+            accessibilityState={{ selected: active }}
             style={[
               styles.chip,
               {
-                backgroundColor: isActive ? cal.color : 'transparent',
-                borderColor: isActive ? cal.color : colors.border,
+                backgroundColor: active ? cal.color : withAlpha(cal.color, 0.1),
+                borderColor: active ? cal.color : withAlpha(cal.color, 0.3),
               },
             ]}
-            onPress={() => onSwitch(cal.id)}
-            accessibilityLabel={`${cal.name} calendar${isActive ? ', active' : ''}`}
-            accessibilityRole="button"
           >
-            <View style={[styles.dot, { backgroundColor: isActive ? '#FFF' : cal.color }]} />
-            <Text style={[styles.text, { color: isActive ? '#FFF' : colors.textSecondary }]}>
+            <View style={[styles.dot, { backgroundColor: active ? readableTextColor(cal.color) : cal.color }]} />
+            <Text style={[styles.text, { color: active ? readableTextColor(cal.color) : colors.text }]} numberOfLines={1}>
               {cal.name}
             </Text>
-          </TouchableOpacity>
+          </Tap>
         );
       })}
     </ScrollView>
@@ -51,26 +51,18 @@ export const CalendarSwitcher = React.memo(function CalendarSwitcher({ calendars
 });
 
 const styles = StyleSheet.create({
-  scrollView: {
-    flexGrow: 0,
-    flexShrink: 0,
-  },
-  container: {
-    paddingHorizontal: 16,
-    paddingTop: 2,
-    paddingBottom: 4,
-    gap: 6,
-    alignItems: 'center',
-  },
+  scroll: { flexGrow: 0, flexShrink: 0 },
+  container: { paddingHorizontal: 16, paddingVertical: 4, gap: 8, alignItems: 'center' },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
     borderWidth: 1,
-    gap: 5,
+    gap: 6,
+    minHeight: 32,
   },
-  dot: { width: 6, height: 6, borderRadius: 3 },
-  text: { fontSize: 12, fontWeight: '600' },
+  dot: { width: 7, height: 7, borderRadius: 3.5 },
+  text: { fontSize: 13, fontWeight: '700', maxWidth: 160 },
 });

@@ -1,0 +1,9 @@
+{
+  "name": "entry",
+  "version": "1.0.0",
+  "description": "Month calendar page for the watch",
+  "main": "",
+  "author": "",
+  "license": "MIT",
+  "dependencies": {}
+}

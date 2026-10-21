@@ -1,356 +1,282 @@
-import React, { useState, useMemo, useEffect, forwardRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  Alert,
-} from 'react-native';
-import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import React, { forwardRef, useCallback, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, Alert } from 'react-native';
+import { BottomSheetModal, BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
-import { ShiftType, AVAILABLE_COLORS, AVAILABLE_ICONS } from '../constants/shifts';
+import { useAppSettings } from '../hooks/SettingsContext';
+import { ShiftType, AVAILABLE_COLORS, AVAILABLE_ICONS, getShiftMinutes } from '../constants/shifts';
+import { formatHours, formatTimeRange, parseHHMM } from '../utils/time';
+import { readableTextColor, withAlpha } from '../utils/color';
+import { haptic } from '../utils/haptics';
 import { TimePicker } from './TimePicker';
+import { Tap } from './ui/Tap';
+import { Button, Segmented, SectionLabel } from './ui/primitives';
+import { SheetHeader, useSheetBackdrop, useSheetChrome } from './ui/sheet';
 
 interface Props {
   editingShift: ShiftType | null; // null = creating new
   existingCodes: string[];
+  canDelete: boolean;
   onSave: (shift: ShiftType) => void;
-  onDelete?: (code: string) => void;
-  onClose: () => void;
-  colors: {
-    surface: string;
-    surfaceVariant: string;
-    text: string;
-    textSecondary: string;
-    border: string;
-    background: string;
-    primary: string;
-  };
+  onDelete: (code: string) => void;
+  onDismiss: () => void;
 }
 
-export const ShiftEditor = forwardRef<BottomSheet, Props>(
-  ({ editingShift, existingCodes, onSave, onDelete, onClose, colors }, ref) => {
-    const snapPoints = useMemo(() => ['85%'], []);
-    const isEditing = editingShift !== null;
+function EditorContent({ editingShift, existingCodes, canDelete, onSave, onDelete, close }: Omit<Props, 'onDismiss'> & { close: () => void }) {
+  const { colors, timeFormat } = useAppSettings();
+  const isEditing = editingShift !== null;
+  const wasWorking = !editingShift || (!!parseHHMM(editingShift.startTime) && !!parseHHMM(editingShift.endTime));
 
-    const [code, setCode] = useState(editingShift?.code || '');
-    const [label, setLabel] = useState(editingShift?.label || '');
-    const [color, setColor] = useState(editingShift?.color || AVAILABLE_COLORS[0]);
-    const [icon, setIcon] = useState(editingShift?.icon || AVAILABLE_ICONS[0]);
-    const [startTime, setStartTime] = useState(editingShift?.startTime || '');
-    const [endTime, setEndTime] = useState(editingShift?.endTime || '');
+  const [label, setLabel] = useState(editingShift?.label ?? '');
+  const [code, setCode] = useState(editingShift?.code ?? '');
+  const [codeTouched, setCodeTouched] = useState(isEditing);
+  const [kind, setKind] = useState<'work' | 'off'>(wasWorking ? 'work' : 'off');
+  const [startTime, setStartTime] = useState(editingShift?.startTime || '09:00');
+  const [endTime, setEndTime] = useState(editingShift?.endTime || '17:00');
+  const [color, setColor] = useState(editingShift?.color ?? AVAILABLE_COLORS[existingCodes.length % AVAILABLE_COLORS.length]);
+  const [icon, setIcon] = useState(editingShift?.icon ?? (wasWorking ? 'briefcase' : 'home-variant'));
 
-    useEffect(() => {
-      setCode(editingShift?.code || '');
-      setLabel(editingShift?.label || '');
-      setColor(editingShift?.color || AVAILABLE_COLORS[0]);
-      setIcon(editingShift?.icon || AVAILABLE_ICONS[0]);
-      setStartTime(editingShift?.startTime || '');
-      setEndTime(editingShift?.endTime || '');
-    }, [editingShift]);
+  const working = kind === 'work';
+  const preview: ShiftType = {
+    code: code.trim().toUpperCase() || '?',
+    label: label.trim() || 'New shift',
+    color,
+    icon,
+    startTime: working ? startTime : '',
+    endTime: working ? endTime : '',
+    isDefault: editingShift?.isDefault ?? false,
+  };
+  const minutes = working ? getShiftMinutes(preview) : 0;
+  const overnight = working && (parseHHMM(endTime)![0] * 60 + parseHHMM(endTime)![1]) <= (parseHHMM(startTime)![0] * 60 + parseHHMM(startTime)![1]);
+  const fg = readableTextColor(color);
 
-    const handleSave = () => {
-      if (!code.trim()) {
-        Alert.alert('Error', 'Shift code is required (1-3 characters)');
-        return;
-      }
-      if (code.trim().length > 3) {
-        Alert.alert('Error', 'Shift code must be 1-3 characters');
-        return;
-      }
-      if (!label.trim()) {
-        Alert.alert('Error', 'Shift label is required');
-        return;
-      }
-      const trimmedCode = code.trim().toUpperCase();
-      const isDuplicate = existingCodes.includes(trimmedCode);
-      const isOwnCode = isEditing && editingShift?.code === trimmedCode;
-      if (isDuplicate && !isOwnCode) {
-        Alert.alert('Error', 'This shift code already exists');
-        return;
-      }
+  const onLabelChange = (text: string) => {
+    setLabel(text);
+    // Suggest a code from the name until the user edits the code themselves.
+    if (!codeTouched) {
+      const suggestion = text.trim().split(/\s+/).map((w) => w[0] ?? '').join('').slice(0, 2).toUpperCase();
+      setCode(suggestion);
+    }
+  };
 
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      onSave({
-        code: code.trim().toUpperCase(),
-        label: label.trim(),
-        color,
-        icon,
-        startTime: startTime.trim(),
-        endTime: endTime.trim(),
-        isDefault: false,
-      });
-    };
+  const save = () => {
+    const trimmedCode = code.trim().toUpperCase();
+    if (!label.trim()) {
+      Alert.alert('Name needed', 'Give this shift a name, like “Evening” or “Long day”.');
+      return;
+    }
+    if (!trimmedCode) {
+      Alert.alert('Code needed', 'Add a short code (1–3 characters) — it’s what you see on the calendar.');
+      return;
+    }
+    const taken = existingCodes.some((c) => c.toUpperCase() === trimmedCode && c !== editingShift?.code);
+    if (taken) {
+      Alert.alert('Code already used', `Another shift already uses “${trimmedCode}”. Pick a different code.`);
+      return;
+    }
+    haptic.success();
+    onSave({ ...preview, code: trimmedCode, label: label.trim() });
+    close();
+  };
 
-    const handleDelete = () => {
-      if (!onDelete || !editingShift) return;
-      Alert.alert(
-        'Delete Shift',
-        `Delete "${editingShift.label}"? All assignments will be removed.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: () => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-              onDelete(editingShift.code);
-            },
-          },
-        ]
-      );
-    };
+  const confirmDelete = () => {
+    if (!editingShift) return;
+    Alert.alert('Delete shift?', `“${editingShift.label}” will be removed from every calendar it’s used in.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          haptic.heavy();
+          onDelete(editingShift.code);
+          close();
+        },
+      },
+    ]);
+  };
 
-    return (
-      <BottomSheet
-        ref={ref}
-        index={0}
-        snapPoints={snapPoints}
-        enablePanDownToClose
-        onClose={onClose}
-        backgroundStyle={{ backgroundColor: colors.surface, borderRadius: 24 }}
-        handleIndicatorStyle={{ backgroundColor: colors.textSecondary, width: 40 }}
-      >
-        <BottomSheetScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <Text style={[styles.title, { color: colors.text }]}>
-            {isEditing ? 'Edit Shift' : 'New Shift'}
+  return (
+    <View>
+      <SheetHeader title={isEditing ? 'Edit shift' : 'New shift'} colors={colors} onClose={close} />
+
+      <View style={[styles.preview, { backgroundColor: withAlpha(color, 0.12), borderColor: withAlpha(color, 0.35) }]}>
+        <View style={[styles.previewBadge, { backgroundColor: color }]}>
+          <MaterialCommunityIcons name={icon as any} size={22} color={fg} />
+        </View>
+        <View style={styles.flex}>
+          <Text style={[styles.previewLabel, { color: colors.text }]} numberOfLines={1}>
+            {preview.label}
           </Text>
+          <Text style={[styles.previewTime, { color: colors.textSecondary }]}>
+            {working ? `${formatTimeRange(startTime, endTime, timeFormat)} · ${formatHours(minutes / 60)}${overnight ? ' · overnight' : ''}` : 'Day off · no hours'}
+          </Text>
+        </View>
+        <View style={[styles.previewPill, { backgroundColor: color }]}>
+          <Text style={[styles.previewPillText, { color: fg }]}>{preview.code}</Text>
+        </View>
+      </View>
 
-          {/* Code */}
-          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>CODE</Text>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.surfaceVariant,
-                color: colors.text,
-                borderColor: colors.border,
-              },
-            ]}
-            value={code}
-            onChangeText={(t) => setCode(t.toUpperCase().slice(0, 3))}
-            placeholder="e.g. E"
-            placeholderTextColor={colors.textSecondary}
-            maxLength={3}
-            autoCapitalize="characters"
-          />
-
-          {/* Label */}
-          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>LABEL</Text>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.surfaceVariant,
-                color: colors.text,
-                borderColor: colors.border,
-              },
-            ]}
+      <View style={styles.fieldsRow}>
+        <View style={styles.nameField}>
+          <SectionLabel colors={colors} style={styles.fieldLabel}>Name</SectionLabel>
+          <BottomSheetTextInput
             value={label}
-            onChangeText={setLabel}
+            onChangeText={onLabelChange}
             placeholder="e.g. Evening"
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={colors.textMuted}
+            maxLength={24}
+            accessibilityLabel="Shift name"
+            style={[styles.input, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
           />
+        </View>
+        <View style={styles.codeField}>
+          <SectionLabel colors={colors} style={styles.fieldLabel}>Code</SectionLabel>
+          <BottomSheetTextInput
+            value={code}
+            onChangeText={(t) => {
+              setCodeTouched(true);
+              setCode(t.replace(/\s/g, '').toUpperCase().slice(0, 3));
+            }}
+            placeholder="EV"
+            placeholderTextColor={colors.textMuted}
+            autoCapitalize="characters"
+            maxLength={3}
+            accessibilityLabel="Shift code, up to 3 characters"
+            style={[styles.input, styles.codeInput, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
+          />
+        </View>
+      </View>
 
-          {/* Times */}
-          <View style={styles.timeRow}>
-            <TimePicker
-              label="START TIME"
-              value={startTime || '00:00'}
-              onChange={setStartTime}
-              accentColor={color}
-              colors={colors}
-            />
-            <TimePicker
-              label="END TIME"
-              value={endTime || '00:00'}
-              onChange={setEndTime}
-              accentColor={color}
-              colors={colors}
-            />
-          </View>
+      <SectionLabel colors={colors}>Type</SectionLabel>
+      <Segmented
+        options={[
+          { value: 'work', label: 'Working shift', icon: 'briefcase-outline' },
+          { value: 'off', label: 'Day off', icon: 'home-outline' },
+        ]}
+        value={kind}
+        onChange={(v) => {
+          haptic.selection();
+          setKind(v as 'work' | 'off');
+        }}
+        colors={colors}
+      />
 
-          {/* Color picker */}
-          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>COLOR</Text>
-          <View style={styles.colorGrid}>
-            {AVAILABLE_COLORS.map((c) => (
-              <TouchableOpacity
-                key={c}
-                style={[
-                  styles.colorSwatch,
-                  { backgroundColor: c, borderColor: color === c ? '#FFF' : 'transparent' },
-                ]}
-                onPress={() => setColor(c)}
-                accessibilityLabel={`Color ${c}${color === c ? ', selected' : ''}`}
-                accessibilityRole="button"
-              >
-                {color === c && (
-                  <MaterialCommunityIcons name="check" size={18} color="#FFF" />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
+      {working && (
+        <View style={styles.timeRow}>
+          <TimePicker label="Starts" value={startTime} onChange={setStartTime} accentColor={color} timeFormat={timeFormat} colors={colors} />
+          <TimePicker label="Ends" value={endTime} onChange={setEndTime} accentColor={color} timeFormat={timeFormat} colors={colors} />
+        </View>
+      )}
 
-          {/* Icon picker */}
-          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>ICON</Text>
-          <View style={styles.iconGrid}>
-            {AVAILABLE_ICONS.map((ic) => (
-              <TouchableOpacity
-                key={ic}
-                style={[
-                  styles.iconSwatch,
-                  {
-                    backgroundColor: icon === ic ? color + '30' : colors.surfaceVariant,
-                    borderColor: icon === ic ? color : colors.border,
-                  },
-                ]}
-                onPress={() => setIcon(ic)}
-                accessibilityLabel={`Icon ${ic}${icon === ic ? ', selected' : ''}`}
-                accessibilityRole="button"
-              >
-                <MaterialCommunityIcons
-                  name={ic as any}
-                  size={22}
-                  color={icon === ic ? color : colors.textSecondary}
-                />
-              </TouchableOpacity>
-            ))}
-          </View>
+      <SectionLabel colors={colors}>Color</SectionLabel>
+      <View style={styles.swatches}>
+        {AVAILABLE_COLORS.map((c) => {
+          const selected = c === color;
+          return (
+            <Tap
+              key={c}
+              onPress={() => {
+                haptic.selection();
+                setColor(c);
+              }}
+              accessibilityLabel={`Color ${c}`}
+              accessibilityState={{ selected }}
+              style={[styles.swatchRing, { borderColor: selected ? colors.text : 'transparent' }]}
+            >
+              <View style={[styles.swatch, { backgroundColor: c }]}>
+                {selected && <MaterialCommunityIcons name="check" size={18} color={readableTextColor(c)} />}
+              </View>
+            </Tap>
+          );
+        })}
+      </View>
 
-          {/* Preview */}
-          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>PREVIEW</Text>
-          <View style={[styles.preview, { backgroundColor: color + '18', borderColor: color + '40' }]}>
-            <View style={[styles.previewBadge, { backgroundColor: color }]}>
-              <Text style={styles.previewBadgeText}>{code || '?'}</Text>
-            </View>
-            <MaterialCommunityIcons name={icon as any} size={24} color={color} />
-            <Text style={[styles.previewLabel, { color }]}>{label || 'Shift Name'}</Text>
-          </View>
+      <SectionLabel colors={colors}>Icon</SectionLabel>
+      <View style={styles.icons}>
+        {AVAILABLE_ICONS.map((ic) => {
+          const selected = ic === icon;
+          return (
+            <Tap
+              key={ic}
+              onPress={() => {
+                haptic.selection();
+                setIcon(ic);
+              }}
+              accessibilityLabel={`Icon ${ic.replace(/-/g, ' ')}`}
+              accessibilityState={{ selected }}
+              style={[
+                styles.iconCell,
+                { backgroundColor: selected ? color : colors.surfaceVariant, borderColor: selected ? color : colors.border },
+              ]}
+            >
+              <MaterialCommunityIcons name={ic as any} size={22} color={selected ? fg : colors.textSecondary} />
+            </Tap>
+          );
+        })}
+      </View>
 
-          {/* Actions */}
-          <TouchableOpacity style={[styles.saveButton, { backgroundColor: colors.primary }]} onPress={handleSave} accessibilityLabel="Save shift" accessibilityRole="button">
-            <Text style={styles.saveButtonText}>{isEditing ? 'Save Changes' : 'Create Shift'}</Text>
-          </TouchableOpacity>
+      <Button label={isEditing ? 'Save changes' : 'Create shift'} icon="check" onPress={save} colors={colors} style={styles.saveBtn} />
+      {isEditing && canDelete && (
+        <Button label="Delete shift" icon="delete-outline" variant="danger" onPress={confirmDelete} colors={colors} style={styles.deleteBtn} />
+      )}
+    </View>
+  );
+}
 
-          {isEditing && onDelete && (
-            <TouchableOpacity style={styles.deleteButton} onPress={handleDelete} accessibilityLabel="Delete shift" accessibilityRole="button">
-              <MaterialCommunityIcons name="delete-outline" size={20} color="#EF4444" />
-              <Text style={styles.deleteButtonText}>Delete Shift</Text>
-            </TouchableOpacity>
-          )}
+export const ShiftEditor = forwardRef<BottomSheetModal, Props>(function ShiftEditor(props, ref) {
+  const { colors } = useAppSettings();
+  const chrome = useSheetChrome(colors);
+  const backdrop = useSheetBackdrop(0);
+  const insets = useSafeAreaInsets();
+  const snapPoints = useMemo(() => ['92%'], []);
+  const close = useCallback(() => {
+    if (ref && typeof ref !== 'function') ref.current?.dismiss();
+  }, [ref]);
 
-          <View style={{ height: 40 }} />
-        </BottomSheetScrollView>
-      </BottomSheet>
-    );
-  }
-);
+  return (
+    <BottomSheetModal
+      ref={ref}
+      snapPoints={snapPoints}
+      enableDynamicSizing={false}
+      onDismiss={props.onDismiss}
+      backdropComponent={backdrop}
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
+      android_keyboardInputMode="adjustResize"
+      {...chrome}
+    >
+      <BottomSheetScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <EditorContent key={props.editingShift?.code ?? 'new'} {...props} close={close} />
+      </BottomSheetScrollView>
+    </BottomSheetModal>
+  );
+});
 
 const styles = StyleSheet.create({
-  content: {
-    paddingHorizontal: 20,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    marginBottom: 18,
-  },
-  fieldLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1,
-    marginBottom: 6,
-    marginTop: 12,
-  },
-  input: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  timeRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  timeField: {
-    flex: 1,
-  },
-  colorGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  colorSwatch: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    borderWidth: 2.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  iconSwatch: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  preview: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    gap: 12,
-  },
-  previewBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  previewBadgeText: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  previewLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  saveButton: {
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  saveButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  deleteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    marginTop: 10,
-    gap: 6,
-  },
-  deleteButtonText: {
-    color: '#EF4444',
-    fontSize: 15,
-    fontWeight: '600',
-  },
+  flex: { flex: 1 },
+  content: { paddingHorizontal: 20, paddingTop: 4 },
+  preview: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 18, borderWidth: 1 },
+  previewBadge: { width: 46, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  previewLabel: { fontSize: 17, fontWeight: '800' },
+  previewTime: { fontSize: 13, fontWeight: '600', marginTop: 2 },
+  previewPill: { minWidth: 36, height: 28, borderRadius: 9, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  previewPillText: { fontSize: 13, fontWeight: '800' },
+  fieldsRow: { flexDirection: 'row', gap: 12 },
+  nameField: { flex: 1 },
+  codeField: { width: 92 },
+  fieldLabel: { marginTop: 18 },
+  input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, height: 48, fontSize: 16, fontWeight: '600' },
+  codeInput: { textAlign: 'center', fontWeight: '800', letterSpacing: 1 },
+  timeRow: { flexDirection: 'row', gap: 12, marginTop: 14 },
+  swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  swatchRing: { padding: 2, borderRadius: 14, borderWidth: 2 },
+  swatch: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  icons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  iconCell: { width: 46, height: 46, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  saveBtn: { marginTop: 24 },
+  deleteBtn: { marginTop: 10 },
 });

@@ -1,137 +1,84 @@
 import React from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { AVAILABLE_COLORS } from '../../constants/shifts';
+import { CalendarInfo } from '../../hooks/useShiftData';
+import { ThemeColors } from '../../constants/colors';
+import { withAlpha } from '../../utils/color';
+import { haptic } from '../../utils/haptics';
+import { Tap } from '../ui/Tap';
+import { SectionLabel } from '../ui/primitives';
+import { SettingsCard, SettingsRow } from './SettingsRow';
 
-type Calendar = { id: string; name: string; color: string };
+interface Props {
+  colors: ThemeColors;
+  calendars: CalendarInfo[];
+  activeCalendarId: string;
+  primaryCalendarId: string;
+  onSwitch: (id: string) => void;
+  onEdit: (calendar: CalendarInfo) => void;
+  onNew: () => void;
+}
 
-type Props = {
-  colors: any;
-  calendars: Calendar[];
-  activeCalendar: Calendar;
-  showNewCal: boolean;
-  setShowNewCal: (v: boolean) => void;
-  newCalName: string;
-  setNewCalName: (v: string) => void;
-  newCalColor: string;
-  setNewCalColor: (v: string) => void;
-  onAddCalendar: () => void;
-  onDeleteCalendar: (id: string, name: string) => void;
-};
-
-export function CalendarsSection({
-  colors,
-  calendars,
-  activeCalendar,
-  showNewCal,
-  setShowNewCal,
-  newCalName,
-  setNewCalName,
-  newCalColor,
-  setNewCalColor,
-  onAddCalendar,
-  onDeleteCalendar,
-}: Props) {
+export function CalendarsSection({ colors, calendars, activeCalendarId, primaryCalendarId, onSwitch, onEdit, onNew }: Props) {
   return (
     <>
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>CALENDARS</Text>
-        <TouchableOpacity
-          onPress={() => setShowNewCal(!showNewCal)}
-          style={[styles.addButton, { backgroundColor: colors.primary }]}
-        >
-          <MaterialCommunityIcons name="plus" size={16} color="#FFF" />
-          <Text style={styles.addButtonText}>New</Text>
-        </TouchableOpacity>
-      </View>
-      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        {calendars.map((cal, i) => (
-          <React.Fragment key={cal.id}>
-            {i > 0 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
-            <View style={styles.calRow}>
-              <View style={[styles.calDot, { backgroundColor: cal.color }]} />
-              <Text
-                style={[
-                  styles.calName,
-                  { color: cal.id === activeCalendar.id ? colors.primary : colors.text },
-                ]}
-              >
-                {cal.name}
-              </Text>
-              {cal.id === activeCalendar.id && (
-                <View style={[styles.activeBadge, { backgroundColor: colors.primary + '20' }]}>
-                  <Text style={[styles.activeBadgeText, { color: colors.primary }]}>Active</Text>
-                </View>
-              )}
-              {cal.id !== 'default' && (
-                <TouchableOpacity
-                  onPress={() => onDeleteCalendar(cal.id, cal.name)}
-                  style={styles.calDeleteBtn}
-                >
-                  <MaterialCommunityIcons name="delete-outline" size={18} color={colors.textSecondary} />
-                </TouchableOpacity>
-              )}
-            </View>
-          </React.Fragment>
-        ))}
-
-        {showNewCal && (
-          <>
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
-            <View style={styles.newCalForm}>
-              <TextInput
-                style={[
-                  styles.newCalInput,
-                  { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border },
-                ]}
-                value={newCalName}
-                onChangeText={setNewCalName}
-                placeholder="Calendar name (e.g. Team A)"
-                placeholderTextColor={colors.textSecondary}
-              />
-              <View style={styles.newCalColors}>
-                {AVAILABLE_COLORS.slice(0, 8).map((c) => (
-                  <TouchableOpacity
-                    key={c}
-                    style={[
-                      styles.newCalColorDot,
-                      { backgroundColor: c, borderColor: newCalColor === c ? '#FFF' : 'transparent' },
-                    ]}
-                    onPress={() => setNewCalColor(c)}
-                  />
-                ))}
+      <SectionLabel colors={colors}>Calendars</SectionLabel>
+      <SettingsCard colors={colors}>
+        {calendars.map((cal) => {
+          const active = cal.id === activeCalendarId;
+          const primary = cal.id === primaryCalendarId && calendars.length > 1;
+          return (
+            <Tap
+              key={cal.id}
+              onPress={() => {
+                if (active) return;
+                haptic.selection();
+                onSwitch(cal.id);
+              }}
+              activeOpacity={0.6}
+              accessibilityLabel={`${cal.name}${active ? ', currently shown' : '. Tap to show this calendar'}`}
+              style={styles.row}
+            >
+              <View style={[styles.dot, { backgroundColor: cal.color }]} />
+              <View style={styles.info}>
+                <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
+                  {cal.name}
+                </Text>
+                {(active || primary) && (
+                  <View style={styles.badges}>
+                    {active && (
+                      <View style={[styles.badge, { backgroundColor: withAlpha(colors.primary, 0.14) }]}>
+                        <Text style={[styles.badgeText, { color: colors.primaryText }]}>Showing</Text>
+                      </View>
+                    )}
+                    {primary && (
+                      <View style={[styles.badge, { backgroundColor: withAlpha(colors.warning, 0.14) }]}>
+                        <MaterialCommunityIcons name="bell-outline" size={11} color={colors.warning} />
+                        <Text style={[styles.badgeText, { color: colors.warning }]}>Reminders & widget</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
               </View>
-              <TouchableOpacity
-                style={[styles.newCalSave, { backgroundColor: colors.primary }]}
-                onPress={onAddCalendar}
-              >
-                <Text style={styles.newCalSaveText}>Create Calendar</Text>
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
-      </View>
+              <Tap onPress={() => onEdit(cal)} accessibilityLabel={`Edit ${cal.name}`} style={[styles.editBtn, { backgroundColor: colors.surfaceVariant }]}>
+                <MaterialCommunityIcons name="pencil-outline" size={17} color={colors.textSecondary} />
+              </Tap>
+            </Tap>
+          );
+        })}
+        <SettingsRow icon="plus" title="Add calendar" subtitle="Track a team rotation or someone else’s shifts" colors={colors} onPress={onNew} chevron={false} />
+      </SettingsCard>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sectionTitle: { fontSize: 13, fontWeight: '700', letterSpacing: 0.8, marginBottom: 8, marginTop: 16, marginLeft: 4 },
-  addButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, gap: 4, marginTop: 10 },
-  addButtonText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
-  card: { borderRadius: 16, borderWidth: 1, padding: 16 },
-  divider: { height: 1 },
-  calRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 10 },
-  calDot: { width: 10, height: 10, borderRadius: 5 },
-  calName: { flex: 1, fontSize: 15, fontWeight: '600' },
-  activeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  activeBadgeText: { fontSize: 11, fontWeight: '700' },
-  calDeleteBtn: { padding: 4 },
-  newCalForm: { marginTop: 10, gap: 10 },
-  newCalInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15 },
-  newCalColors: { flexDirection: 'row', gap: 8 },
-  newCalColorDot: { width: 28, height: 28, borderRadius: 8, borderWidth: 2.5 },
-  newCalSave: { paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
-  newCalSaveText: { color: '#FFF', fontSize: 14, fontWeight: '700' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: 18, paddingRight: 12, paddingVertical: 12, minHeight: 58 },
+  dot: { width: 14, height: 14, borderRadius: 7 },
+  info: { flex: 1, gap: 4 },
+  name: { fontSize: 15, fontWeight: '700' },
+  badges: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  badge: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
+  badgeText: { fontSize: 11, fontWeight: '800' },
+  editBtn: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
 });

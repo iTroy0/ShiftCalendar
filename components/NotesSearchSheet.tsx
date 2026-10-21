@@ -1,173 +1,207 @@
-import React, { forwardRef, useMemo, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
-import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import React, { forwardRef, useCallback, useMemo, useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { BottomSheetModal, BottomSheetFlatList, BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
-import { NotesData } from '../hooks/useShiftData';
+import { useShifts } from '../hooks/ShiftContext';
+import { useAppSettings } from '../hooks/SettingsContext';
+import { daysBetweenKeys, fromDateKey, todayKey } from '../utils/dates';
+import { readableTextColor, withAlpha } from '../utils/color';
+import { Tap } from './ui/Tap';
+import { EmptyState } from './ui/primitives';
+import { SheetHeader, useSheetBackdrop, useSheetChrome } from './ui/sheet';
 
 interface Props {
-  notesData: NotesData;
-  onSelectDate: (date: string) => void;
-  colors: {
-    surface: string;
-    surfaceVariant: string;
-    text: string;
-    textSecondary: string;
-    border: string;
-    primary: string;
-    background: string;
-  };
+  onSelectDate: (dateKey: string) => void;
+  onDismiss?: () => void;
 }
 
-export const NotesSearchSheet = forwardRef<BottomSheet, Props>(
-  ({ notesData, onSelectDate, colors }, ref) => {
-    const snapPoints = useMemo(() => ['55%', '85%'], []);
-    const [query, setQuery] = useState('');
+function relativeLabel(date: string, today: string) {
+  const diff = daysBetweenKeys(today, date);
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Tomorrow';
+  if (diff === -1) return 'Yesterday';
+  if (diff > 1 && diff < 60) return `In ${diff} days`;
+  if (diff < -1 && diff > -60) return `${-diff} days ago`;
+  return format(fromDateKey(date), 'yyyy');
+}
 
-    const results = useMemo(() => {
-      const entries = Object.entries(notesData);
-      if (!query.trim()) {
-        // Show all notes sorted by date descending
-        return entries.sort(([a], [b]) => b.localeCompare(a));
-      }
-      const q = query.toLowerCase();
-      return entries
-        .filter(([, note]) => note.toLowerCase().includes(q))
-        .sort(([a], [b]) => b.localeCompare(a));
-    }, [notesData, query]);
+function highlight(text: string, query: string) {
+  if (!query) return [{ text, match: false }];
+  const parts: { text: string; match: boolean }[] = [];
+  const lower = text.toLowerCase();
+  const q = query.toLowerCase();
+  let i = 0;
+  while (i < text.length) {
+    const idx = lower.indexOf(q, i);
+    if (idx < 0) {
+      parts.push({ text: text.slice(i), match: false });
+      break;
+    }
+    if (idx > i) parts.push({ text: text.slice(i, idx), match: false });
+    parts.push({ text: text.slice(idx, idx + q.length), match: true });
+    i = idx + q.length;
+  }
+  return parts;
+}
 
-    const handleSelect = useCallback(
-      (date: string) => {
-        onSelectDate(date);
-        if (ref && typeof ref !== 'function' && ref.current) {
-          ref.current.close();
+/** Search every note in the active calendar; upcoming notes are listed first. */
+export const NotesSearchSheet = forwardRef<BottomSheetModal, Props>(function NotesSearchSheet({ onSelectDate, onDismiss }, ref) {
+  const { colors } = useAppSettings();
+  const { notesData, shiftData, leaveData, getShiftByCode, getLeaveType } = useShifts();
+  const chrome = useSheetChrome(colors);
+  const backdrop = useSheetBackdrop(0);
+  const insets = useSafeAreaInsets();
+  const snapPoints = useMemo(() => ['70%', '92%'], []);
+  const [query, setQuery] = useState('');
+  const today = todayKey();
+
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const entries = Object.entries(notesData).filter(([, note]) => !q || note.toLowerCase().includes(q));
+    const upcoming = entries.filter(([d]) => d >= today).sort(([a], [b]) => a.localeCompare(b));
+    const past = entries.filter(([d]) => d < today).sort(([a], [b]) => b.localeCompare(a));
+    return [...upcoming, ...past];
+  }, [notesData, query, today]);
+
+  const close = useCallback(() => {
+    if (ref && typeof ref !== 'function') ref.current?.dismiss();
+  }, [ref]);
+
+  const select = useCallback(
+    (date: string) => {
+      close();
+      onSelectDate(date);
+    },
+    [close, onSelectDate]
+  );
+
+  return (
+    <BottomSheetModal
+      ref={ref}
+      snapPoints={snapPoints}
+      enableDynamicSizing={false}
+      backdropComponent={backdrop}
+      keyboardBehavior="extend"
+      keyboardBlurBehavior="restore"
+      android_keyboardInputMode="adjustResize"
+      onDismiss={() => {
+        setQuery('');
+        onDismiss?.();
+      }}
+      {...chrome}
+    >
+      <View style={styles.top}>
+        <SheetHeader
+          title="Notes"
+          subtitle={`${results.length} ${results.length === 1 ? 'note' : 'notes'}${query ? ' found' : ''}`}
+          colors={colors}
+          onClose={close}
+        />
+        <View style={[styles.searchRow, { backgroundColor: colors.surfaceVariant, borderColor: colors.border }]}>
+          <MaterialCommunityIcons name="magnify" size={20} color={colors.textSecondary} />
+          <BottomSheetTextInput
+            style={[styles.searchInput, { color: colors.text }]}
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search notes"
+            placeholderTextColor={colors.textMuted}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
+            accessibilityLabel="Search notes"
+          />
+          {query.length > 0 && (
+            <Tap onPress={() => setQuery('')} accessibilityLabel="Clear search">
+              <MaterialCommunityIcons name="close-circle" size={18} color={colors.textSecondary} />
+            </Tap>
+          )}
+        </View>
+      </View>
+      <BottomSheetFlatList
+        data={results}
+        keyExtractor={(entry: [string, string]) => entry[0]}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]}
+        ListEmptyComponent={
+          <EmptyState
+            icon={query ? 'file-search-outline' : 'note-text-outline'}
+            title={query ? 'No matching notes' : 'No notes yet'}
+            message={query ? 'Try a different word.' : 'Open any day and add a note — it will show up here.'}
+            colors={colors}
+          />
         }
-      },
-      [onSelectDate, ref]
-    );
-
-    const formatDateLabel = (dateStr: string) => {
-      try {
-        return format(new Date(dateStr + 'T00:00:00'), 'EEE, d MMM yyyy');
-      } catch {
-        return dateStr;
-      }
-    };
-
-    return (
-      <BottomSheet
-        ref={ref}
-        index={-1}
-        snapPoints={snapPoints}
-        enablePanDownToClose
-        backgroundStyle={{ backgroundColor: colors.surface, borderRadius: 24 }}
-        handleIndicatorStyle={{ backgroundColor: colors.textSecondary + '80', width: 36 }}
-      >
-        <View style={styles.header}>
-          <MaterialCommunityIcons name="note-search-outline" size={20} color={colors.primary} />
-          <Text style={[styles.title, { color: colors.text }]}>Search Notes</Text>
-          <Text style={[styles.count, { color: colors.textSecondary }]}>
-            {results.length} {results.length === 1 ? 'note' : 'notes'}
-          </Text>
-        </View>
-
-        <View style={styles.searchWrap}>
-          <View style={[styles.searchRow, { backgroundColor: colors.surfaceVariant, borderColor: colors.border }]}>
-            <MaterialCommunityIcons name="magnify" size={18} color={colors.textSecondary} />
-            <TextInput
-              style={[styles.searchInput, { color: colors.text }]}
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Search notes..."
-              placeholderTextColor={colors.textSecondary}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            {query.length > 0 && (
-              <TouchableOpacity onPress={() => setQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <MaterialCommunityIcons name="close-circle" size={16} color={colors.textSecondary} />
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        <BottomSheetScrollView
-          style={styles.list}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {results.length === 0 ? (
-            <View style={styles.empty}>
-              <MaterialCommunityIcons
-                name={query ? 'file-search-outline' : 'note-off-outline'}
-                size={40}
-                color={colors.textSecondary + '50'}
-              />
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                {query ? 'No notes match your search' : 'No notes yet'}
-              </Text>
-            </View>
-          ) : (
-            results.map(([date, note]) => (
-              <TouchableOpacity
-                key={date}
-                style={[styles.noteCard, { backgroundColor: colors.surfaceVariant, borderColor: colors.border }]}
-                onPress={() => handleSelect(date)}
-                activeOpacity={0.6}
+        renderItem={({ item: [date, note], index }: { item: [string, string]; index: number }) => {
+          const d = fromDateKey(date);
+          const leave = leaveData[date] ? getLeaveType(leaveData[date]) : undefined;
+          const shift = !leave && shiftData[date] ? getShiftByCode(shiftData[date]) : undefined;
+          const tag = leave ?? shift;
+          const isPastStart = date < today && (index === 0 || results[index - 1][0] >= today);
+          return (
+            <View>
+              {isPastStart && <Text style={[styles.groupLabel, { color: colors.textMuted }]}>Earlier</Text>}
+              {index === 0 && date >= today && <Text style={[styles.groupLabel, { color: colors.textMuted }]}>Upcoming</Text>}
+              <Tap
+                onPress={() => select(date)}
+                activeOpacity={0.7}
+                accessibilityLabel={`${format(d, 'EEEE d MMMM yyyy')}: ${note}`}
+                style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
               >
-                <View style={styles.noteCardHeader}>
-                  <MaterialCommunityIcons name="calendar" size={14} color={colors.primary} />
-                  <Text style={[styles.noteDate, { color: colors.primary }]}>
-                    {formatDateLabel(date)}
+                <View style={[styles.dateBox, { backgroundColor: withAlpha(colors.primary, 0.12) }]}>
+                  <Text style={[styles.dateMonth, { color: colors.primaryText }]}>{format(d, 'MMM')}</Text>
+                  <Text style={[styles.dateDay, { color: colors.text }]}>{d.getDate()}</Text>
+                </View>
+                <View style={styles.cardBody}>
+                  <View style={styles.cardTop}>
+                    <Text style={[styles.cardDate, { color: colors.textSecondary }]}>
+                      {format(d, 'EEEE')} · {relativeLabel(date, today)}
+                    </Text>
+                    {tag && (
+                      <View style={[styles.tag, { backgroundColor: tag.color }]}>
+                        <Text style={[styles.tagText, { color: readableTextColor(tag.color) }]}>{tag.code}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={[styles.note, { color: colors.text }]} numberOfLines={3}>
+                    {highlight(note, query.trim()).map((p, i) => (
+                      <Text key={i} style={p.match ? { backgroundColor: withAlpha(colors.noteAccent, 0.35), fontWeight: '700' } : undefined}>
+                        {p.text}
+                      </Text>
+                    ))}
                   </Text>
                 </View>
-                <Text
-                  style={[styles.notePreview, { color: colors.text }]}
-                  numberOfLines={2}
-                >
-                  {note}
-                </Text>
-              </TouchableOpacity>
-            ))
-          )}
-          <View style={{ height: 40 }} />
-        </BottomSheetScrollView>
-      </BottomSheet>
-    );
-  }
-);
+              </Tap>
+            </View>
+          );
+        }}
+      />
+    </BottomSheetModal>
+  );
+});
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 10,
-    gap: 8,
-  },
-  title: { fontSize: 18, fontWeight: '800', flex: 1 },
-  count: { fontSize: 12, fontWeight: '600' },
-  searchWrap: { paddingHorizontal: 20, marginBottom: 10 },
+  top: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 8 },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 8,
-  },
-  searchInput: { flex: 1, fontSize: 14, padding: 0 },
-  list: { paddingHorizontal: 20 },
-  empty: { alignItems: 'center', paddingTop: 40, gap: 10 },
-  emptyText: { fontSize: 14, fontWeight: '600' },
-  noteCard: {
     borderRadius: 14,
     borderWidth: 1,
-    padding: 12,
-    marginBottom: 8,
+    paddingHorizontal: 12,
+    height: 46,
+    gap: 8,
   },
-  noteCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
-  noteDate: { fontSize: 12, fontWeight: '700' },
-  notePreview: { fontSize: 13, lineHeight: 18 },
+  searchInput: { flex: 1, fontSize: 15, paddingVertical: 0 },
+  list: { paddingHorizontal: 20, gap: 8 },
+  groupLabel: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8, marginTop: 8, marginBottom: 6 },
+  card: { flexDirection: 'row', gap: 12, padding: 12, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth },
+  dateBox: { width: 48, height: 52, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  dateMonth: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
+  dateDay: { fontSize: 19, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  cardBody: { flex: 1, gap: 4 },
+  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  cardDate: { flex: 1, fontSize: 12, fontWeight: '700' },
+  tag: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
+  tagText: { fontSize: 11, fontWeight: '800' },
+  note: { fontSize: 14, lineHeight: 20 },
 });

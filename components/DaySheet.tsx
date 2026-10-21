@@ -1,622 +1,529 @@
-import React, { useCallback, useMemo, forwardRef, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Platform, Keyboard, Share } from 'react-native';
-import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import React, { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Share, useWindowDimensions } from 'react-native';
+import { BottomSheetModal, BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { format } from 'date-fns';
-import { ShiftType } from '../constants/shifts';
-import { SwapRequest } from '../hooks/useShiftData';
-import { LeaveType } from '../constants/leaveTypes';
-import { ShiftButton } from './ShiftButton';
+import { useShifts } from '../hooks/ShiftContext';
+import { useAppSettings } from '../hooks/SettingsContext';
+import { SwapRequest, AssignmentSnapshot } from '../hooks/useShiftData';
+import { ShiftType, getShiftHours, isWorkingShift } from '../constants/shifts';
+import { ThemeColors } from '../constants/colors';
+import { Radius } from '../constants/theme';
+import { fromDateKey, todayKey } from '../utils/dates';
+import { formatHours, formatTimeRange } from '../utils/time';
+import { readableTextColor, withAlpha } from '../utils/color';
+import { haptic } from '../utils/haptics';
+import { Tap } from './ui/Tap';
+import { Button, Chip, SectionLabel } from './ui/primitives';
+import { useSheetBackdrop, useSheetChrome } from './ui/sheet';
 
 interface Props {
-  selectedDate: string | null;
-  currentShift: ShiftType | undefined;
-  currentNote: string;
-  currentOvertime: number;
-  allShifts: ShiftType[];
-  onSelectShift: (code: string) => void;
-  onClear: () => void;
-  onSaveNote: (note: string) => void;
-  onSetOvertime: (hours: number) => void;
-  currentSwap: SwapRequest | undefined;
-  allShiftCodes: { code: string; label: string }[];
-  onOfferSwap: (swap: SwapRequest) => void;
-  onCancelSwap: (date: string) => void;
-  currentLeaveId: string | undefined;
-  leaveTypes: LeaveType[];
-  onSetLeave: (leaveTypeId: string) => void;
-  onClearLeave: (date: string) => void;
-  colors: {
-    surface: string;
-    surfaceVariant: string;
-    text: string;
-    textSecondary: string;
-    border: string;
-    background: string;
-    primary: string;
-  };
+  dateKey: string | null;
+  onDismiss: () => void;
+  onToast: (message: string, undo?: () => void) => void;
 }
 
-export const DaySheet = forwardRef<BottomSheet, Props>(
-  (
-    {
-      selectedDate,
-      currentShift,
-      currentNote,
-      currentOvertime,
-      allShifts,
-      onSelectShift,
-      onClear,
-      onSaveNote,
-      onSetOvertime,
-      currentSwap,
-      allShiftCodes,
-      onOfferSwap,
-      onCancelSwap,
-      currentLeaveId,
-      leaveTypes,
-      onSetLeave,
-      onClearLeave,
-      colors,
-    },
-    ref
-  ) => {
-    const snapPoints = useMemo(() => ['50%', '85%'], []);
-    const [noteText, setNoteText] = useState(currentNote);
-    const [showSwapForm, setShowSwapForm] = useState(false);
-    const [swapWant, setSwapWant] = useState('any');
-    const [swapNote, setSwapNote] = useState('');
-    const [showNote, setShowNote] = useState(false);
-    const [otEnabled, setOtEnabled] = useState(currentOvertime > 0);
-    const [otHours, setOtHours] = useState(currentOvertime > 0 ? String(currentOvertime) : '');
+const OT_STEP = 0.5;
 
-    useEffect(() => {
-      setNoteText(currentNote);
-      setShowNote(!!currentNote);
-      setOtEnabled(currentOvertime > 0);
-      setOtHours(currentOvertime > 0 ? String(currentOvertime) : '');
-    }, [currentNote, currentOvertime, selectedDate]);
+function ShiftOption({
+  shift,
+  selected,
+  onPress,
+  colors,
+  timeFormat,
+}: {
+  shift: ShiftType;
+  selected: boolean;
+  onPress: () => void;
+  colors: ThemeColors;
+  timeFormat: '12h' | '24h';
+}) {
+  const fg = selected ? readableTextColor(shift.color) : colors.text;
+  return (
+    <Tap
+      onPress={onPress}
+      scale
+      accessibilityLabel={`${shift.label}${isWorkingShift(shift) ? ', ' + formatTimeRange(shift.startTime, shift.endTime, timeFormat) : ', day off'}`}
+      accessibilityState={{ selected }}
+      style={[
+        styles.shiftOption,
+        {
+          backgroundColor: selected ? shift.color : withAlpha(shift.color, 0.1),
+          borderColor: selected ? shift.color : withAlpha(shift.color, 0.28),
+        },
+      ]}
+    >
+      <View style={[styles.shiftCode, { backgroundColor: selected ? withAlpha(readableTextColor(shift.color), 0.18) : shift.color }]}>
+        <Text style={[styles.shiftCodeText, { color: selected ? fg : readableTextColor(shift.color) }]}>{shift.code}</Text>
+      </View>
+      <View style={styles.flex}>
+        <Text style={[styles.shiftLabel, { color: fg }]} numberOfLines={1}>
+          {shift.label}
+        </Text>
+        <Text style={[styles.shiftTime, { color: selected ? withAlpha(fg, 0.8) : colors.textSecondary }]} numberOfLines={1}>
+          {isWorkingShift(shift) ? formatTimeRange(shift.startTime, shift.endTime, timeFormat) : 'Day off'}
+        </Text>
+      </View>
+      {selected && <MaterialCommunityIcons name="check-circle" size={18} color={fg} />}
+    </Tap>
+  );
+}
 
-    const handleShiftPress = useCallback(
-      (code: string) => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        onSelectShift(code);
-      },
-      [onSelectShift]
-    );
+function DayContent({ dateKey, onToast, onClose }: { dateKey: string; onToast: Props['onToast']; onClose: () => void }) {
+  const { colors, timeFormat } = useAppSettings();
+  const {
+    shiftData, leaveData, notesData, overtimeData, swapsData, allShifts, leaveTypes, getShiftByCode, getLeaveType,
+    setShift, clearShift, setLeave, clearLeave, clearDay, restoreAssignments, setNote, setOvertime, offerSwap, cancelSwap,
+  } = useShifts();
+  const { width } = useWindowDimensions();
 
-    const handleNoteSave = useCallback(() => {
-      onSaveNote(noteText);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }, [noteText, onSaveNote]);
+  const shift = shiftData[dateKey] ? getShiftByCode(shiftData[dateKey]) : undefined;
+  const leave = leaveData[dateKey] ? getLeaveType(leaveData[dateKey]) : undefined;
+  const overtime = overtimeData[dateKey] || 0;
+  const swap = swapsData[dateKey];
+  const date = fromDateKey(dateKey);
+  const isToday = dateKey === todayKey();
+  const columns = width >= 600 ? 3 : 2;
 
-    const handleOtToggle = useCallback(() => {
-      const next = !otEnabled;
-      setOtEnabled(next);
-      if (!next) {
-        setOtHours('');
-        onSetOvertime(0);
-      }
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }, [otEnabled, onSetOvertime]);
+  // --- Note: autosaved shortly after typing stops, and flushed when the day changes or the sheet closes.
+  const savedNote = notesData[dateKey] ?? '';
+  const [noteText, setNoteText] = useState(savedNote);
+  const [noteOpen, setNoteOpen] = useState(!!savedNote);
+  const noteRef = useRef({ text: savedNote, dirty: false });
+  const setNoteRef = useRef(setNote);
+  setNoteRef.current = setNote;
 
-    const handleOtChange = useCallback(
-      (text: string) => {
-        const cleaned = text.replace(/[^0-9.]/g, '');
-        setOtHours(cleaned);
-        const val = parseFloat(cleaned);
-        if (!isNaN(val) && val >= 0) {
-          onSetOvertime(val);
+  const flushNote = useCallback(() => {
+    if (noteRef.current.dirty) {
+      noteRef.current.dirty = false;
+      setNoteRef.current(dateKey, noteRef.current.text);
+    }
+  }, [dateKey]);
+
+  useEffect(() => {
+    if (!noteRef.current.dirty) return;
+    const t = setTimeout(flushNote, 700);
+    return () => clearTimeout(t);
+  }, [noteText, flushNote]);
+
+  useEffect(() => flushNote, [flushNote]);
+
+  const onNoteChange = (text: string) => {
+    noteRef.current = { text, dirty: true };
+    setNoteText(text);
+  };
+
+  // --- Overtime
+  const [otText, setOtText] = useState(overtime ? String(overtime) : '');
+  useEffect(() => {
+    setOtText((prev) => (parseFloat(prev || '0') === overtime ? prev : overtime ? String(overtime) : ''));
+  }, [overtime]);
+  const stepOvertime = (delta: number) => {
+    const next = Math.max(0, Math.round((overtime + delta) * 2) / 2);
+    haptic.selection();
+    setOvertime(dateKey, next);
+    setOtText(next ? String(next) : '');
+  };
+  const onOtChange = (text: string) => {
+    const cleaned = text.replace(',', '.').replace(/[^0-9.]/g, '');
+    setOtText(cleaned);
+    const value = parseFloat(cleaned);
+    setOvertime(dateKey, Number.isFinite(value) ? Math.min(value, 24) : 0);
+  };
+
+  // --- Swap
+  const [swapFormOpen, setSwapFormOpen] = useState(false);
+  const [swapWant, setSwapWant] = useState('any');
+  const [swapNote, setSwapNote] = useState('');
+  const working = !leave && isWorkingShift(shift);
+
+  const pickShift = (code: string) => {
+    if (shift?.code === code) {
+      haptic.light();
+      clearShift(dateKey);
+      return;
+    }
+    haptic.medium();
+    setShift(dateKey, code);
+  };
+
+  const pickLeave = (id: string) => {
+    if (leave?.id === id) {
+      haptic.light();
+      clearLeave(dateKey);
+      return;
+    }
+    haptic.medium();
+    setLeave(dateKey, id);
+  };
+
+  const handleClearDay = () => {
+    const message = leave ? `${leave.label} removed` : 'Shift cleared';
+    const snap: AssignmentSnapshot = clearDay(dateKey);
+    haptic.light();
+    // Close first: the sheet would otherwise sit on top of the undo toast.
+    onClose();
+    onToast(message, () => restoreAssignments(snap));
+  };
+
+  const shareSwap = async (request: { wantCode: string; note: string }) => {
+    if (!shift) return;
+    const want = request.wantCode === 'any' ? null : getShiftByCode(request.wantCode)?.label ?? request.wantCode;
+    let msg = `Shift swap request\n\nI'm looking to swap my ${shift.label} shift (${formatTimeRange(shift.startTime, shift.endTime, timeFormat)}) on ${format(date, 'EEEE, d MMMM')}.`;
+    if (want) msg += `\nLooking for: ${want}`;
+    if (request.note) msg += `\nNote: ${request.note}`;
+    msg += '\n\nSent from ShiftCalendar';
+    try {
+      await Share.share({ message: msg });
+    } catch {
+      // Share sheet dismissed.
+    }
+  };
+
+  const submitSwap = () => {
+    if (!shift) return;
+    const request: SwapRequest = {
+      date: dateKey,
+      shiftCode: shift.code,
+      wantCode: swapWant,
+      note: swapNote.trim(),
+      status: 'offered',
+      createdAt: new Date().toISOString(),
+    };
+    offerSwap(request);
+    setSwapFormOpen(false);
+    haptic.success();
+    shareSwap(request);
+  };
+
+  const status = leave
+    ? { color: leave.color, icon: leave.icon, title: leave.label, detail: leave.paid ? 'Paid leave' : 'Unpaid leave' }
+    : shift
+      ? {
+          color: shift.color,
+          icon: shift.icon,
+          title: shift.label,
+          detail: working ? `${formatTimeRange(shift.startTime, shift.endTime, timeFormat)} · ${formatHours(getShiftHours(shift))}` : 'Day off',
         }
-      },
-      [onSetOvertime]
-    );
+      : null;
 
-    useEffect(() => {
-      setShowSwapForm(false);
-      setSwapWant('any');
-      setSwapNote('');
-    }, [selectedDate]);
-
-    const handleOfferSwap = useCallback(() => {
-      if (!selectedDate || !currentShift) return;
-      const swap: SwapRequest = {
-        date: selectedDate,
-        shiftCode: currentShift.code,
-        wantCode: swapWant,
-        note: swapNote.trim(),
-        status: 'offered',
-        createdAt: new Date().toISOString(),
-      };
-      onOfferSwap(swap);
-      setShowSwapForm(false);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }, [selectedDate, currentShift, swapWant, swapNote, onOfferSwap]);
-
-    const handleShareSwap = useCallback(async () => {
-      if (!selectedDate || !currentShift) return;
-      const dateLabel = format(new Date(selectedDate + 'T00:00:00'), 'EEEE, d MMMM');
-      const wantLabel = swapWant === 'any'
-        ? 'any shift'
-        : allShiftCodes.find((s) => s.code === swapWant)?.label || swapWant;
-      const activeSwap = currentSwap;
-      const note = activeSwap?.note || swapNote.trim();
-      let msg = `Shift Swap Request\n\nI'm looking to swap my ${currentShift.label} shift on ${dateLabel}.`;
-      if (wantLabel !== 'any shift') msg += `\nLooking for: ${wantLabel}`;
-      if (note) msg += `\nNote: ${note}`;
-      msg += '\n\nSent from Shift Calendar';
-      try {
-        await Share.share({ message: msg });
-      } catch {}
-    }, [selectedDate, currentShift, currentSwap, swapWant, swapNote, allShiftCodes]);
-
-    const handleCancelSwap = useCallback(() => {
-      if (selectedDate) {
-        onCancelSwap(selectedDate);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
-    }, [selectedDate, onCancelSwap]);
-
-    // Expand sheet when keyboard opens so inputs stay visible
-    const handleFocus = useCallback(() => {
-      if (ref && typeof ref !== 'function' && ref.current) {
-        ref.current.snapToIndex(1);
-      }
-    }, [ref]);
-
-    const dateLabel = selectedDate
-      ? format(new Date(selectedDate + 'T00:00:00'), 'EEEE, d MMMM yyyy')
-      : '';
-
-    return (
-      <BottomSheet
-        ref={ref}
-        index={-1}
-        snapPoints={snapPoints}
-        enablePanDownToClose
-        android_keyboardInputMode="adjustResize"
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-        backgroundStyle={{ backgroundColor: colors.surface, borderRadius: 24 }}
-        handleIndicatorStyle={{ backgroundColor: colors.textSecondary + '80', width: 36 }}
-      >
-        <BottomSheetScrollView
-          style={styles.content}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <Text style={[styles.dateText, { color: colors.text }]}>{dateLabel}</Text>
-
-          {/* Current shift card */}
-          {currentShift && (
-            <View
-              style={[
-                styles.shiftCard,
-                { backgroundColor: currentShift.color + '12', borderColor: currentShift.color + '25' },
-              ]}
-            >
-              <View style={[styles.shiftCodeBadge, { backgroundColor: currentShift.color }]}>
-                <Text style={styles.shiftCodeText}>{currentShift.code}</Text>
-              </View>
-              <View style={styles.shiftCardInfo}>
-                <Text style={[styles.shiftCardLabel, { color: currentShift.color }]}>
-                  {currentShift.label}
-                </Text>
-                <Text style={[styles.shiftCardTime, { color: currentShift.color + 'AA' }]}>
-                  {currentShift.startTime
-                    ? `${currentShift.startTime} – ${currentShift.endTime}`
-                    : 'Day Off'}
-                </Text>
-              </View>
-              <MaterialCommunityIcons
-                name={currentShift.icon as any}
-                size={28}
-                color={currentShift.color + '60'}
-              />
-            </View>
-          )}
-
-          {/* Add Note button (above overtime, only when note section is hidden) */}
-          {!showNote && !currentNote && (
-            <TouchableOpacity
-              style={[styles.addNoteBtn, { backgroundColor: '#F59E0B15', borderColor: '#F59E0B30' }]}
-              onPress={() => {
-                setShowNote(true);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }}
-              activeOpacity={0.6}
-              accessibilityLabel="Add note"
-              accessibilityRole="button"
-            >
-              <MaterialCommunityIcons name="note-plus-outline" size={20} color="#F59E0B" />
-              <Text style={[styles.addNoteBtnText, { color: '#F59E0B' }]}>Add Note</Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Note section */}
-          {(currentNote || showNote) && (
-            <View style={[styles.noteSection, { borderColor: '#F59E0B30' }]}>
-              <View style={styles.noteHeader}>
-                <MaterialCommunityIcons name="note-text-outline" size={16} color="#F59E0B" />
-                <Text style={[styles.noteTitle, { color: '#F59E0B' }]}>Note</Text>
-                {noteText !== currentNote && (
-                  <TouchableOpacity
-                    style={[styles.saveNotePill, { backgroundColor: colors.primary }]}
-                    onPress={handleNoteSave}
-                    accessibilityLabel="Save note"
-                    accessibilityRole="button"
-                  >
-                    <Text style={styles.saveNotePillText}>Save</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-              <TextInput
-                style={[
-                  styles.noteInput,
-                  { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: '#F59E0B30' },
-                ]}
-                value={noteText}
-                onChangeText={setNoteText}
-                placeholder="Write a note..."
-                placeholderTextColor={colors.textSecondary}
-                multiline
-                textAlignVertical="top"
-                onFocus={handleFocus}
-                onBlur={() => {
-                  if (noteText !== currentNote) handleNoteSave();
-                }}
-              />
-            </View>
-          )}
-
-          {/* Overtime section */}
-          <View style={[styles.otSection, { borderColor: otEnabled ? '#EF444430' : colors.border }]}>
-            <TouchableOpacity style={styles.otToggleRow} onPress={handleOtToggle} activeOpacity={0.6} accessibilityLabel={`Toggle overtime${otEnabled ? ', enabled' : ''}`} accessibilityRole="switch">
-              <View
-                style={[
-                  styles.checkbox,
-                  {
-                    backgroundColor: otEnabled ? '#EF4444' : 'transparent',
-                    borderColor: otEnabled ? '#EF4444' : colors.textSecondary,
-                  },
-                ]}
-              >
-                {otEnabled && <MaterialCommunityIcons name="check" size={14} color="#FFF" />}
-              </View>
-              <MaterialCommunityIcons
-                name="clock-plus-outline"
-                size={18}
-                color={otEnabled ? '#EF4444' : colors.textSecondary}
-              />
-              <Text style={[styles.otLabel, { color: otEnabled ? '#EF4444' : colors.textSecondary }]}>
-                Overtime
-              </Text>
-            </TouchableOpacity>
-            {otEnabled && (
-              <View style={styles.otInputRow}>
-                <TextInput
-                  style={[
-                    styles.otInput,
-                    { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: '#EF444430' },
-                  ]}
-                  value={otHours}
-                  onChangeText={handleOtChange}
-                  placeholder="0"
-                  placeholderTextColor={colors.textSecondary}
-                  keyboardType="numeric"
-                  maxLength={5}
-                  onFocus={handleFocus}
-                />
-                <Text style={[styles.otUnit, { color: colors.textSecondary }]}>hours</Text>
+  return (
+    <View>
+      <View style={styles.header}>
+        <View style={styles.flex}>
+          <View style={styles.headerTop}>
+            <Text style={[styles.weekday, { color: colors.textMuted }]}>{format(date, 'EEEE')}</Text>
+            {isToday && (
+              <View style={[styles.todayBadge, { backgroundColor: withAlpha(colors.primary, 0.15) }]}>
+                <Text style={[styles.todayBadgeText, { color: colors.primaryText }]}>Today</Text>
               </View>
             )}
           </View>
+          <Text style={[styles.dateTitle, { color: colors.text }]}>{format(date, 'd MMMM yyyy')}</Text>
+        </View>
+        <Tap onPress={onClose} accessibilityLabel="Close" style={[styles.closeBtn, { backgroundColor: colors.surfaceVariant }]}>
+          <MaterialCommunityIcons name="close" size={20} color={colors.text} />
+        </Tap>
+      </View>
 
-          {/* Leave section */}
-          {currentLeaveId ? (
-            (() => {
-              const lt = leaveTypes.find((t) => t.id === currentLeaveId);
-              return lt ? (
-                <View style={[styles.leaveSection, { borderColor: lt.color + '40', backgroundColor: lt.color + '08' }]}>
-                  <MaterialCommunityIcons name={lt.icon as any} size={18} color={lt.color} />
-                  <Text style={[styles.leaveName, { color: lt.color }]}>{lt.label}</Text>
-                  <TouchableOpacity
-                    onPress={() => { if (selectedDate) onClearLeave(selectedDate); }}
-                    style={[styles.leaveClearBtn, { backgroundColor: lt.color + '20' }]}
-                    activeOpacity={0.6}
-                    accessibilityLabel="Remove leave"
-                    accessibilityRole="button"
-                  >
-                    <MaterialCommunityIcons name="close" size={14} color={lt.color} />
-                  </TouchableOpacity>
-                </View>
-              ) : null;
-            })()
-          ) : (
-            <View style={styles.leaveRow}>
-              {leaveTypes.map((lt) => (
-                <TouchableOpacity
-                  key={lt.id}
-                  style={[styles.leaveChip, { backgroundColor: lt.color + '15', borderColor: lt.color + '40' }]}
-                  onPress={() => { onSetLeave(lt.id); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-                  activeOpacity={0.6}
-                  accessibilityLabel={`Mark as ${lt.label}`}
-                  accessibilityRole="button"
-                >
-                  <MaterialCommunityIcons name={lt.icon as any} size={14} color={lt.color} />
-                  <Text style={[styles.leaveChipText, { color: lt.color }]}>{lt.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
+      <View
+        style={[
+          styles.statusCard,
+          status
+            ? { backgroundColor: withAlpha(status.color, 0.12), borderColor: withAlpha(status.color, 0.3) }
+            : { backgroundColor: colors.surfaceVariant, borderColor: colors.border, borderStyle: 'dashed' },
+        ]}
+      >
+        <View style={[styles.statusIcon, { backgroundColor: status ? status.color : colors.surface }]}>
+          <MaterialCommunityIcons
+            name={(status?.icon ?? 'calendar-blank-outline') as any}
+            size={22}
+            color={status ? readableTextColor(status.color) : colors.textMuted}
+          />
+        </View>
+        <View style={styles.flex}>
+          <Text style={[styles.statusTitle, { color: colors.text }]}>{status ? status.title : 'Nothing assigned'}</Text>
+          <Text style={[styles.statusDetail, { color: colors.textSecondary }]}>
+            {status ? status.detail : 'Pick a shift or leave type below'}
+            {overtime > 0 ? `  ·  +${formatHours(overtime)} overtime` : ''}
+          </Text>
+        </View>
+      </View>
 
-          {/* Swap section */}
-          {currentShift && currentShift.startTime && (
-            currentSwap ? (
-              <View style={[styles.swapSection, { borderColor: '#8B5CF630' }]}>
-                <View style={styles.swapHeader}>
-                  <MaterialCommunityIcons name="swap-horizontal" size={18} color="#8B5CF6" />
-                  <Text style={[styles.swapTitle, { color: '#8B5CF6' }]}>Swap Offered</Text>
-                  <View style={[styles.swapStatusBadge, { backgroundColor: '#8B5CF620' }]}>
-                    <Text style={[styles.swapStatusText, { color: '#8B5CF6' }]}>
-                      {currentSwap.status === 'accepted' ? 'Accepted' : 'Active'}
-                    </Text>
-                  </View>
-                </View>
-                {currentSwap.note ? (
-                  <Text style={[styles.swapNotePreview, { color: colors.textSecondary }]}>
-                    {currentSwap.note}
-                  </Text>
-                ) : null}
-                <View style={styles.swapActions}>
-                  <TouchableOpacity
-                    style={[styles.swapActionBtn, { backgroundColor: '#8B5CF615' }]}
-                    onPress={handleShareSwap}
-                    activeOpacity={0.6}
-                    accessibilityLabel="Share swap request"
-                    accessibilityRole="button"
-                  >
-                    <MaterialCommunityIcons name="share-variant-outline" size={16} color="#8B5CF6" />
-                    <Text style={[styles.swapActionText, { color: '#8B5CF6' }]}>Share</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.swapActionBtn, { backgroundColor: colors.surfaceVariant }]}
-                    onPress={handleCancelSwap}
-                    activeOpacity={0.6}
-                    accessibilityLabel="Cancel swap"
-                    accessibilityRole="button"
-                  >
-                    <MaterialCommunityIcons name="close" size={16} color={colors.textSecondary} />
-                    <Text style={[styles.swapActionText, { color: colors.textSecondary }]}>Cancel</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : showSwapForm ? (
-              <View style={[styles.swapSection, { borderColor: '#8B5CF630' }]}>
-                <View style={styles.swapHeader}>
-                  <MaterialCommunityIcons name="swap-horizontal" size={18} color="#8B5CF6" />
-                  <Text style={[styles.swapTitle, { color: '#8B5CF6' }]}>Offer Swap</Text>
-                </View>
-                <Text style={[styles.swapLabel, { color: colors.textSecondary }]}>Want in return</Text>
-                <View style={styles.swapChips}>
-                  <TouchableOpacity
-                    style={[
-                      styles.swapChip,
-                      {
-                        backgroundColor: swapWant === 'any' ? '#8B5CF6' : colors.surfaceVariant,
-                        borderColor: swapWant === 'any' ? '#8B5CF6' : colors.border,
-                      },
-                    ]}
-                    onPress={() => setSwapWant('any')}
-                  >
-                    <Text style={[styles.swapChipText, { color: swapWant === 'any' ? '#FFF' : colors.text }]}>
-                      Any
-                    </Text>
-                  </TouchableOpacity>
-                  {allShiftCodes
-                    .filter((s) => s.code !== currentShift.code && s.code !== 'O')
-                    .map((s) => (
-                      <TouchableOpacity
-                        key={s.code}
-                        style={[
-                          styles.swapChip,
-                          {
-                            backgroundColor: swapWant === s.code ? '#8B5CF6' : colors.surfaceVariant,
-                            borderColor: swapWant === s.code ? '#8B5CF6' : colors.border,
-                          },
-                        ]}
-                        onPress={() => setSwapWant(s.code)}
-                      >
-                        <Text style={[styles.swapChipText, { color: swapWant === s.code ? '#FFF' : colors.text }]}>
-                          {s.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                </View>
-                <TextInput
-                  style={[styles.swapNoteInput, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: '#8B5CF630' }]}
-                  value={swapNote}
-                  onChangeText={setSwapNote}
-                  placeholder="Add a message (optional)"
-                  placeholderTextColor={colors.textSecondary}
-                  onFocus={handleFocus}
-                />
-                <View style={styles.swapActions}>
-                  <TouchableOpacity
-                    style={[styles.swapActionBtn, { backgroundColor: '#8B5CF6' }]}
-                    onPress={handleOfferSwap}
-                    activeOpacity={0.7}
-                    accessibilityLabel="Offer shift swap"
-                    accessibilityRole="button"
-                  >
-                    <MaterialCommunityIcons name="check" size={16} color="#FFF" />
-                    <Text style={[styles.swapActionText, { color: '#FFF' }]}>Offer Swap</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.swapActionBtn, { backgroundColor: colors.surfaceVariant }]}
-                    onPress={() => setShowSwapForm(false)}
-                    activeOpacity={0.6}
-                    accessibilityLabel="Cancel swap"
-                    accessibilityRole="button"
-                  >
-                    <Text style={[styles.swapActionText, { color: colors.textSecondary }]}>Cancel</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={[styles.addNoteBtn, { backgroundColor: '#8B5CF615', borderColor: '#8B5CF630' }]}
-                onPress={() => {
-                  setShowSwapForm(true);
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-                activeOpacity={0.6}
-                accessibilityLabel="Offer shift swap"
-                accessibilityRole="button"
-              >
-                <MaterialCommunityIcons name="swap-horizontal" size={20} color="#8B5CF6" />
-                <Text style={[styles.addNoteBtnText, { color: '#8B5CF6' }]}>Offer Swap</Text>
-              </TouchableOpacity>
-            )
-          )}
-
-          {/* Shift selector */}
-          <View style={styles.shiftGrid}>
-            {allShifts.map((shift) => (
-              <ShiftButton
-                key={shift.code}
-                shift={shift}
-                selected={currentShift?.code === shift.code}
-                onPress={() => handleShiftPress(shift.code)}
-              />
-            ))}
+      <SectionLabel colors={colors} style={styles.firstSection}>Shift</SectionLabel>
+      <View style={styles.grid}>
+        {allShifts.map((s) => (
+          <View key={s.code} style={{ width: `${100 / columns}%`, padding: 4 }}>
+            <ShiftOption
+              shift={s}
+              selected={!leave && shift?.code === s.code}
+              onPress={() => pickShift(s.code)}
+              colors={colors}
+              timeFormat={timeFormat}
+            />
           </View>
+        ))}
+      </View>
 
-          {/* Bottom actions */}
-          {currentShift && (
-            <View style={styles.actionsRow}>
-              <TouchableOpacity
-                style={[styles.actionPill, { backgroundColor: colors.surfaceVariant }]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  onClear();
-                }}
-                accessibilityLabel="Clear shift"
-                accessibilityRole="button"
-              >
-                <MaterialCommunityIcons name="close-circle-outline" size={18} color={colors.textSecondary} />
-                <Text style={[styles.actionPillText, { color: colors.textSecondary }]}>Clear Shift</Text>
-              </TouchableOpacity>
+      <SectionLabel colors={colors}>Leave</SectionLabel>
+      <View style={styles.chipWrap}>
+        {leaveTypes.map((t) => (
+          <Chip
+            key={t.id}
+            label={t.label}
+            icon={t.icon as any}
+            color={t.color}
+            selected={leave?.id === t.id}
+            onPress={() => pickLeave(t.id)}
+            colors={colors}
+          />
+        ))}
+      </View>
+
+      <SectionLabel colors={colors}>Overtime</SectionLabel>
+      <View style={[styles.otRow, { backgroundColor: colors.surfaceVariant }]}>
+        <MaterialCommunityIcons name="clock-plus-outline" size={20} color={overtime > 0 ? colors.overtimeAccent : colors.textSecondary} />
+        <Text style={[styles.otLabel, { color: colors.text }]}>Extra hours</Text>
+        <Tap
+          onPress={() => stepOvertime(-OT_STEP)}
+          disabled={overtime <= 0}
+          accessibilityLabel="Decrease overtime"
+          style={[styles.stepBtn, { backgroundColor: colors.surface, opacity: overtime <= 0 ? 0.4 : 1 }]}
+        >
+          <MaterialCommunityIcons name="minus" size={18} color={colors.text} />
+        </Tap>
+        <BottomSheetTextInput
+          value={otText}
+          onChangeText={onOtChange}
+          placeholder="0"
+          placeholderTextColor={colors.textMuted}
+          keyboardType="decimal-pad"
+          maxLength={5}
+          accessibilityLabel="Overtime hours"
+          style={[styles.otInput, { color: overtime > 0 ? colors.overtimeAccent : colors.text }]}
+        />
+        <Tap
+          onPress={() => stepOvertime(OT_STEP)}
+          accessibilityLabel="Increase overtime"
+          style={[styles.stepBtn, { backgroundColor: colors.surface }]}
+        >
+          <MaterialCommunityIcons name="plus" size={18} color={colors.text} />
+        </Tap>
+      </View>
+
+      <SectionLabel
+        colors={colors}
+        right={
+          !noteOpen ? null : savedNote !== noteText.trim() ? (
+            <Text style={[styles.saving, { color: colors.textMuted }]}>Saving…</Text>
+          ) : savedNote ? (
+            <Text style={[styles.saving, { color: colors.success }]}>Saved</Text>
+          ) : null
+        }
+      >
+        Note
+      </SectionLabel>
+      {noteOpen ? (
+        <BottomSheetTextInput
+          value={noteText}
+          onChangeText={onNoteChange}
+          onBlur={flushNote}
+          placeholder="Add a note for this day…"
+          placeholderTextColor={colors.textMuted}
+          multiline
+          textAlignVertical="top"
+          accessibilityLabel="Note"
+          autoFocus={!savedNote}
+          style={[styles.noteInput, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: withAlpha(colors.noteAccent, 0.4) }]}
+        />
+      ) : (
+        <Tap
+          onPress={() => {
+            haptic.light();
+            setNoteOpen(true);
+          }}
+          accessibilityLabel="Add a note"
+          style={[styles.addRow, { borderColor: withAlpha(colors.noteAccent, 0.4), backgroundColor: withAlpha(colors.noteAccent, 0.08) }]}
+        >
+          <MaterialCommunityIcons name="note-plus-outline" size={20} color={colors.noteAccent} />
+          <Text style={[styles.addRowText, { color: colors.noteAccent }]}>Add a note</Text>
+        </Tap>
+      )}
+
+      {working && shift && (
+        <>
+          <SectionLabel colors={colors}>Swap</SectionLabel>
+          {swap ? (
+            <View style={[styles.swapCard, { borderColor: withAlpha(colors.swapAccent, 0.35), backgroundColor: withAlpha(colors.swapAccent, 0.08) }]}>
+              <View style={styles.swapHeader}>
+                <MaterialCommunityIcons name="swap-horizontal" size={20} color={colors.swapAccent} />
+                <Text style={[styles.swapTitle, { color: colors.text }]}>Swap offered</Text>
+                <View style={[styles.swapBadge, { backgroundColor: withAlpha(colors.swapAccent, 0.18) }]}>
+                  <Text style={[styles.swapBadgeText, { color: colors.swapAccent }]}>{swap.status === 'accepted' ? 'Accepted' : 'Open'}</Text>
+                </View>
+              </View>
+              <Text style={[styles.swapDetail, { color: colors.textSecondary }]}>
+                Wants: {swap.wantCode === 'any' ? 'any shift' : getShiftByCode(swap.wantCode)?.label ?? swap.wantCode}
+                {swap.note ? `\n“${swap.note}”` : ''}
+              </Text>
+              <View style={styles.swapActions}>
+                <Button label="Share" icon="share-variant-outline" onPress={() => shareSwap(swap)} colors={colors} color={colors.swapAccent} style={styles.flex} />
+                <Button
+                  label="Withdraw"
+                  variant="secondary"
+                  onPress={() => {
+                    cancelSwap(dateKey);
+                    haptic.light();
+                  }}
+                  colors={colors}
+                  style={styles.flex}
+                />
+              </View>
             </View>
+          ) : swapFormOpen ? (
+            <View style={[styles.swapCard, { borderColor: withAlpha(colors.swapAccent, 0.35), backgroundColor: withAlpha(colors.swapAccent, 0.08) }]}>
+              <Text style={[styles.swapPrompt, { color: colors.textSecondary }]}>What would you like instead?</Text>
+              <View style={styles.chipWrap}>
+                <Chip label="Any shift" selected={swapWant === 'any'} onPress={() => setSwapWant('any')} colors={colors} color={colors.swapAccent} compact />
+                {allShifts
+                  .filter((s) => s.code !== shift.code)
+                  .map((s) => (
+                    <Chip key={s.code} label={s.label} selected={swapWant === s.code} onPress={() => setSwapWant(s.code)} colors={colors} color={colors.swapAccent} compact />
+                  ))}
+              </View>
+              <BottomSheetTextInput
+                value={swapNote}
+                onChangeText={setSwapNote}
+                placeholder="Message (optional)"
+                placeholderTextColor={colors.textMuted}
+                style={[styles.swapInput, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
+              />
+              <View style={styles.swapActions}>
+                <Button label="Offer & share" icon="send-outline" onPress={submitSwap} colors={colors} color={colors.swapAccent} style={styles.flex} />
+                <Button label="Cancel" variant="secondary" onPress={() => setSwapFormOpen(false)} colors={colors} />
+              </View>
+            </View>
+          ) : (
+            <Tap
+              onPress={() => {
+                haptic.light();
+                setSwapFormOpen(true);
+              }}
+              accessibilityLabel="Offer this shift for a swap"
+              style={[styles.addRow, { borderColor: withAlpha(colors.swapAccent, 0.4), backgroundColor: withAlpha(colors.swapAccent, 0.08) }]}
+            >
+              <MaterialCommunityIcons name="swap-horizontal" size={20} color={colors.swapAccent} />
+              <Text style={[styles.addRowText, { color: colors.swapAccent }]}>Offer a swap</Text>
+            </Tap>
           )}
+        </>
+      )}
 
-          {/* Extra padding at bottom so inputs are never behind keyboard */}
-          <View style={{ height: 120 }} />
-        </BottomSheetScrollView>
-      </BottomSheet>
-    );
-  }
-);
+      {(shift || leave) && (
+        <Button
+          label={leave ? 'Remove leave' : 'Clear shift'}
+          icon="close-circle-outline"
+          variant="danger"
+          onPress={handleClearDay}
+          colors={colors}
+          style={styles.clearBtn}
+        />
+      )}
+    </View>
+  );
+}
+
+/** Day details: assign a shift or leave, log overtime, write a note, offer a swap. */
+export const DaySheet = forwardRef<BottomSheetModal, Props>(function DaySheet({ dateKey, onDismiss, onToast }, ref) {
+  const { colors } = useAppSettings();
+  const chrome = useSheetChrome(colors);
+  const backdrop = useSheetBackdrop(1);
+  const insets = useSafeAreaInsets();
+  const snapPoints = useMemo(() => ['64%', '92%'], []);
+  const close = useCallback(() => {
+    if (ref && typeof ref !== 'function') ref.current?.dismiss();
+  }, [ref]);
+
+  return (
+    <BottomSheetModal
+      ref={ref}
+      snapPoints={snapPoints}
+      enableDynamicSizing={false}
+      onDismiss={onDismiss}
+      backdropComponent={backdrop}
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
+      android_keyboardInputMode="adjustResize"
+      {...chrome}
+    >
+      <BottomSheetScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {dateKey ? <DayContent key={dateKey} dateKey={dateKey} onToast={onToast} onClose={close} /> : null}
+      </BottomSheetScrollView>
+    </BottomSheetModal>
+  );
+});
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: 20 },
-  dateText: { fontSize: 19, fontWeight: '800', marginBottom: 14 },
-  shiftCard: {
+  flex: { flex: 1 },
+  content: { paddingHorizontal: 20, paddingTop: 4 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+  headerTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  weekday: { fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8 },
+  todayBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  todayBadgeText: { fontSize: 11, fontWeight: '800' },
+  dateTitle: { fontSize: 24, fontWeight: '800', letterSpacing: -0.5, marginTop: 2 },
+  closeBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  statusCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: Radius.lg, borderWidth: 1 },
+  statusIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  statusTitle: { fontSize: 17, fontWeight: '800' },
+  statusDetail: { fontSize: 13, fontWeight: '600', marginTop: 2 },
+  firstSection: { marginTop: 16 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 },
+  shiftOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    marginBottom: 12,
+    gap: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    minHeight: 58,
   },
-  shiftCodeBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  shiftCodeText: { color: '#FFF', fontSize: 17, fontWeight: '800' },
-  shiftCardInfo: { flex: 1, marginLeft: 12 },
-  shiftCardLabel: { fontSize: 17, fontWeight: '800' },
-  shiftCardTime: { fontSize: 13, marginTop: 1 },
-  addNoteBtn: {
+  shiftCode: { minWidth: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  shiftCodeText: { fontSize: 13, fontWeight: '800' },
+  shiftLabel: { fontSize: 14, fontWeight: '700' },
+  shiftTime: { fontSize: 11.5, fontWeight: '600', marginTop: 1 },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  otRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: Radius.md, paddingHorizontal: 12, paddingVertical: 8 },
+  otLabel: { flex: 1, fontSize: 15, fontWeight: '600' },
+  stepBtn: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  otInput: { width: 56, textAlign: 'center', fontSize: 20, fontWeight: '800', paddingVertical: 4 },
+  saving: { fontSize: 11, fontWeight: '700' },
+  noteInput: { minHeight: 88, borderRadius: Radius.md, borderWidth: 1, padding: 12, fontSize: 15, lineHeight: 21 },
+  addRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 12,
     gap: 8,
-  },
-  addNoteBtnText: { fontSize: 14, fontWeight: '700' },
-  noteSection: { marginBottom: 12, borderWidth: 1, borderRadius: 14, padding: 12 },
-  noteHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  noteTitle: { fontSize: 13, fontWeight: '700', flex: 1 },
-  saveNotePill: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8 },
-  saveNotePillText: { color: '#FFF', fontSize: 12, fontWeight: '700' },
-  noteInput: {
+    minHeight: 48,
+    borderRadius: Radius.md,
     borderWidth: 1,
-    borderRadius: 10,
-    padding: 10,
-    fontSize: 14,
-    minHeight: 50,
-    lineHeight: 20,
+    borderStyle: 'dashed',
   },
-  otSection: { borderWidth: 1, borderRadius: 14, padding: 12, marginBottom: 14 },
-  otToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  otLabel: { fontSize: 15, fontWeight: '700', flex: 1 },
-  otInputRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 8 },
-  otInput: {
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 18,
-    fontWeight: '800',
-    width: 80,
-    textAlign: 'center',
-  },
-  otUnit: { fontSize: 14, fontWeight: '600' },
-  leaveSection: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 14, padding: 12, marginBottom: 12, gap: 8 },
-  leaveName: { flex: 1, fontSize: 14, fontWeight: '700' },
-  leaveClearBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  leaveRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  leaveChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10, borderWidth: 1, gap: 5 },
-  leaveChipText: { fontSize: 12, fontWeight: '700' },
-  swapSection: { borderWidth: 1, borderRadius: 14, padding: 12, marginBottom: 14 },
-  swapHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  swapTitle: { fontSize: 15, fontWeight: '700', flex: 1 },
-  swapStatusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
-  swapStatusText: { fontSize: 11, fontWeight: '700' },
-  swapNotePreview: { fontSize: 13, marginBottom: 8, lineHeight: 18 },
-  swapLabel: { fontSize: 12, fontWeight: '600', marginBottom: 6 },
-  swapChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
-  swapChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1 },
-  swapChipText: { fontSize: 12, fontWeight: '700' },
-  swapNoteInput: { borderWidth: 1, borderRadius: 10, padding: 10, fontSize: 13, marginBottom: 10, minHeight: 38 },
+  addRowText: { fontSize: 14, fontWeight: '700' },
+  swapCard: { borderWidth: 1, borderRadius: Radius.lg, padding: 14, gap: 10 },
+  swapHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  swapTitle: { flex: 1, fontSize: 15, fontWeight: '800' },
+  swapBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  swapBadgeText: { fontSize: 11, fontWeight: '800' },
+  swapDetail: { fontSize: 13, lineHeight: 19 },
+  swapPrompt: { fontSize: 13, fontWeight: '600' },
+  swapInput: { borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14 },
   swapActions: { flexDirection: 'row', gap: 8 },
-  swapActionBtn: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, gap: 6 },
-  swapActionText: { fontSize: 13, fontWeight: '700' },
-  shiftGrid: { marginBottom: 8 },
-  actionsRow: { flexDirection: 'row', gap: 8 },
-  actionPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    gap: 6,
-  },
-  actionPillText: { fontSize: 14, fontWeight: '600' },
+  clearBtn: { marginTop: 24 },
 });

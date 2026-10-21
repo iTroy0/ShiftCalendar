@@ -1,97 +1,64 @@
-import { format, addDays, startOfDay, set } from 'date-fns';
-import { ShiftType } from '../constants/shifts';
+import { Platform } from 'react-native';
+import { toDateKey } from './dates';
+import { NotificationPlanInput, PlannedNotification, planNotifications } from './notificationPlan';
 
-// Lazy-load expo-notifications to avoid crashing in Expo Go
-let Notifications: typeof import('expo-notifications') | null = null;
+export type { NotificationPlanInput, PlannedNotification } from './notificationPlan';
 
-async function getNotifications() {
-  if (!Notifications) {
-    try {
-      Notifications = require('expo-notifications');
-      Notifications!.setNotificationHandler({
-        handleNotification: async () => ({
-          shouldShowAlert: true,
-          shouldPlaySound: true,
-          shouldSetBadge: false,
-          shouldShowBanner: true,
-          shouldShowList: true,
-        }),
-      });
-    } catch {
-      return null;
-    }
-  }
-  return Notifications;
-}
+type NotificationsModule = typeof import('expo-notifications');
 
-export async function requestNotificationPermissions(): Promise<boolean> {
-  const N = await getNotifications();
-  if (!N) return false;
-  const { status: existing } = await N.getPermissionsAsync();
-  if (existing === 'granted') return true;
-  const { status } = await N.requestPermissionsAsync();
-  return status === 'granted';
-}
-
-export async function scheduleShiftReminder(
-  shiftData: Record<string, string>,
-  allShifts: ShiftType[],
-  notificationHour: number,
-) {
-  const N = await getNotifications();
-  if (!N) return;
-
-  await N.cancelAllScheduledNotificationsAsync();
-
-  const today = startOfDay(new Date());
-
-  for (let i = 0; i < 14; i++) {
-    const targetDate = addDays(today, i + 1);
-    const dateStr = format(targetDate, 'yyyy-MM-dd');
-    const code = shiftData[dateStr];
-    if (!code) continue;
-
-    const shift = allShifts.find((s) => s.code === code);
-    if (!shift) continue;
-
-    const triggerDate = set(addDays(today, i), { hours: notificationHour, minutes: 0, seconds: 0, milliseconds: 0 });
-
-    if (triggerDate <= new Date()) continue;
-
-    const body = shift.startTime
-      ? `${shift.label} shift at ${shift.startTime}`
-      : `${shift.label} - Day Off`;
-
-    await N.scheduleNotificationAsync({
-      content: {
-        title: `Tomorrow: ${shift.label}`,
-        body,
-        data: { date: dateStr },
-      },
-      trigger: {
-        type: N.SchedulableTriggerInputTypes.DATE,
-        date: triggerDate,
-      },
-    });
-  }
-}
-
+const REMINDER_CHANNEL_ID = 'shift-reminders';
 const ALARM_CHANNEL_ID = 'pre-shift-alarm-v2';
 const OLD_ALARM_CHANNEL_ID = 'pre-shift-alarm';
 
-async function ensureAlarmChannel() {
-  const N = await getNotifications();
-  if (!N) return;
+let cached: NotificationsModule | null | undefined;
 
-  const Platform = require('react-native').Platform;
+// Loaded lazily so the app keeps working where the native module is unavailable (web, Expo Go).
+function getNotifications(): NotificationsModule | null {
+  if (cached !== undefined) return cached;
+  if (Platform.OS === 'web') return (cached = null);
+  try {
+    const mod: NotificationsModule = require('expo-notifications');
+    mod.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+    cached = mod;
+  } catch {
+    cached = null;
+  }
+  return cached;
+}
+
+export async function requestNotificationPermissions(): Promise<boolean> {
+  const N = getNotifications();
+  if (!N) return false;
+  try {
+    const { status: existing } = await N.getPermissionsAsync();
+    if (existing === 'granted') return true;
+    const { status } = await N.requestPermissionsAsync();
+    return status === 'granted';
+  } catch {
+    return false;
+  }
+}
+
+async function ensureChannels(N: NotificationsModule, alarms: boolean) {
   if (Platform.OS !== 'android') return;
-
-  // Remove old channel (Android won't update sound on existing channels)
+  await N.setNotificationChannelAsync(REMINDER_CHANNEL_ID, {
+    name: 'Shift reminders',
+    description: 'Evening reminder about tomorrow’s shift',
+    importance: N.AndroidImportance.DEFAULT,
+  });
+  if (!alarms) return;
+  // Android won't update the sound of an existing channel, so the old one is removed.
   await N.deleteNotificationChannelAsync(OLD_ALARM_CHANNEL_ID).catch(() => {});
-
   await N.setNotificationChannelAsync(ALARM_CHANNEL_ID, {
-    name: 'Pre-Shift Alarm',
-    description: 'Alarm 1 hour before your shift starts',
+    name: 'Pre-shift alarm',
+    description: 'Alarm before your shift starts',
     importance: N.AndroidImportance.MAX,
     vibrationPattern: [0, 500, 200, 500, 200, 500],
     enableVibrate: true,
@@ -101,54 +68,71 @@ async function ensureAlarmChannel() {
   });
 }
 
-export async function schedulePreShiftAlarms(
-  shiftData: Record<string, string>,
-  allShifts: ShiftType[],
-) {
-  const N = await getNotifications();
+async function schedule(N: NotificationsModule, item: PlannedNotification) {
+  const isAlarm = item.kind === 'alarm';
+  await N.scheduleNotificationAsync({
+    identifier: item.id,
+    content: {
+      title: item.title,
+      body: item.body,
+      data: { date: item.dayKey },
+      ...(isAlarm ? { sound: 'alarm.mp3', priority: N.AndroidNotificationPriority.MAX } : {}),
+    },
+    trigger: {
+      type: N.SchedulableTriggerInputTypes.DATE,
+      date: item.trigger,
+      channelId: isAlarm ? ALARM_CHANNEL_ID : REMINDER_CHANNEL_ID,
+    },
+  });
+}
+
+async function cancelScheduled(N: NotificationsModule) {
+  const scheduled = await N.getAllScheduledNotificationsAsync();
+  // Keep a pending test notification; everything else (including untagged ones from older versions) goes.
+  await Promise.all(
+    scheduled
+      .filter((n) => !n.identifier.startsWith('sc-test-'))
+      .map((n) => N.cancelScheduledNotificationAsync(n.identifier))
+  );
+}
+
+async function runSync(input: NotificationPlanInput) {
+  const N = getNotifications();
   if (!N) return;
-
-  await ensureAlarmChannel();
-
-  const today = startOfDay(new Date());
-
-  for (let i = 0; i < 14; i++) {
-    const targetDate = addDays(today, i);
-    const dateStr = format(targetDate, 'yyyy-MM-dd');
-    const code = shiftData[dateStr];
-    if (!code) continue;
-
-    const shift = allShifts.find((s) => s.code === code);
-    if (!shift || !shift.startTime) continue;
-
-    const [hours, minutes] = shift.startTime.split(':').map(Number);
-    // 1 hour before shift start
-    let alarmHour = hours - 1;
-    let alarmMin = minutes;
-    if (alarmHour < 0) alarmHour = 23;
-
-    const triggerDate = set(targetDate, { hours: alarmHour, minutes: alarmMin, seconds: 0, milliseconds: 0 });
-    if (triggerDate <= new Date()) continue;
-
-    await N.scheduleNotificationAsync({
-      content: {
-        title: `⏰ ${shift.label} in 1 hour`,
-        body: `Your ${shift.label} shift starts at ${shift.startTime} — time to get ready!`,
-        data: { date: dateStr },
-        sound: 'alarm.mp3',
-        priority: N.AndroidNotificationPriority.MAX,
-      },
-      trigger: {
-        type: N.SchedulableTriggerInputTypes.DATE,
-        date: triggerDate,
-        channelId: ALARM_CHANNEL_ID,
-      },
-    });
+  await cancelScheduled(N);
+  if (!input.reminders && !input.alarms) return;
+  const { status } = await N.getPermissionsAsync();
+  if (status !== 'granted') return;
+  await ensureChannels(N, input.alarms);
+  for (const item of planNotifications(input)) {
+    await schedule(N, item);
   }
 }
 
-export async function cancelAllReminders() {
-  const N = await getNotifications();
-  if (!N) return;
-  await N.cancelAllScheduledNotificationsAsync();
+let queue: Promise<void> = Promise.resolve();
+
+/**
+ * Replaces all scheduled notifications with a fresh plan. Calls are serialized so overlapping
+ * syncs can never interleave their cancel/schedule steps and leave duplicates behind.
+ */
+export function syncNotifications(input: NotificationPlanInput): Promise<void> {
+  queue = queue.then(() => runSync(input)).catch((e) => console.warn('Notification sync failed', e));
+  return queue;
+}
+
+/** Fires a sample reminder or alarm a few seconds from now so users can check sound and permissions. */
+export async function sendTestNotification(kind: 'reminder' | 'alarm'): Promise<boolean> {
+  const N = getNotifications();
+  if (!N) return false;
+  if (!(await requestNotificationPermissions())) return false;
+  await ensureChannels(N, kind === 'alarm');
+  await schedule(N, {
+    id: `sc-test-${kind}`,
+    kind,
+    trigger: new Date(Date.now() + 5000),
+    dayKey: toDateKey(new Date()),
+    title: kind === 'alarm' ? '⏰ Test alarm' : 'Test reminder',
+    body: kind === 'alarm' ? 'This is how your pre-shift alarm will sound.' : 'Shift reminders are working.',
+  });
+  return true;
 }
