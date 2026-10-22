@@ -4,7 +4,7 @@
     <text for="{{weekdays}}" tid="id" class="weekday" style="color: {{$item.color}};">{{$item.label}}</text>
   </div>
   <div for="{{week in weeks}}" tid="id" class="week">
-    <div for="{{day in week.days}}" tid="id" class="cell" style="background-color: {{day.bg}}; border-color: {{day.ring}}; border-width: {{day.ringWidth}};" onclick="select(day.day)">
+    <div for="{{day in week.days}}" tid="id" class="cell" style="background-color: {{day.bg}}; border-color: {{day.ring}}; border-width: {{day.ringWidth}};" onclick="select(day.id)">
       <text class="num" style="color: {{day.fg}};">{{day.num}}</text>
     </div>
   </div>

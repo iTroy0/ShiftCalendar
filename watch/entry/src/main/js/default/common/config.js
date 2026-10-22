@@ -36,5 +36,19 @@ export const ROTATIONS = [
 export const MY_ROTATION = '2-2-2-2';
 export const ROTATION_START = '2026-10-19';
 
+// Leave you've booked: one day, or a range with `to`. `type` is one of LEAVE_TYPES. For example:
+//   { from: '2026-12-24', type: 'AL' },
+//   { from: '2027-01-10', to: '2027-01-20', type: 'AL' },
+export const LEAVE = [
+];
+
+// Leave types, in the phone app's colours.
+export const LEAVE_TYPES = {
+  AL: { label: 'Annual Leave', color: '#10B981', ink: '#1C1917' },
+  SL: { label: 'Sick Leave', color: '#EF4444', ink: '#FFFFFF' },
+  EL: { label: 'Emergency Leave', color: '#F97316', ink: '#1C1917' },
+  UL: { label: 'Unpaid Leave', color: '#EC4899', ink: '#FFFFFF' },
+};
+
 // First day of the week in the month view: 0 = Sunday (like the watch's own calendar), 1 = Monday, 6 = Saturday.
 export const WEEK_START = 0;

@@ -12,7 +12,7 @@ A read-only shift calendar for Huawei's GT-series watches. It's written for the 
 
 - **Shift colours**: every day of your rotation is a circle in its shift's colour: amber Morning, cyan Afternoon, indigo Night and grey for days off.
 - **Today** is marked in orange.
-- **Change month**: swipe left or right, or turn the crown.
+- **Change month**: swipe up for the next month and down for the previous one, or turn the crown.
 - **Check a day**: tap a date to see its shift and hours in the pill at the bottom. The date you tapped gets a green ring. The pill shows today's shift when the app opens.
 
 There's nothing to edit on the watch. Your rotation is set once in `config.js` before you build. It doesn't sync with the phone app, so leave, swaps, overtime and one-off changes don't appear.
@@ -32,6 +32,7 @@ You can also change these in `config.js`:
 
 - **Shifts**: names, times and colours. The defaults match the phone app.
 - **Rotations**: the phone app's templates. Add your own as a list of shift codes, any length.
+- **Leave**: add your booked days to `LEAVE`, as one day (`{ from: '2026-12-24', type: 'AL' }`) or a range with `to`. Types are `AL`, `SL`, `EL` and `UL`, shown in the phone app's leave colours.
 - **First day of the week**: `WEEK_START`. It defaults to Sunday, like the watch's calendar.
 
 If the rotation name or date is wrong, the watch shows a plain calendar with **Check config.js** in the pill.
