@@ -7,3 +7,5 @@ export const ON_ACCENT = '#ffffff';
 // Ring around the date you tapped: green stays distinct from the shift colours and today's orange,
 // including with colour-blindness.
 export const SELECTED = '#16a34a';
+// Dates from the months either side of the one shown.
+export const OUTSIDE = '#c7c7cc';

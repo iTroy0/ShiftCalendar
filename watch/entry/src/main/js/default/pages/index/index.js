@@ -1,9 +1,10 @@
 import {
-  addMonths, dateLabel, dayParts, describe, monthLabel, monthWeeks, mySchedule, today, weekdayHeader,
+  addMonths, cellState, dateLabel, dayParts, describe, gridStart, monthLabel, mySchedule, today, weekdayHeader,
 } from '../../common/schedule.js';
 
 // How many months either side of the current one the title picker (and swiping) can reach.
 const SPAN = 24;
+const CELL_FIELDS = ['num', 'bg', 'fg', 'ring', 'ringWidth'];
 
 export default {
   data: {
@@ -11,14 +12,13 @@ export default {
     todayDay: 0,
     selectedDay: 0,
     offset: 0,
+    shownMonth: 0,
     monthLabels: [],
     monthPos: '24',
     weekdays: [],
+    // 6 rows of 7 cells, built once. Changing month only updates the cells' values, which is much
+    // cheaper on the watch than recreating 42 elements.
     weeks: [],
-    rowHeight: '50px',
-    cellSize: '44px',
-    cellRadius: '22px',
-    numSize: '24px',
     infoTitle: '',
     infoDetail: '',
   },
@@ -27,7 +27,6 @@ export default {
     const now = dayParts(t);
     this.todayDay = t;
     this.selectedDay = t;
-    this.offset = 0;
     this.settings = mySchedule();
     const labels = [];
     for (let i = -SPAN; i <= SPAN; i++) {
@@ -36,6 +35,15 @@ export default {
     }
     this.monthLabels = labels;
     this.weekdays = weekdayHeader();
+    const weeks = [];
+    for (let r = 0; r < 6; r++) {
+      const days = [];
+      for (let c = 0; c < 7; c++) {
+        days.push({ id: r * 7 + c, day: 0, num: '', bg: '#f2f2f4', fg: '#111111', ring: '#f2f2f4', ringWidth: '0px' });
+      }
+      weeks.push({ id: r, days });
+    }
+    this.weeks = weeks;
     this.refresh();
   },
   onShow() {
@@ -53,14 +61,25 @@ export default {
   refresh() {
     const now = dayParts(this.todayDay);
     const m = addMonths(now.year, now.month, this.offset);
-    const weeks = monthWeeks(m.year, m.month, this.settings, this.todayDay, this.selectedDay);
-    const six = weeks.length > 5;
-    this.rowHeight = six ? '44px' : '50px';
-    this.cellSize = six ? '40px' : '44px';
-    this.cellRadius = six ? '20px' : '22px';
-    this.numSize = six ? '22px' : '24px';
-    this.weeks = weeks;
+    this.shownMonth = m.month;
+    const start = gridStart(m.year, m.month);
+    for (let i = 0; i < 42; i++) {
+      const cell = this.weeks[Math.floor(i / 7)].days[i % 7];
+      cell.day = start + i;
+      this.paint(cell);
+    }
     this.monthPos = String(this.offset + SPAN);
+    this.showInfo();
+  },
+  // Writes only the values that changed, so untouched cells cost nothing to redraw.
+  paint(cell) {
+    const state = cellState(cell.day, this.shownMonth, this.settings, this.todayDay, this.selectedDay);
+    for (let k = 0; k < CELL_FIELDS.length; k++) {
+      const key = CELL_FIELDS[k];
+      if (cell[key] !== state[key]) cell[key] = state[key];
+    }
+  },
+  showInfo() {
     if (this.settings) {
       const info = describe(this.selectedDay, this.settings, this.todayDay);
       this.infoTitle = info.title + ' · ' + info.label;
@@ -79,10 +98,18 @@ export default {
   pickMonth(e) {
     this.showMonth(e.newSelected - SPAN);
   },
+  // Tapping a date only repaints the old and new selection.
   select(day) {
-    if (day < 0) return; // padding cell outside the month
+    const old = this.selectedDay;
+    if (day === old) return;
     this.selectedDay = day;
-    this.refresh();
+    for (let r = 0; r < 6; r++) {
+      const days = this.weeks[r].days;
+      for (let c = 0; c < 7; c++) {
+        if (days[c].day === old || days[c].day === day) this.paint(days[c]);
+      }
+    }
+    this.showInfo();
   },
   // Swipe left for the next month and right for the previous one, like the watch's calendar.
   swiped(e) {

@@ -1,5 +1,5 @@
 import { MY_ROTATION, ROTATION_START, ROTATIONS, SHIFTS, WEEK_START } from './config.js';
-import { ACCENT, BACKGROUND, MUTED, ON_ACCENT, SELECTED, TEXT } from './colors.js';
+import { ACCENT, BACKGROUND, MUTED, ON_ACCENT, OUTSIDE, SELECTED, TEXT } from './colors.js';
 
 const DAY_MS = 86400000;
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -108,30 +108,32 @@ export function weekdayHeader() {
   return list;
 }
 
-function blankCell(id) {
-  return { id, num: '', bg: BACKGROUND, fg: TEXT, ring: BACKGROUND, ringWidth: '0px' };
+/** The month's grid: 6 weeks of 7 days, starting on WEEK_START. Returns the first day's number. */
+export function gridStart(year, month) {
+  const first = Math.floor(Date.UTC(year, month, 1) / DAY_MS);
+  return first - ((new Date(first * DAY_MS).getUTCDay() - WEEK_START + 7) % 7);
 }
 
-// Every day of the rotation gets a circle in its shift's colour, days off included. Today gets an
-// accent ring and a tapped day a green ring. Without a rotation it's a plain calendar with today
-// filled in the accent colour.
-function dayCell(day, settings, todayDay, selectedDay) {
+// Every day of the rotation gets a circle in its shift's colour, days off included. Days from the
+// months either side are plain grey numbers. Today gets an accent ring and a tapped day a green
+// ring. Without a rotation it's a plain calendar with today filled in the accent colour.
+export function cellState(day, month, settings, todayDay, selectedDay) {
   const parts = dayParts(day);
+  const inMonth = parts.month === month;
   const weekday = new Date(day * DAY_MS).getUTCDay();
   const cell = {
-    id: day,
     num: String(parts.date),
     bg: BACKGROUND,
-    fg: weekday === 0 || weekday === 6 ? MUTED : TEXT,
+    fg: !inMonth ? OUTSIDE : weekday === 0 || weekday === 6 ? MUTED : TEXT,
     ring: BACKGROUND,
     ringWidth: '0px',
   };
-  const info = settings ? describe(day, settings, todayDay) : null;
+  const info = settings && inMonth ? describe(day, settings, todayDay) : null;
   if (info) {
     cell.bg = info.color;
     cell.fg = info.ink;
   }
-  if (day === todayDay) {
+  if (day === todayDay && inMonth) {
     if (info) {
       cell.ring = ACCENT;
       cell.ringWidth = '4px';
@@ -144,26 +146,4 @@ function dayCell(day, settings, todayDay, selectedDay) {
     cell.ringWidth = '4px';
   }
   return cell;
-}
-
-/** The month as rows of seven cells. Without settings (rotation not set) it's a plain calendar. */
-export function monthWeeks(year, month, settings, todayDay, selectedDay) {
-  const first = Math.floor(Date.UTC(year, month, 1) / DAY_MS);
-  const count = Math.round((Date.UTC(year, month + 1, 1) - Date.UTC(year, month, 1)) / DAY_MS);
-  const lead = (new Date(first * DAY_MS).getUTCDay() - WEEK_START + 7) % 7;
-  const weeks = [];
-  let row = [];
-  for (let i = 0; i < lead; i++) row.push(blankCell(-1 - i));
-  for (let n = 0; n < count; n++) {
-    row.push(dayCell(first + n, settings, todayDay, selectedDay));
-    if (row.length === 7) {
-      weeks.push({ id: weeks.length, days: row });
-      row = [];
-    }
-  }
-  if (row.length) {
-    for (let i = row.length; i < 7; i++) row.push(blankCell(-100 - i));
-    weeks.push({ id: weeks.length, days: row });
-  }
-  return weeks;
 }

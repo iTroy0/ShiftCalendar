@@ -19,7 +19,7 @@ There's nothing to edit on the watch. Your rotation is set once in `config.js` b
 
 ## Set your rotation
 
-Open [`entry/src/main/js/MainAbility/common/config.js`](entry/src/main/js/MainAbility/common/config.js) and set two values:
+Open [`entry/src/main/js/default/common/config.js`](entry/src/main/js/default/common/config.js) and set two values:
 
 ```js
 export const MY_ROTATION = '2-2-2-2';       // one of the names in ROTATIONS
@@ -48,7 +48,7 @@ This folder is a complete DevEco Studio project (lite wearable, FA model, JS):
 
 ```
 entry/src/main/config.json                bundle name, device type, pages
-entry/src/main/js/MainAbility/
+entry/src/main/js/default/
   app.js
   common/config.js                         your shifts and rotation (edit this)
   common/colors.js                         the light theme's colours
@@ -61,7 +61,7 @@ The bundle name is `com.itroy0.shiftcalendar.watch`, set in `entry/src/main/conf
 
 ## 1. Open it and check the Previewer
 
-In DevEco Studio, choose **File → Open** and pick this `watch` folder. Wait for the sync to finish, then open `entry/src/main/js/MainAbility/pages/index/index.hml` and start the **Previewer**. It shows the page on a round 466 × 466 lite wearable. The Previewer needs no signing.
+In DevEco Studio, choose **File → Open** and pick this `watch` folder. Wait for the sync to finish, then open `entry/src/main/js/default/pages/index/index.hml` and start the **Previewer**. It shows the page on a round 466 × 466 lite wearable. The Previewer needs no signing.
 
 ## 2. Sign it
 
@@ -97,6 +97,9 @@ The lite wearable framework is much smaller than a browser:
 - The JavaScript engine has no `RegExp`. A regex literal anywhere in a page's code stops the page loading, and the Previewer stays black.
 - Don't name a page method `render`: the framework stores the compiled template under that name.
 - Each page must stay under 48 KB once compiled.
+- GT watches refuse an app (`Installation failed: 40`) unless it has a small icon too: keep `icon_small.png` next to `icon.png` in `resources/base/media`. The JS also has to sit in `js/default`.
+- Keep the page cheap to update: the month grid is built once and only its values change.
+- Install from the Lite version of DevEco Assistant that Huawei links on its developer forum.
 - If the Previewer stays black, look for `[JS Error]` lines in DevEco Studio's `previewer.log` (**Help → Show Log in Explorer**).
 - The crown reaches JS apps only through a single-column `<picker-view>` that calls `rotation({ focus: true })`. That's why the month title is a one-row picker. If your watch doesn't pass the crown to it, swiping still changes the month.
 

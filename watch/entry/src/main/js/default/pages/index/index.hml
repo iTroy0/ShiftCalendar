@@ -3,9 +3,9 @@
   <div class="weekdays">
     <text for="{{weekdays}}" tid="id" class="weekday" style="color: {{$item.color}};">{{$item.label}}</text>
   </div>
-  <div for="{{week in weeks}}" tid="id" class="week" style="height: {{rowHeight}};">
-    <div for="{{day in week.days}}" tid="id" class="cell" style="width: {{cellSize}}; height: {{cellSize}}; border-radius: {{cellRadius}}; background-color: {{day.bg}}; border-color: {{day.ring}}; border-width: {{day.ringWidth}};" onclick="select(day.id)">
-      <text class="num" style="color: {{day.fg}}; font-size: {{numSize}};">{{day.num}}</text>
+  <div for="{{week in weeks}}" tid="id" class="week">
+    <div for="{{day in week.days}}" tid="id" class="cell" style="background-color: {{day.bg}}; border-color: {{day.ring}}; border-width: {{day.ringWidth}};" onclick="select(day.day)">
+      <text class="num" style="color: {{day.fg}};">{{day.num}}</text>
     </div>
   </div>
   <div class="info">

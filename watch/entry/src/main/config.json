@@ -35,7 +35,7 @@
       {
         "name": ".MainAbility",
         "srcLanguage": "js",
-        "srcPath": "MainAbility",
+        "srcPath": "default",
         "icon": "$media:icon",
         "description": "$string:MainAbility_desc",
         "label": "$string:MainAbility_label",
