@@ -47,10 +47,10 @@ A modern, offline-first shift scheduling app for shift workers. Plan rotations, 
 ## Huawei Watch GT companion
 
 <p align="center">
-  <img src="watch/preview.png" width="600" alt="ShiftCalendar on a Huawei Watch GT: this month, a tapped day, and next month" />
+  <img src="watch/preview.png" width="600" alt="ShiftCalendar on a Huawei Watch GT: the setup, this month, and a day booked as annual leave" />
 </p>
 
-[`watch/`](watch) has a small read-only app for Huawei GT-series watches (written for the GT 7). It shows a month calendar styled like the watch's own Calendar app, with your shifts in their colours, worked out from the rotation you set in its config. You build and install it yourself with DevEco Studio; see [watch/README.md](watch/README.md).
+[`watch/`](watch) has a small app for Huawei GT-series watches (written for the GT 7). It shows a month calendar styled like the watch's own Calendar app, with your shifts in their colours, worked out from the rotation you pick on the watch the first time it opens. Hold a date to book annual leave. You build and install it yourself with DevEco Studio; see [watch/README.md](watch/README.md).
 
 ## Getting Started
 

@@ -1,5 +1,6 @@
-// Your shifts and rotation. Edit this file, then rebuild and reinstall the watch app.
-// The defaults match ShiftCalendar on your phone.
+// Your shifts and rotations. The defaults match ShiftCalendar on your phone. Your own rotation is set on
+// the watch the first time the app opens; the values below only fill that screen in to start with.
+// After editing this file, rebuild and reinstall the watch app.
 
 // Shift types by code. `ink` is the text colour drawn on top of `color`.
 export const SHIFTS = {
@@ -31,12 +32,13 @@ export const ROTATIONS = [
   },
 ];
 
-// Your rotation: one of the names above, and the date of any day 1 of it (for 2-2-2-2, the first
-// of two Morning days). Every other day is worked out from these.
+// What the watch's setup screen starts on: one of the names above, and the date of any day 1 of it
+// (for 2-2-2-2, the first of two Morning days).
 export const MY_ROTATION = '2-2-2-2';
 export const ROTATION_START = '2026-10-19';
 
-// Leave you've booked: one day, or a range with `to`. `type` is one of LEAVE_TYPES. For example:
+// Leave you've booked: one day, or a range with `to`. `type` is one of LEAVE_TYPES. Holding a date on
+// the watch books or clears annual leave without a rebuild; this list is for longer ranges. For example:
 //   { from: '2026-12-24', type: 'AL' },
 //   { from: '2027-01-10', to: '2027-01-20', type: 'AL' },
 export const LEAVE = [

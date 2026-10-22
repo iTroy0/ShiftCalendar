@@ -1,0 +1,13 @@
+<div class="page">
+  <!-- Two steps: pick the rotation, then which of its days today is. The crown turns whichever
+       picker is showing. Each picker is created when its step opens, so its list never changes
+       while it's on screen (changing a live picker's list can crash the watch's runtime). -->
+  <text class="title">{{title}}</text>
+  <picker-view if="{{pickingRotation}}" ref="rotationPicker" class="picker" type="text" range="{{rotations}}" selected="{{rotation}}" onchange="pickRotation"></picker-view>
+  <picker-view if="{{pickingDay}}" ref="dayPicker" class="picker" type="text" range="{{days}}" selected="{{day}}" onchange="pickDay"></picker-view>
+  <text class="hint">{{hint}}</text>
+  <div class="buttons">
+    <text class="button back" show="{{pickingDay}}" onclick="back">Back</text>
+    <text class="button next" onclick="next">{{button}}</text>
+  </div>
+</div>

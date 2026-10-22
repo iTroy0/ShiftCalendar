@@ -71,12 +71,50 @@ function leaveDays() {
   return days;
 }
 
-/** The rotation and leave set in config.js, or null if the rotation's name or date is wrong. */
-export function mySchedule() {
-  const rotation = findRotation(MY_ROTATION);
-  const start = parseDate(ROTATION_START);
-  if (rotation < 0 || start === null) return null;
-  return { start, days: ROTATIONS[rotation].days, leave: leaveDays() };
+/** The setup written in config.js. It fills in the watch's setup screen the first time. */
+export function configSetup() {
+  return { rotation: MY_ROTATION, start: parseDate(ROTATION_START), leave: {} };
+}
+
+/**
+ * What the calendar needs from a setup ({ rotation, start, leave }): { start, days, leave }, or null if
+ * the rotation isn't one of ROTATIONS or there's no start. Leave marked on the watch (`setup.leave`,
+ * { dayNumber: type }) adds to the leave in config.js, and 'none' clears a day of it.
+ */
+export function scheduleFor(setup) {
+  const rotation = findRotation(setup.rotation);
+  if (rotation < 0 || typeof setup.start !== 'number') return null;
+  const leave = leaveDays();
+  const marked = setup.leave || {};
+  for (const day in marked) {
+    if (LEAVE_TYPES[marked[day]]) leave[day] = marked[day];
+    else delete leave[day];
+  }
+  return { start: setup.start, days: ROTATIONS[rotation].days, leave };
+}
+
+/** The rotations' names, for the setup screen. */
+export function rotationNames() {
+  const names = [];
+  for (let i = 0; i < ROTATIONS.length; i++) names.push(ROTATIONS[i].name);
+  return names;
+}
+
+/** 'Day 1 · Morning', 'Day 2 · Morning' and so on through a rotation, for the setup screen. */
+export function rotationDayLabels(name) {
+  const index = findRotation(name);
+  const days = index < 0 ? [] : ROTATIONS[index].days;
+  const labels = [];
+  for (let i = 0; i < days.length; i++) labels.push('Day ' + (i + 1) + ' · ' + shiftFor(days[i]).label);
+  return labels;
+}
+
+/** A rotation's shift codes, e.g. 'M M A A N N O O', or its length when that's too long to show. */
+export function rotationPattern(name) {
+  const index = findRotation(name);
+  if (index < 0) return '';
+  const days = ROTATIONS[index].days;
+  return days.length <= 14 ? days.join(' ') : days.length + '-day cycle';
 }
 
 /** What a day is: its leave type if booked, otherwise its shift. Has `label`, `color` and `ink`. */
@@ -90,16 +128,19 @@ export function dateLabel(day) {
   return WEEKDAYS[d.getUTCDay()] + ' ' + d.getUTCDate() + ' ' + MONTHS[d.getUTCMonth()];
 }
 
-/** The pill for a day: { title, label, time, color, ink }, in the colour of its shift or leave. */
+/** The pill for a day: { title, detail, color, ink }, in the colour of its shift or leave. */
 export function describe(day, settings, todayDay) {
   const look = lookOf(day, settings);
   const d = new Date(day * DAY_MS);
-  let title = WEEKDAYS[d.getUTCDay()] + ' ' + d.getUTCDate();
-  if (day === todayDay) title = 'Today';
-  else if (day === todayDay + 1) title = 'Tomorrow';
-  let time = 'On leave';
-  if (!LEAVE_TYPES[settings.leave[day]]) time = look.start ? look.start + ' - ' + look.end : 'Day off';
-  return { title, label: look.label, time, color: look.color, ink: look.ink };
+  let name = WEEKDAYS[d.getUTCDay()] + ' ' + d.getUTCDate();
+  if (day === todayDay) name = 'Today';
+  else if (day === todayDay + 1) name = 'Tomorrow';
+  // Leave names are long ('Emergency Leave'), so they get the second line to themselves.
+  if (LEAVE_TYPES[settings.leave[day]]) {
+    return { title: name + ' · On leave', detail: look.label, color: look.color, ink: look.ink };
+  }
+  const time = look.start ? look.start + ' - ' + look.end : 'Day off';
+  return { title: name + ' · ' + look.label, detail: time, color: look.color, ink: look.ink };
 }
 
 /** { year, month (0-11), date } of a day number. */
@@ -162,15 +203,25 @@ export function cellState(day, frame, settings, todayDay, selectedDay) {
   }
   if (day === todayDay && inMonth) {
     if (settings) {
-      cell.ring = ACCENT;
+      cell.ring = ringOn(cell.bg, ACCENT);
       cell.ringWidth = '4px';
     } else {
       cell.bg = ACCENT;
       cell.fg = ON_ACCENT;
     }
   } else if (day === selectedDay) {
-    cell.ring = SELECTED;
+    cell.ring = ringOn(cell.bg, SELECTED);
     cell.ringWidth = '4px';
   }
   return cell;
+}
+
+/** A ring of `color` on a circle of `fill`, or a dark ring where the two would look alike (the green
+ *  selection ring on annual leave, for example). Colours are '#rrggbb'. */
+function ringOn(fill, color) {
+  let diff = 0;
+  for (let i = 1; i < 7; i += 2) {
+    diff += Math.abs(parseInt(fill.substring(i, i + 2), 16) - parseInt(color.substring(i, i + 2), 16));
+  }
+  return diff < 120 ? TEXT : color;
 }

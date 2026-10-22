@@ -45,7 +45,8 @@
     "js": [
       {
         "pages": [
-          "pages/index/index"
+          "pages/index/index",
+          "pages/setup/setup"
         ],
         "name": ".MainAbility"
       }

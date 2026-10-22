@@ -1,12 +1,16 @@
+import router from '@system.router';
 import {
-  addMonths, cellState, dateLabel, dayParts, describe, monthFrame, monthTitle, mySchedule, today, weekdayHeader,
+  addMonths, cellState, dateLabel, dayParts, describe, monthFrame, monthTitle, scheduleFor, today, weekdayHeader,
 } from '../../common/schedule.js';
+import { loadSetup, parseSetup, saveSetup } from '../../common/setup.js';
 
 const CELL_FIELDS = ['num', 'bg', 'fg', 'ring', 'ringWidth'];
 // The swiper reports a new page once its slide has finished. Refilling the page that slid away waits
 // this long more, so the slide's last frame is drawn first.
 const REFILL_DELAY_MS = 30;
-// Kept out of `data` so the watch doesn't track every day of the schedule for changes.
+// The setup made on the watch (see common/setup.js) and the schedule worked out from it. Kept out of
+// `data` so the watch doesn't track every day of the schedule for changes.
+let setup = null;
 let settings = null;
 // The swiper's three pages: the month each holds (as months from today's) and its grid frame.
 let pages = [];
@@ -20,6 +24,8 @@ let readyTimer = null;
 
 export default {
   data: {
+    // The setup the setup screen has just saved, passed along in case saving it failed.
+    saved: '',
     todayDay: 0,
     selectedDay: 0,
     weekdays: [],
@@ -35,14 +41,16 @@ export default {
     weeks2: [],
     infoTitle: '',
     infoDetail: '',
-    infoBg: '#ffffff',
+    // The page's own colour, so the pill only appears with the setup.
+    infoBg: '#f2f2f4',
     infoInk: '#111111',
   },
   onInit() {
     const t = today();
     this.todayDay = t;
     this.selectedDay = t;
-    settings = mySchedule();
+    setup = null;
+    settings = null;
     pages = [{ offset: -1, frame: null }, { offset: 0, frame: null }, { offset: 1, frame: null }];
     current = 1;
     pending = null;
@@ -60,17 +68,17 @@ export default {
       }
       this['weeks' + p] = weeks;
     }
-    this.fill(1, 0);
-    this.showInfo();
+    // The month is drawn once the setup has been read (reading it takes a moment), rather than drawn
+    // plain and then coloured in.
+    const passed = this.saved ? parseSetup(this.saved) : null;
+    if (passed) this.useSetup(passed);
+    else loadSetup((saved) => this.useSetup(saved));
   },
   onReady() {
     // Only the month on screen is drawn at first. The months either side are added once that's up,
     // so the app opens as quickly as with one month.
     readyTimer = setTimeout(() => {
       readyTimer = null;
-      for (let p = 0; p < 3; p++) {
-        if (!pages[p].frame) this.fill(p, pages[p].offset);
-      }
       this.ready = true;
     }, 50);
   },
@@ -89,6 +97,22 @@ export default {
   crownFocus(focus) {
     const swiper = this.$refs ? this.$refs.months : null;
     if (swiper && typeof swiper.rotation === 'function') swiper.rotation({ focus });
+  },
+  // Shows the shifts from a setup, or opens the setup screen if the watch hasn't been set up yet.
+  useSetup(saved) {
+    const schedule = saved ? scheduleFor(saved) : null;
+    if (!schedule) {
+      setTimeout(() => this.openSetup(), 0);
+      return;
+    }
+    setup = saved;
+    settings = schedule;
+    for (let p = 0; p < 3; p++) this.fill(p, pages[p].offset);
+    this.showInfo();
+  },
+  openSetup() {
+    this.cancel();
+    router.replace({ uri: 'pages/setup/setup' });
   },
   // Puts the month `offset` months from today's on page p.
   fill(p, offset) {
@@ -114,13 +138,13 @@ export default {
   showInfo() {
     if (settings) {
       const info = describe(this.selectedDay, settings, this.todayDay);
-      this.infoTitle = info.title + ' · ' + info.label;
-      this.infoDetail = info.time;
+      this.infoTitle = info.title;
+      this.infoDetail = info.detail;
       this.infoBg = info.color;
       this.infoInk = info.ink;
     } else {
       this.infoTitle = dateLabel(this.selectedDay);
-      this.infoDetail = 'Check config.js';
+      this.infoDetail = '';
     }
   },
   // The swiper settled on another page: the next month (swiped up) or the previous one (down).
@@ -151,11 +175,35 @@ export default {
     pendingTimer = null;
     pending = null;
   },
-  // Tapping a date only repaints the old and new selection, on whichever pages show them.
+  // The date in the cell with this id (ids run on across the three pages), or null before it's drawn.
+  dayOf(id) {
+    const frame = pages[Math.floor(id / 42)].frame;
+    return frame ? frame.start + (id % 42) : null;
+  },
   select(id) {
-    const day = pages[Math.floor(id / 42)].frame.start + (id % 42);
+    const day = this.dayOf(id);
+    if (day !== null && settings) this.selectDay(day, false);
+  },
+  // Holding a date books it as annual leave, or clears the leave on it. Saved on the watch.
+  hold(id) {
+    const day = this.dayOf(id);
+    if (day === null || !setup) return;
+    const marked = setup.leave;
+    const onLeave = !!settings.leave[day];
+    delete marked[day];
+    settings = scheduleFor(setup);
+    // Without the watch's own mark the day may still be on leave from config.js: clear that too.
+    if (onLeave && settings.leave[day]) marked[day] = 'none';
+    else if (!onLeave && !settings.leave[day]) marked[day] = 'AL';
+    settings = scheduleFor(setup);
+    saveSetup(setup);
+    this.selectDay(day, true);
+  },
+  // Moves the green ring to `day` and shows that day in the pill, repainting only the cells involved.
+  // `changed` repaints the day even if it was already selected.
+  selectDay(day, changed) {
     const old = this.selectedDay;
-    if (day === old) return;
+    if (day === old && !changed) return;
     this.selectedDay = day;
     for (let p = 0; p < 3; p++) {
       const frame = pages[p].frame;
