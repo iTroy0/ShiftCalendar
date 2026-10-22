@@ -1,15 +1,44 @@
-<div class="page" onswipe="swiped">
-  <picker-view ref="monthPicker" class="month" type="text" range="{{monthLabels}}" selected="{{monthPos}}" onchange="pickMonth"></picker-view>
-  <div class="weekdays">
-    <text for="{{weekdays}}" tid="id" class="weekday" style="color: {{$item.color}};">{{$item.label}}</text>
-  </div>
-  <div for="{{week in weeks}}" tid="id" class="week">
-    <div for="{{day in week.days}}" tid="id" class="cell" style="background-color: {{day.bg}}; border-color: {{day.ring}}; border-width: {{day.ringWidth}};" onclick="select(day.id)">
-      <text class="num" style="color: {{day.fg}};">{{day.num}}</text>
+<div class="page">
+  <!-- Three months (the one shown and its neighbours) in a vertical swiper, so a swipe or the crown
+       slides the next month in. The page that slides out of view is refilled with the month after it.
+       The app opens on the middle page; the other two are filled in just after (`ready`). -->
+  <swiper ref="months" class="months" index="1" loop="true" vertical="true" duration="300" onchange="paged">
+    <div class="month">
+      <div class="body" if="{{ready}}">
+        <text class="title">{{title0}}</text>
+        <div class="weekdays">
+          <text for="{{weekdays}}" tid="id" class="weekday" style="color: {{$item.color}};">{{$item.label}}</text>
+        </div>
+        <div for="{{week in weeks0}}" tid="id" class="week">
+          <text for="{{day in week.days}}" tid="id" class="cell" style="background-color: {{day.bg}}; border-color: {{day.ring}}; border-width: {{day.ringWidth}}; color: {{day.fg}};" onclick="select(day.id)">{{day.num}}</text>
+        </div>
+      </div>
     </div>
-  </div>
-  <div class="info">
-    <text class="info-title">{{infoTitle}}</text>
-    <text class="info-detail">{{infoDetail}}</text>
+    <div class="month">
+      <div class="body">
+        <text class="title">{{title1}}</text>
+        <div class="weekdays">
+          <text for="{{weekdays}}" tid="id" class="weekday" style="color: {{$item.color}};">{{$item.label}}</text>
+        </div>
+        <div for="{{week in weeks1}}" tid="id" class="week">
+          <text for="{{day in week.days}}" tid="id" class="cell" style="background-color: {{day.bg}}; border-color: {{day.ring}}; border-width: {{day.ringWidth}}; color: {{day.fg}};" onclick="select(day.id)">{{day.num}}</text>
+        </div>
+      </div>
+    </div>
+    <div class="month">
+      <div class="body" if="{{ready}}">
+        <text class="title">{{title2}}</text>
+        <div class="weekdays">
+          <text for="{{weekdays}}" tid="id" class="weekday" style="color: {{$item.color}};">{{$item.label}}</text>
+        </div>
+        <div for="{{week in weeks2}}" tid="id" class="week">
+          <text for="{{day in week.days}}" tid="id" class="cell" style="background-color: {{day.bg}}; border-color: {{day.ring}}; border-width: {{day.ringWidth}}; color: {{day.fg}};" onclick="select(day.id)">{{day.num}}</text>
+        </div>
+      </div>
+    </div>
+  </swiper>
+  <div class="info" style="background-color: {{infoBg}};">
+    <text class="info-title" style="color: {{infoInk}};">{{infoTitle}}</text>
+    <text class="info-detail" style="color: {{infoInk}};">{{infoDetail}}</text>
   </div>
 </div>

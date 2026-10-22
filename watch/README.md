@@ -12,8 +12,8 @@ A read-only shift calendar for Huawei's GT-series watches. It's written for the 
 
 - **Shift colours**: every day of your rotation is a circle in its shift's colour: amber Morning, cyan Afternoon, indigo Night and grey for days off.
 - **Today** is marked in orange.
-- **Change month**: swipe up for the next month and down for the previous one, or turn the crown.
-- **Check a day**: tap a date to see its shift and hours in the pill at the bottom. The date you tapped gets a green ring. The pill shows today's shift when the app opens.
+- **Change month**: swipe up for the next month and down for the previous one, or turn the crown. The month follows your finger and slides into place.
+- **Check a day**: tap a date to see its shift and hours in the pill at the bottom, which takes the shift's colour. The date you tapped gets a green ring. The pill shows today's shift when the app opens.
 
 There's nothing to edit on the watch. Your rotation is set once in `config.js` before you build. It doesn't sync with the phone app, so leave, swaps, overtime and one-off changes don't appear.
 
@@ -99,9 +99,12 @@ The lite wearable framework is much smaller than a browser:
 - Don't name a page method `render`: the framework stores the compiled template under that name.
 - Each page must stay under 48 KB once compiled.
 - GT watches refuse an app (`Installation failed: 40`) unless it has a small icon too: keep `icon_small.png` next to `icon.png` in `resources/base/media`. The JS also has to sit in `js/default`.
-- Keep the page cheap to update: the month grid is built once and only its values change.
+- The watch shows the icon as it is, without masking it, so the PNGs are round with transparent corners.
+- Keep the page cheap to update. The months sit in a three-page vertical `swiper`, so the swipe and the crown are animated by the watch itself. The page that slides away is refilled with the next month while it's off screen, and only the values that change are written. Each day is a single `text` element.
+- The months either side of the first one are built just after the first frame, so the app opens as quickly as it did with one month.
 - Install from the Lite version of DevEco Assistant that Huawei links on its developer forum.
 - If the Previewer stays black, look for `[JS Error]` lines in DevEco Studio's `previewer.log` (**Help → Show Log in Explorer**).
-- The crown reaches JS apps only through a single-column `<picker-view>` that calls `rotation({ focus: true })`. That's why the month title is a one-row picker. If your watch doesn't pass the crown to it, swiping still changes the month.
+- The crown reaches a JS page only through a component that asks for it with `rotation({ focus: true })`, here the month `swiper`. If your watch doesn't pass the crown to it, swiping still changes the month.
+- A swipe has to drag the month about a third of the way (roughly 110 px) to change it. Shorter ones spring back.
 
 Huawei's [lite wearable samples](https://gitcode.com/HarmonyOS_Samples/BestPracticeSnippets/tree/master/LiteWearable) and the [ArkUI JS lite reference](https://gitcode.com/openharmony/docs/blob/OpenHarmony-4.0-Release/en/application-dev/reference/arkui-js-lite/Readme-EN.md) cover the details.

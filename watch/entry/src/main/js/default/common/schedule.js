@@ -3,7 +3,10 @@ import { ACCENT, BACKGROUND, MUTED, ON_ACCENT, OUTSIDE, SELECTED, TEXT } from '.
 
 const DAY_MS = 86400000;
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const WEEKDAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September',
+  'October', 'November', 'December'];
 const UNKNOWN = { label: '?', start: '', end: '', color: '#6B7280', ink: '#FFFFFF' };
 // '0'..'31', made once so drawing a month builds no strings.
 const NUMBERS = [];
@@ -87,7 +90,7 @@ export function dateLabel(day) {
   return WEEKDAYS[d.getUTCDay()] + ' ' + d.getUTCDate() + ' ' + MONTHS[d.getUTCMonth()];
 }
 
-/** The pill's text for a day: { title, label, time }. */
+/** The pill for a day: { title, label, time, color, ink }, in the colour of its shift or leave. */
 export function describe(day, settings, todayDay) {
   const look = lookOf(day, settings);
   const d = new Date(day * DAY_MS);
@@ -96,7 +99,7 @@ export function describe(day, settings, todayDay) {
   else if (day === todayDay + 1) title = 'Tomorrow';
   let time = 'On leave';
   if (!LEAVE_TYPES[settings.leave[day]]) time = look.start ? look.start + ' - ' + look.end : 'Day off';
-  return { title, label: look.label, time };
+  return { title, label: look.label, time, color: look.color, ink: look.ink };
 }
 
 /** { year, month (0-11), date } of a day number. */
@@ -111,17 +114,17 @@ export function addMonths(year, month, delta) {
   return { year: Math.floor(total / 12), month: total % 12 };
 }
 
-/** Title for the month picker: 'Oct' in the current year, 'Jan 2027' otherwise. */
-export function monthLabel(year, month, currentYear) {
-  return year === currentYear ? MONTHS[month] : MONTHS[month] + ' ' + year;
+/** A month's title: 'October' in the current year, 'January 2027' otherwise. */
+export function monthTitle(year, month, currentYear) {
+  return year === currentYear ? MONTH_NAMES[month] : MONTH_NAMES[month] + ' ' + year;
 }
 
-/** Weekday names for the header, in display order. Weekends are grey, like the watch's calendar. */
+/** Weekday initials for the header, in display order. Weekends are grey, like the watch's calendar. */
 export function weekdayHeader() {
   const list = [];
   for (let i = 0; i < 7; i++) {
     const weekday = (WEEK_START + i) % 7;
-    list.push({ id: i, label: WEEKDAYS[weekday], color: weekday === 0 || weekday === 6 ? MUTED : TEXT });
+    list.push({ id: i, label: WEEKDAY_LETTERS[weekday], color: weekday === 0 || weekday === 6 ? MUTED : TEXT });
   }
   return list;
 }
