@@ -179,6 +179,10 @@ export function monthFrame(year, month) {
   return { start: first - ((weekdayOf(first) - WEEK_START + 7) % 7), first, last, prevLength };
 }
 
+// cellState's result. It's reused rather than made per day: the caller copies the values straight away,
+// and 42 fewer objects per month leaves the watch's garbage collector less to do while months slide by.
+const CELL = { num: '', bg: '', fg: '', ring: '', ringWidth: '0px' };
+
 // Runs 42 times per month change on a slow watch, so it uses integer maths only.
 // Every day of the rotation gets a circle in its shift's (or leave's) colour, days off included.
 // Dates from the months either side are plain grey numbers. Today gets an accent ring and a tapped
@@ -189,13 +193,12 @@ export function cellState(day, frame, settings, todayDay, selectedDay) {
   if (day < frame.first) date = frame.prevLength - (frame.first - day) + 1;
   else if (day > frame.last) date = day - frame.last;
   const weekday = weekdayOf(day);
-  const cell = {
-    num: NUMBERS[date],
-    bg: BACKGROUND,
-    fg: !inMonth ? OUTSIDE : weekday === 0 || weekday === 6 ? MUTED : TEXT,
-    ring: BACKGROUND,
-    ringWidth: '0px',
-  };
+  const cell = CELL;
+  cell.num = NUMBERS[date];
+  cell.bg = BACKGROUND;
+  cell.fg = !inMonth ? OUTSIDE : weekday === 0 || weekday === 6 ? MUTED : TEXT;
+  cell.ring = BACKGROUND;
+  cell.ringWidth = '0px';
   if (settings && inMonth) {
     const look = lookOf(day, settings);
     cell.bg = look.color;

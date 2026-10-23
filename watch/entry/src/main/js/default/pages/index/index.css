@@ -4,19 +4,19 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background-color: #f2f2f4;
+  background-color: #000000;
 }
 
 .months {
   width: 466px;
   height: 334px;
-  background-color: #f2f2f4;
+  background-color: #000000;
 }
 
 .month {
   width: 466px;
   height: 334px;
-  background-color: #f2f2f4;
+  background-color: #000000;
 }
 
 .body {
@@ -45,7 +45,7 @@
 .weekday {
   width: 48px;
   height: 26px;
-  font-size: 18px;
+  font-size: 20px;
   letter-spacing: 0px;
   text-align: center;
 }
@@ -62,7 +62,7 @@
   width: 42px;
   height: 42px;
   border-radius: 21px;
-  font-size: 22px;
+  font-size: 26px;
   letter-spacing: 0px;
   text-align: center;
 }
@@ -80,8 +80,8 @@
 
 .info-title {
   width: 240px;
-  height: 28px;
-  font-size: 22px;
+  height: 30px;
+  font-size: 24px;
   letter-spacing: 0px;
   text-align: center;
   text-overflow: ellipsis;
@@ -89,8 +89,8 @@
 
 .info-detail {
   width: 240px;
-  height: 22px;
-  font-size: 18px;
+  height: 24px;
+  font-size: 20px;
   letter-spacing: 0px;
   text-align: center;
 }

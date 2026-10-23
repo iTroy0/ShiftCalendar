@@ -1,6 +1,6 @@
 # ShiftCalendar for Huawei Watch GT
 
-A shift calendar for Huawei's GT-series watches. It's written for the Watch GT 7 (466 × 466 round screen) using Huawei's "lite wearable" JavaScript framework. It shows one month at a time, styled like the watch's own Calendar app, with each working day in its shift's colour. You set your rotation on the watch the first time it opens, and shifts are worked out on the watch from it, so it needs no phone connection.
+A shift calendar for Huawei's GT-series watches. It's written for the Watch GT 7 (466 × 466 round screen) using Huawei's "lite wearable" JavaScript framework. It shows one month at a time on a black background, laid out like the watch's own Calendar app, with each working day in its shift's colour. You set your rotation on the watch the first time it opens, and shifts are worked out on the watch from it, so it needs no phone connection.
 
 <p align="center">
   <img src="preview.png" width="640" alt="Watch screens: the setup, this month, and a day booked as annual leave" />
@@ -50,7 +50,7 @@ entry/src/main/config.json                bundle name, device type, pages
 entry/src/main/js/default/
   app.js
   common/config.js                         shifts, rotations and leave (edit this)
-  common/colors.js                         the light theme's colours
+  common/colors.js                         the dark theme's colours
   common/schedule.js                       rotation maths and the month grid
   common/setup.js                          saves the setup made on the watch
   pages/index/                             the month calendar
@@ -101,7 +101,8 @@ The lite wearable framework is much smaller than a browser:
 - GT watches refuse an app (`Installation failed: 40`) unless it has a small icon too: keep `icon_small.png` next to `icon.png` in `resources/base/media`. The JS also has to sit in `js/default`.
 - The watch shows the icon as it is, without masking it, so the PNGs are round with transparent corners.
 - Keep the page cheap to update. The months sit in a three-page vertical `swiper`, so the swipe and the crown are animated by the watch itself. The page that slides away is refilled with the next month while it's off screen, and only the values that change are written. Each day is a single `text` element.
-- The months either side of the first one are built just after the first frame, so the app opens as quickly as it did with one month.
+- Every changed value on a `text` makes the framework lay out its parent row again, and nothing is batched. So the refill is done two rows at a time with a short gap between, which keeps the crown and the next swipe from waiting on it.
+- The month on screen is only created once the setup has been read, with its colours already in place. Created with blank style values, every day logs `parse percent value failed` for each of them and then has to be updated anyway. The months either side are built just after the first frame.
 - Install from the Lite version of DevEco Assistant that Huawei links on its developer forum.
 - If the Previewer stays black, look for `[JS Error]` lines in DevEco Studio's `previewer.log` (**Help → Show Log in Explorer**).
 - The crown reaches a JS page only through a component that asks for it with `rotation({ focus: true })`, here the month `swiper`. If your watch doesn't pass the crown to it, swiping still changes the month.

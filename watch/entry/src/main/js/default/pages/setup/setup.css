@@ -4,7 +4,7 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background-color: #f2f2f4;
+  background-color: #000000;
 }
 
 .title {
@@ -19,21 +19,21 @@
 .picker {
   width: 340px;
   height: 150px;
-  font-size: 22px;
-  color: #86868b;
-  selected-font-size: 30px;
-  selected-color: #111111;
-  background-color: #f2f2f4;
+  font-size: 24px;
+  color: #aeaeb2;
+  selected-font-size: 32px;
+  selected-color: #ffffff;
+  background-color: #000000;
 }
 
 .hint {
   width: 300px;
   height: 30px;
   margin-top: 4px;
-  font-size: 20px;
+  font-size: 22px;
   letter-spacing: 0px;
   text-align: center;
-  color: #86868b;
+  color: #aeaeb2;
 }
 
 .buttons {
@@ -55,8 +55,8 @@
 
 .back {
   margin-right: 12px;
-  background-color: #e5e5ea;
-  color: #111111;
+  background-color: #2c2c2e;
+  color: #ffffff;
 }
 
 .next {

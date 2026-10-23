@@ -1,4 +1,5 @@
 import router from '@system.router';
+import { BACKGROUND, TEXT } from '../../common/colors.js';
 import {
   addMonths, cellState, dateLabel, dayParts, describe, monthFrame, monthTitle, scheduleFor, today, weekdayHeader,
 } from '../../common/schedule.js';
@@ -8,18 +9,24 @@ const CELL_FIELDS = ['num', 'bg', 'fg', 'ring', 'ringWidth'];
 // The swiper reports a new page once its slide has finished. Refilling the page that slid away waits
 // this long more, so the slide's last frame is drawn first.
 const REFILL_DELAY_MS = 30;
+// That refill is done a couple of rows at a time, with a frame's gap between, so it never holds up the
+// crown or the next swipe for long. Every changed value on a day makes the watch lay its row out again.
+const ROWS_PER_STEP = 2;
+const STEP_MS = 20;
 // The setup made on the watch (see common/setup.js) and the schedule worked out from it. Kept out of
 // `data` so the watch doesn't track every day of the schedule for changes.
 let setup = null;
 let settings = null;
-// The swiper's three pages: the month each holds (as months from today's) and its grid frame.
+// The swiper's three pages: the month each holds (as months from today's) and its grid frame. While a
+// page is being refilled its offset is NaN, so a half-painted page never passes for a finished one.
 let pages = [];
 // The page on screen.
 let current = 1;
-// A page to refill once the slide has finished ({ page, offset }), and the timer that does it.
+// A page being refilled ({ page, offset, row }: `row` is the next row to paint), and the timer for its
+// next step.
 let pending = null;
 let pendingTimer = null;
-// Adds the months either side after the first frame (see onReady).
+// Adds the months either side after the first one is up (see useSetup).
 let readyTimer = null;
 
 export default {
@@ -29,7 +36,10 @@ export default {
     todayDay: 0,
     selectedDay: 0,
     weekdays: [],
-    // False until the months either side of the first one have been added (see onReady).
+    // False until the setup has been read. The month on screen is only created then, with its days
+    // already filled in, rather than created blank and then updated day by day.
+    loaded: false,
+    // False until the months either side of the first one have been added (see useSetup).
     ready: false,
     title0: '',
     title1: '',
@@ -42,8 +52,8 @@ export default {
     infoTitle: '',
     infoDetail: '',
     // The page's own colour, so the pill only appears with the setup.
-    infoBg: '#f2f2f4',
-    infoInk: '#111111',
+    infoBg: BACKGROUND,
+    infoInk: TEXT,
   },
   onInit() {
     const t = today();
@@ -55,6 +65,7 @@ export default {
     current = 1;
     pending = null;
     pendingTimer = null;
+    readyTimer = null;
     this.weekdays = weekdayHeader();
     for (let p = 0; p < 3; p++) {
       const weeks = [];
@@ -68,19 +79,9 @@ export default {
       }
       this['weeks' + p] = weeks;
     }
-    // The month is drawn once the setup has been read (reading it takes a moment), rather than drawn
-    // plain and then coloured in.
     const passed = this.saved ? parseSetup(this.saved) : null;
     if (passed) this.useSetup(passed);
     else loadSetup((saved) => this.useSetup(saved));
-  },
-  onReady() {
-    // Only the month on screen is drawn at first. The months either side are added once that's up,
-    // so the app opens as quickly as with one month.
-    readyTimer = setTimeout(() => {
-      readyTimer = null;
-      this.ready = true;
-    }, 50);
   },
   onShow() {
     this.crownFocus(true);
@@ -107,22 +108,40 @@ export default {
     }
     setup = saved;
     settings = schedule;
+    // All three months are filled in before any of their days exist on screen, so filling them updates
+    // nothing there. Only the month on screen is created at first; the months either side follow just
+    // after its first frame, so the app opens as quickly as with one month.
     for (let p = 0; p < 3; p++) this.fill(p, pages[p].offset);
     this.showInfo();
+    this.loaded = true;
+    readyTimer = setTimeout(() => {
+      readyTimer = null;
+      this.ready = true;
+    }, 50);
   },
   openSetup() {
     this.cancel();
     router.replace({ uri: 'pages/setup/setup' });
   },
-  // Puts the month `offset` months from today's on page p.
+  // Puts the month `offset` months from today's on page p, all at once.
   fill(p, offset) {
+    this.setMonth(p, offset);
+    this.paintRows(p, 0, 6);
+    pages[p].offset = offset;
+  },
+  // Gives page p the title and grid frame of the month `offset` months from today's. Its days are
+  // painted separately (paintRows).
+  setMonth(p, offset) {
     const now = dayParts(this.todayDay);
     const m = addMonths(now.year, now.month, offset);
-    const frame = monthFrame(m.year, m.month);
-    pages[p] = { offset, frame };
+    pages[p] = { offset: NaN, frame: monthFrame(m.year, m.month) };
     this['title' + p] = monthTitle(m.year, m.month, now.year);
+  },
+  // Paints rows `from` to `to` (not included) of page p.
+  paintRows(p, from, to) {
+    const frame = pages[p].frame;
     const weeks = this['weeks' + p];
-    for (let r = 0; r < 6; r++) {
+    for (let r = from; r < to; r++) {
       const days = weeks[r].days;
       for (let c = 0; c < 7; c++) this.paint(days[c], frame);
     }
@@ -151,8 +170,8 @@ export default {
   paged(e) {
     const index = e.index;
     if (index === current) return;
-    // A refill still waiting from the last slide is either this page, which must be right now, or
-    // the page about to be refilled again below.
+    // A refill still running from the last slide is either for this page, which must be finished now,
+    // or for the page about to be refilled again below.
     if (pending && pending.page === index) this.flush();
     else this.cancel();
     const step = index === (current + 1) % 3 ? 1 : -1;
@@ -162,13 +181,32 @@ export default {
     const page = (index + step + 3) % 3;
     const offset = pages[index].offset + step;
     if (pages[page].offset === offset) return;
-    pending = { page, offset };
-    pendingTimer = setTimeout(() => this.flush(), REFILL_DELAY_MS);
+    this.setMonth(page, offset);
+    pending = { page, offset, row: 0 };
+    pendingTimer = setTimeout(() => this.refillStep(), REFILL_DELAY_MS);
   },
+  // Paints the next rows of the page being refilled, and schedules the rest.
+  refillStep() {
+    pendingTimer = null;
+    const job = pending;
+    if (!job) return;
+    const to = Math.min(6, job.row + ROWS_PER_STEP);
+    this.paintRows(job.page, job.row, to);
+    job.row = to;
+    if (to < 6) {
+      pendingTimer = setTimeout(() => this.refillStep(), STEP_MS);
+    } else {
+      pending = null;
+      pages[job.page].offset = job.offset;
+    }
+  },
+  // Finishes the page being refilled at once.
   flush() {
     const job = pending;
     this.cancel();
-    if (job) this.fill(job.page, job.offset);
+    if (!job) return;
+    this.paintRows(job.page, job.row, 6);
+    pages[job.page].offset = job.offset;
   },
   cancel() {
     if (pendingTimer !== null) clearTimeout(pendingTimer);

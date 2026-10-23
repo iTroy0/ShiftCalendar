@@ -1,7 +1,8 @@
 <div class="page">
   <!-- Three months (the one shown and its neighbours) in a vertical swiper, so a swipe or the crown
        slides the next month in. The page that slides out of view is refilled with the month after it.
-       The app opens on the middle page; the other two are filled in just after (`ready`).
+       The app opens on the middle page, created once the setup has been read (`loaded`); the other
+       two are added just after (`ready`).
        Holding a date books or clears annual leave; holding the month's name opens the setup. -->
   <swiper ref="months" class="months" index="1" loop="true" vertical="true" duration="300" onchange="paged">
     <div class="month">
@@ -16,7 +17,7 @@
       </div>
     </div>
     <div class="month">
-      <div class="body">
+      <div class="body" if="{{loaded}}">
         <text class="title" onlongpress="openSetup">{{title1}}</text>
         <div class="weekdays">
           <text for="{{weekdays}}" tid="id" class="weekday" style="color: {{$item.color}};">{{$item.label}}</text>
