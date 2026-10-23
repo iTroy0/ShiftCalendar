@@ -1,10 +1,21 @@
-# ShiftCalendar
+<p align="center">
+  <img src="assets/icon.png" width="112" alt="ShiftCalendar app icon" />
+</p>
 
-A modern, offline-first shift scheduling app for shift workers. Plan rotations, track leave, overtime and pay, and get reminded before every shift. Built with React Native + Expo.
+<h1 align="center">ShiftCalendar</h1>
 
-[![Download APK](https://img.shields.io/github/v/release/iTroy0/ShiftCalendar?label=Download%20APK&style=for-the-badge)](https://github.com/iTroy0/ShiftCalendar/releases/latest)
+<p align="center">
+  <b>A shift calendar for people whose days off keep moving.</b>
+</p>
 
-## Screenshots
+<p align="center">
+  Pick your rotation once and it fills in the months ahead: every shift, day off and leave day, with a reminder the evening before. Free and open source. No ads, no account, and it works offline.
+</p>
+
+<p align="center">
+  <a href="https://github.com/iTroy0/ShiftCalendar/releases/latest"><img src="https://img.shields.io/github/v/release/iTroy0/ShiftCalendar?label=Download%20APK&style=for-the-badge" alt="Download the APK" /></a>
+  <a href="https://buymeacoffee.com/iTroy0"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black" alt="Buy me a coffee" /></a>
+</p>
 
 <p align="center">
   <img src="screenshots/calendar.png" width="250" alt="Month calendar" />
@@ -17,32 +28,58 @@ A modern, offline-first shift scheduling app for shift workers. Plan rotations, 
   <img src="screenshots/week.png" width="250" alt="Week agenda" />
 </p>
 
+## Made for rotating shifts
+
+For anyone whose schedule doesn't follow the week: nurses, paramedics, police, firefighters, security guards, and crews in factories, plants and oil fields. Start from one of the nine built-in rotations, or paint your own pattern and repeat it for up to a year.
+
+| Rotation | Pattern |
+| --- | --- |
+| 2-2-2 | 2 days, 2 nights, 2 off |
+| 2-2-2-2 | 2 mornings, 2 afternoons, 2 nights, 2 off |
+| 4-on 4-off | 4 day shifts, 4 off |
+| 5-on 2-off | 5 day shifts, 2 off |
+| 3-on 3-off | 3 day shifts, 3 off |
+| 4-4-4 | 4 days, 4 nights, 4 off |
+| Continental | 2 days, 2 nights, 2 off, 3 days, 2 nights, 3 off |
+| Panama 2-2-3 | 2 on, 2 off, 3 on, 2 off, 2 on, 3 off |
+| DuPont | 4 nights, 3 off, 3 days, 1 off, 3 nights, 3 off, 4 days, 7 off |
+
 ## Features
 
 ### Calendar
-- **Month and week views** -- Swipeable month grid that adapts to phones, tablets and landscape (with a month summary beside the grid), plus a week agenda with times, hours, notes and swaps
-- **Quick editing** -- Tap a day to open its sheet, long-press to drop in your last-used shift
-- **Paint mode** -- Pick a shift or leave type as a brush and tap days to fill them, with undo
-- **Rotation templates** -- 9 built-in rotations (2-2-2, 2-2-2-2, 4-on 4-off, 5-on 2-off, 3-on 3-off, 4-4-4, Continental, Panama 2-2-3, DuPont) with a live preview on the calendar before anything changes; leave days are kept
-- **Repeat patterns** -- Select any run of days and repeat it forward for 1, 3, 6 or 12 months
-- **Undo everywhere** -- Clearing a day, applying a template or repeating a pattern can be undone from the toast
+- **Month and week views**: a swipeable month grid for phones, tablets and landscape, and a week agenda with times, hours, notes and swaps.
+- **Quick editing**: tap a day to open it, or long-press to drop in the shift you used last.
+- **Paint mode**: pick a shift or leave type as a brush and tap days to fill them.
+- **Rotation preview**: see a rotation on your calendar before you apply it. Leave you've booked is kept.
+- **Repeat patterns**: select a run of days and repeat it for 1, 3, 6 or 12 months.
+- **Undo**: clearing a day, applying a rotation and repeating a pattern can all be undone.
 
 ### Shifts, leave and pay
-- **Custom shifts** -- Your own names, codes, colors, icons and times, including overnight shifts; renaming a code updates every calendar
-- **Leave tracking** -- Annual, Sick, Emergency and Unpaid leave with yearly balances; a day holds either a shift or leave, never both
-- **Overtime and notes** -- Log overtime in half-hour steps and write notes that save as you type; search all notes from the header
-- **Shift swaps** -- Offer a shift and share the request through any messaging app
-- **Multiple calendars** -- Keep your own schedule next to team rotations and pick which one drives reminders and the widget
-- **Stats** -- Monthly and yearly totals, a shift mix bar, monthly hours chart, per-shift hours, leave balances and a year at a glance
-- **Pay estimate** -- Base and overtime rates, paid leave hours and 39 currencies
+- **Your own shifts**: names, codes, colours, icons and times, overnight shifts included.
+- **Leave**: Annual, Sick, Emergency and Unpaid leave, with yearly balances.
+- **Overtime and notes**: log overtime in half-hour steps, write notes on any day and search them all.
+- **Shift swaps**: offer a shift and send the request through any messaging app.
+- **Several calendars**: keep your own schedule next to your team's rotations, and choose which one drives reminders and the widget.
+- **Stats**: monthly and yearly hours, your shift mix, leave balances and the whole year at a glance.
+- **Pay estimate**: base and overtime rates and paid leave hours, in 39 currencies.
 
-### Reminders, widget and data
-- **Reminders and alarms** -- An evening reminder about tomorrow, an optional pre-shift alarm with its own sound, and a test notification to check sound and permissions
-- **Android widget** -- This week's shifts on your home screen, following the app's light or dark theme
-- **Export and import** -- Spreadsheet-friendly CSV, printable PDF month sheets, and full JSON backup and restore
-- **Make it yours** -- Dark, light or system theme, 12/24-hour time, week starting Saturday, Sunday or Monday, optional haptics
-- **Offline and private** -- Everything stays on your device. No account, no server, no tracking.
-- **Accessible** -- Screen reader labels on interactive elements, and shifts are told apart by code and icon, not color alone
+### Reminders, widget and backups
+- **Reminders and alarms**: a reminder the evening before, and an optional alarm before each shift with its own sound.
+- **Home screen widget**: this week's shifts, in light or dark.
+- **Export and backup**: CSV for spreadsheets, printable PDF month sheets, and a full backup you can restore on a new phone.
+- **Your way**: dark, light or system theme, 12- or 24-hour time, and weeks that start on Saturday, Sunday or Monday.
+- **Private**: everything stays on your phone. No account, no server, no ads, no tracking. Read the [privacy policy](https://itroy0.github.io/ShiftCalendar-privacy/).
+- **Accessible**: screen reader labels on buttons and controls, and shifts are told apart by code and icon, not only by colour.
+
+## Install
+
+ShiftCalendar runs on Android 7.0 or newer.
+
+1. On your phone, open the [latest release](https://github.com/iTroy0/ShiftCalendar/releases/latest) and download the `.apk` file.
+2. Open the file. If Android asks, let your browser or file manager install apps.
+3. Follow the first-run setup. You can pick a rotation there or later.
+
+New versions install over the old one and keep your shifts, notes and settings. To hear about updates, watch this repo's releases, or add `https://github.com/iTroy0/ShiftCalendar` to [Obtainium](https://github.com/ImranR98/Obtainium). What changed in each version is in the [changelog](CHANGELOG.md).
 
 ## Huawei Watch GT companion
 
@@ -52,47 +89,40 @@ A modern, offline-first shift scheduling app for shift workers. Plan rotations, 
 
 [`watch/`](watch) has a small app for Huawei GT-series watches (written for the GT 7). It shows a month calendar styled like the watch's own Calendar app, with your shifts in their colours, worked out from the rotation you pick on the watch the first time it opens. Hold a date to book annual leave. You build and install it yourself with DevEco Studio; see [watch/README.md](watch/README.md).
 
-## Getting Started
+## Support
 
-### Prerequisites
+ShiftCalendar is free and will stay free, with no ads. If it makes your roster easier to live with, you can help:
 
-- [Node.js](https://nodejs.org/) 20.19 or newer
-- [Expo CLI](https://docs.expo.dev/get-started/installation/)
+- **Star the repo** so other shift workers can find it.
+- **Share it** with the people you work with.
+- **Report bugs and ask for features** in [Issues](https://github.com/iTroy0/ShiftCalendar/issues).
+- **Buy me a coffee** if you'd like to chip in.
 
-### Installation
+<a href="https://buymeacoffee.com/iTroy0"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" height="48" alt="Buy me a coffee" /></a>
+
+## Build it yourself
+
+You need [Node.js](https://nodejs.org/) 20.19 or newer.
 
 ```bash
 git clone https://github.com/iTroy0/ShiftCalendar.git
 cd ShiftCalendar
 npm install
-```
-
-### Development
-
-```bash
 npx expo start
-npx expo start --android
-npx expo start --ios
 ```
 
-> **Note:** The Android home screen widget and the custom alarm sound need an EAS development build, not Expo Go.
+The home screen widget and the custom alarm sound need an EAS development build, not Expo Go.
 
-## Building
-
-### Cloud Build (EAS)
+To build in the cloud with EAS:
 
 ```bash
 npm install -g eas-cli
 eas login
-
-# Preview APK
-eas build --platform android --profile preview
-
-# Production AAB (for Google Play)
-eas build --platform android --profile production
+eas build --platform android --profile preview      # APK
+eas build --platform android --profile production   # AAB for Google Play
 ```
 
-### Local Build
+Or locally:
 
 ```bash
 npx expo prebuild --platform android
@@ -100,7 +130,10 @@ cd android
 ./gradlew assembleRelease
 ```
 
-## Project Structure
+Release APKs come from the [Android release build](.github/workflows/android-release.yml) workflow, which attaches the APK to a draft release for the version in `app.json`.
+
+<details>
+<summary>Project structure</summary>
 
 ```
 ShiftCalendar/
@@ -143,24 +176,25 @@ ShiftCalendar/
 └── assets/                       # App icons, splash and alarm sound
 ```
 
-## Tech Stack
+</details>
 
-- **Framework** -- React Native + Expo SDK 55
-- **Language** -- TypeScript
-- **Routing** -- Expo Router (file-based)
-- **Animations and gestures** -- react-native-reanimated, react-native-gesture-handler
-- **Bottom sheets** -- @gorhom/bottom-sheet
-- **Storage** -- @react-native-async-storage/async-storage
-- **Notifications** -- expo-notifications
-- **Files** -- expo-file-system, expo-document-picker, expo-sharing, expo-print
-- **Widget** -- react-native-android-widget
-- **Date math** -- date-fns
-- **Haptics** -- expo-haptics
+<details>
+<summary>Tech stack</summary>
+
+- **Framework**: React Native + Expo SDK 55
+- **Language**: TypeScript
+- **Routing**: Expo Router (file-based)
+- **Animations and gestures**: react-native-reanimated, react-native-gesture-handler
+- **Bottom sheets**: @gorhom/bottom-sheet
+- **Storage**: @react-native-async-storage/async-storage
+- **Notifications**: expo-notifications
+- **Files**: expo-file-system, expo-document-picker, expo-sharing, expo-print
+- **Widget**: react-native-android-widget
+- **Date math**: date-fns
+- **Haptics**: expo-haptics
+
+</details>
 
 ## License
 
-MIT
-
-## Author
-
-Made by **Troy**
+[MIT](LICENSE). Made by [Troy](https://github.com/iTroy0).
