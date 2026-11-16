@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppSettings } from '../../hooks/SettingsContext';
 import { haptic } from '../../utils/haptics';
+import { t } from '../../i18n';
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -41,25 +42,25 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Calendar',
+          title: t('Calendar'),
           tabBarIcon: tabIcon('calendar-month', 'calendar-month-outline'),
-          tabBarAccessibilityLabel: 'Calendar tab',
+          tabBarAccessibilityLabel: t('Calendar tab'),
         }}
       />
       <Tabs.Screen
         name="stats"
         options={{
-          title: 'Stats',
+          title: t('Stats'),
           tabBarIcon: tabIcon('chart-box', 'chart-box-outline'),
-          tabBarAccessibilityLabel: 'Statistics tab',
+          tabBarAccessibilityLabel: t('Statistics tab'),
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Settings',
+          title: t('Settings'),
           tabBarIcon: tabIcon('cog', 'cog-outline'),
-          tabBarAccessibilityLabel: 'Settings tab',
+          tabBarAccessibilityLabel: t('Settings tab'),
         }}
       />
     </Tabs>

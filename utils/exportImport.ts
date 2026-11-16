@@ -11,9 +11,10 @@ import * as Print from 'expo-print';
 import * as DocumentPicker from 'expo-document-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { format } from 'date-fns';
-import { ShiftType, isWorkingShift } from '../constants/shifts';
-import { LeaveType } from '../constants/leaveTypes';
+import { ShiftType, isWorkingShift, shiftCode, shiftName } from '../constants/shifts';
+import { LeaveType, leaveCode } from '../constants/leaveTypes';
 import { formatMoney } from '../constants/currencies';
+import { formatDate, isRTLLanguage, languageTag, plural, t, weekdayName } from '../i18n';
 import { SETTINGS_KEYS } from '../hooks/useSettings';
 import { buildCSV } from './csvFormat';
 import { rerunMigrations } from './migrations';
@@ -21,12 +22,6 @@ import { readableTextColor, withAlpha } from './color';
 import { WeekStart, buildMonthGrid, weekdayOrder } from './dates';
 import { computeStats, monthRange } from './statsCalculation';
 import { TimeFormat, formatTimeCompact, formatTimeRange, formatHours } from './time';
-
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 export interface ExportData {
   shifts: Record<string, string>;
@@ -67,12 +62,12 @@ type Delivery = 'share' | 'save' | 'cancel';
 function askDelivery(fileName: string): Promise<Delivery> {
   return new Promise((resolve) => {
     Alert.alert(
-      'Export ready',
+      t('Export ready'),
       fileName,
       [
-        { text: 'Cancel', style: 'cancel', onPress: () => resolve('cancel') },
-        { text: 'Share', onPress: () => resolve('share') },
-        { text: 'Save to device', onPress: () => resolve('save') },
+        { text: t('Cancel'), style: 'cancel', onPress: () => resolve('cancel') },
+        { text: t('Share'), onPress: () => resolve('share') },
+        { text: t('Save to device'), onPress: () => resolve('save') },
       ],
       { cancelable: true, onDismiss: () => resolve('cancel') }
     );
@@ -102,7 +97,7 @@ async function deliverFile(file: File, fileName: string, mimeType: string, uti: 
 }
 
 function periodLabel(year: number, month: number | null) {
-  return month !== null ? `${MONTH_NAMES[month]} ${year}` : `${year}`;
+  return month !== null ? formatDate(new Date(year, month), 'MMMM yyyy') : `${year}`;
 }
 
 function periodRange(year: number, month: number | null) {
@@ -159,7 +154,7 @@ function monthSection(opts: ExportOptions, month: number, isLast: boolean): stri
   });
 
   const head = weekdayOrder(opts.weekStart)
-    .map((d) => `<th>${DAY_NAMES[d].slice(0, 3)}</th>`)
+    .map((d) => `<th>${weekdayName(d, 'abbreviated')}</th>`)
     .join('');
 
   const notes: string[] = [];
@@ -172,14 +167,16 @@ function monthSection(opts: ExportOptions, month: number, isLast: boolean): stri
         const item = leave ?? shift;
         const ot = data.overtime[day.key];
         const note = data.notes[day.key];
-        if (note) notes.push(`<tr><td class="nd">${MONTH_NAMES[month].slice(0, 3)} ${day.day}</td><td>${escapeHtml(note).replace(/\n/g, '<br>')}</td></tr>`);
+        if (note) notes.push(`<tr><td class="nd">${formatDate(new Date(year, month, day.day), 'MMM d')}</td><td>${escapeHtml(note).replace(/\n/g, '<br>')}</td></tr>`);
         const bg = item ? withAlpha(item.color, 0.1) : '#F9FAFB';
+        const code = leave ? leaveCode(leave) : shift ? shiftCode(shift) : '';
+        const name = leave ? t(leave.label) : shift ? shiftName(shift) : '';
         const pill = item
-          ? `<div class="pill" style="background:${item.color};color:${readableTextColor(item.color)}">${escapeHtml(item.code)}</div>`
+          ? `<div class="pill" style="background:${item.color};color:${readableTextColor(item.color)}">${escapeHtml(code)}</div>`
           : '';
         const time = !leave && shift && isWorkingShift(shift)
           ? `<div class="time">${formatTimeCompact(shift.startTime, opts.timeFormat)}–${formatTimeCompact(shift.endTime, opts.timeFormat)}</div>`
-          : item ? `<div class="time">${escapeHtml(item.label)}</div>` : '';
+          : item ? `<div class="time">${escapeHtml(name)}</div>` : '';
         const marks = [
           ot ? `<span class="ot">+${ot}h</span>` : '',
           note ? '<span class="nt">●</span>' : '',
@@ -190,12 +187,13 @@ function monthSection(opts: ExportOptions, month: number, isLast: boolean): stri
     })
     .join('');
 
+  const days = (n: number) => plural(n, '1 day', '{n} days');
   const chips = [
-    ['Worked', `${stats.workingDays} days`],
-    ['Hours', formatHours(stats.totalHours)],
-    stats.overtimeHours > 0 ? ['Overtime', `+${formatHours(stats.overtimeHours)}`] : null,
-    stats.leaveDays > 0 ? ['Leave', `${stats.leaveDays} days`] : null,
-    stats.totalPay > 0 ? ['Est. pay', formatMoney(stats.totalPay, opts.currencyCode)] : null,
+    [t('Worked'), days(stats.workingDays)],
+    [t('Hours'), formatHours(stats.totalHours)],
+    stats.overtimeHours > 0 ? [t('Overtime'), `+${formatHours(stats.overtimeHours)}`] : null,
+    stats.leaveDays > 0 ? [t('Leave'), days(stats.leaveDays)] : null,
+    stats.totalPay > 0 ? [t('Est. pay'), formatMoney(stats.totalPay, opts.currencyCode)] : null,
   ]
     .filter(Boolean)
     .map((c) => `<div class="chip"><div class="cl">${c![0]}</div><div class="cv">${escapeHtml(c![1])}</div></div>`)
@@ -205,22 +203,22 @@ function monthSection(opts: ExportOptions, month: number, isLast: boolean): stri
     .filter((s) => stats.counts[s.code] > 0)
     .map((s) => {
       const detail = isWorkingShift(s) ? ` · ${escapeHtml(formatTimeRange(s.startTime, s.endTime, opts.timeFormat))}` : '';
-      return `<span class="lg"><span class="sw" style="background:${s.color}"></span>${escapeHtml(s.label)} ×${stats.counts[s.code]}${detail}</span>`;
+      return `<span class="lg"><span class="sw" style="background:${s.color}"></span>${escapeHtml(shiftName(s))} ×${stats.counts[s.code]}${detail}</span>`;
     })
     .concat(
       opts.leaveTypes
-        .filter((t) => stats.leaveCounts[t.id] > 0)
-        .map((t) => `<span class="lg"><span class="sw" style="background:${t.color}"></span>${escapeHtml(t.label)} ×${stats.leaveCounts[t.id]}</span>`)
+        .filter((lt) => stats.leaveCounts[lt.id] > 0)
+        .map((lt) => `<span class="lg"><span class="sw" style="background:${lt.color}"></span>${escapeHtml(t(lt.label))} ×${stats.leaveCounts[lt.id]}</span>`)
     )
     .join('');
 
   return `
   <section class="month${isLast ? '' : ' brk'}">
-    <h2>${MONTH_NAMES[month]} ${year}</h2>
+    <h2>${formatDate(new Date(year, month), 'MMMM yyyy')}</h2>
     <div class="chips">${chips}</div>
     <table class="grid"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
     ${legend ? `<div class="legend">${legend}</div>` : ''}
-    ${notes.length ? `<h3>Notes</h3><table class="notes"><tbody>${notes.join('')}</tbody></table>` : ''}
+    ${notes.length ? `<h3>${t('Notes')}</h3><table class="notes"><tbody>${notes.join('')}</tbody></table>` : ''}
   </section>`;
 }
 
@@ -228,7 +226,7 @@ export function buildPDFHtml(opts: ExportOptions): string {
   const months = opts.month !== null ? [opts.month] : Array.from({ length: 12 }, (_, i) => i);
   const sections = months.map((m, i) => monthSection(opts, m, i === months.length - 1)).join('');
   return `<!DOCTYPE html>
-<html><head><meta charset="utf-8">
+<html lang="${languageTag()}" dir="${isRTLLanguage() ? 'rtl' : 'ltr'}"><head><meta charset="utf-8">
 <style>
   @page { margin: 12mm; }
   * { box-sizing: border-box; }
@@ -236,13 +234,14 @@ export function buildPDFHtml(opts: ExportOptions): string {
   .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #6366F1; padding-bottom: 8px; margin-bottom: 14px; }
   .header h1 { margin: 0; font-size: 22px; }
   .header p { margin: 2px 0 0; color: #6b7280; font-size: 13px; }
-  .header .meta { text-align: right; color: #9ca3af; font-size: 11px; }
+  .header .meta { text-align: end; color: #9ca3af; font-size: 11px; }
   .brk { page-break-after: always; }
   h2 { font-size: 18px; margin: 0 0 8px; }
   h3 { font-size: 13px; color: #6366F1; margin: 14px 0 6px; }
   .chips { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
   .chip { background: #f3f4f6; border-radius: 8px; padding: 5px 10px; }
   .cl { font-size: 9px; color: #6b7280; text-transform: uppercase; letter-spacing: .5px; font-weight: 700; }
+  [dir=rtl] .cl { letter-spacing: 0; } /* spacing breaks up joined Arabic letters */
   .cv { font-size: 14px; font-weight: 800; }
   table.grid { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 3px; }
   .grid th { font-size: 9px; color: #6b7280; text-transform: uppercase; padding: 2px 0; font-weight: 700; }
@@ -255,8 +254,8 @@ export function buildPDFHtml(opts: ExportOptions): string {
   .ot { color: #dc2626; font-weight: 800; }
   .nt { color: #d97706; }
   .legend { margin-top: 8px; font-size: 10px; color: #374151; }
-  .lg { display: inline-block; margin: 0 10px 4px 0; }
-  .sw { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+  .lg { display: inline-block; margin-inline-end: 10px; margin-bottom: 4px; }
+  .sw { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-inline-end: 4px; vertical-align: -1px; }
   table.notes { width: 100%; border-collapse: collapse; font-size: 11px; }
   .notes td { border-bottom: 1px solid #f3f4f6; padding: 4px 6px; vertical-align: top; }
   .notes td.nd { width: 64px; color: #6366F1; font-weight: 700; white-space: nowrap; }
@@ -264,7 +263,7 @@ export function buildPDFHtml(opts: ExportOptions): string {
 <body>
   <div class="header">
     <div><h1>${escapeHtml(opts.calendarName)}</h1><p>${periodLabel(opts.year, opts.month)}</p></div>
-    <div class="meta">ShiftCalendar<br>Generated ${format(new Date(), 'MMM d, yyyy')}</div>
+    <div class="meta">ShiftCalendar<br>${t('Generated {date}', { date: formatDate(new Date(), 'MMM d, yyyy') })}</div>
   </div>
   ${sections}
 </body></html>`;
@@ -320,15 +319,15 @@ export function inspectBackup(content: string): BackupSummary {
   try {
     parsed = JSON.parse(content);
   } catch {
-    throw new Error('This file is not a valid backup (it is not JSON).');
+    throw new Error(t('This file is not a valid backup (it is not JSON).'));
   }
   if (!parsed || typeof parsed.data !== 'object' || parsed.data === null) {
-    throw new Error('This file is not a ShiftCalendar backup.');
+    throw new Error(t('This file is not a ShiftCalendar backup.'));
   }
   const entries: [string, string][] = Object.entries(parsed.data as Record<string, unknown>)
     .filter(([key, value]) => typeof value === 'string' && isBackupKey(key))
     .map(([key, value]) => [key, value as string]);
-  if (entries.length === 0) throw new Error('The backup does not contain any ShiftCalendar data.');
+  if (entries.length === 0) throw new Error(t('The backup does not contain any ShiftCalendar data.'));
 
   let calendars = 1;
   let days = 0;
@@ -344,8 +343,15 @@ export function inspectBackup(content: string): BackupSummary {
 }
 
 export function describeBackup(summary: BackupSummary): string {
-  const when = summary.timestamp ? format(new Date(summary.timestamp), 'MMM d, yyyy · HH:mm') : 'an unknown date';
-  return `Backup from ${when}\n${summary.calendars} calendar${summary.calendars === 1 ? '' : 's'}, ${summary.days} scheduled day${summary.days === 1 ? '' : 's'}.\n\nThis replaces all current data and settings.`;
+  const date = summary.timestamp ? formatDate(new Date(summary.timestamp), 'MMM d, yyyy · HH:mm') : t('an unknown date');
+  const calendars = plural(summary.calendars, '1 calendar', '{n} calendars');
+  const days = plural(summary.days, '1 scheduled day', '{n} scheduled days');
+  return [
+    t('Backup from {date}', { date }),
+    t('{calendars}, {days}.', { calendars, days }),
+    '',
+    t('This replaces all current data and settings.'),
+  ].join('\n');
 }
 
 /** Replaces the app's stored data with the backup's. Callers reload state afterwards. */

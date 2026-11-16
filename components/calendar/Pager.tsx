@@ -10,6 +10,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import { isRTL } from '../../i18n';
 
 interface PagerProps {
   index: number;
@@ -24,6 +25,8 @@ interface PagerProps {
 }
 
 const TIMING = { duration: 280, easing: Easing.out(Easing.cubic) };
+// Later pages sit to the left in right-to-left layouts, so a swipe to the right moves forward.
+const DIRECTION = isRTL ? -1 : 1;
 
 function Page({
   pageIndex,
@@ -39,7 +42,7 @@ function Page({
   const style = useAnimatedStyle(() => {
     const offset = pageIndex - position.value;
     return {
-      transform: [{ translateX: offset * width }],
+      transform: [{ translateX: offset * width * DIRECTION }],
       opacity: 1 - Math.min(Math.abs(offset), 1) * 0.35,
     };
   });
@@ -99,11 +102,11 @@ export function Pager({ index, onIndexChange, renderPage, width, height, enabled
           runOnJS(panChanged)(true);
         })
         .onUpdate((e) => {
-          const next = start.value - e.translationX / width;
+          const next = start.value - (e.translationX * DIRECTION) / width;
           position.value = Math.min(Math.max(next, committed.value - 1), committed.value + 1);
         })
         .onEnd((e) => {
-          const projected = position.value - (e.velocityX / width) * 0.18;
+          const projected = position.value - ((e.velocityX * DIRECTION) / width) * 0.18;
           const target = Math.min(Math.max(Math.round(projected), committed.value - 1), committed.value + 1);
           position.value = withTiming(target, TIMING);
           if (target !== committed.value) {

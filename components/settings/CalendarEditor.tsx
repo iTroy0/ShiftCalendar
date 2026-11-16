@@ -4,10 +4,11 @@ import { BottomSheetModal, BottomSheetScrollView, BottomSheetTextInput } from '@
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppSettings } from '../../hooks/SettingsContext';
-import { CalendarInfo } from '../../hooks/useShiftData';
+import { CalendarInfo, calendarName } from '../../hooks/useShiftData';
 import { AVAILABLE_COLORS } from '../../constants/shifts';
 import { readableTextColor } from '../../utils/color';
 import { haptic } from '../../utils/haptics';
+import { t } from '../../i18n';
 import { Tap } from '../ui/Tap';
 import { Button, SectionLabel } from '../ui/primitives';
 import { SheetHeader, useSheetBackdrop, useSheetChrome } from '../ui/sheet';
@@ -22,39 +23,40 @@ interface Props {
 
 function Content({ calendar, usedColors, onSave, onDelete, close }: Omit<Props, 'onDismiss'> & { close: () => void }) {
   const { colors } = useAppSettings();
-  const [name, setName] = useState(calendar?.name ?? '');
+  const [name, setName] = useState(calendar ? calendarName(calendar) : '');
   const [color, setColor] = useState(calendar?.color ?? AVAILABLE_COLORS.find((c) => !usedColors.includes(c)) ?? AVAILABLE_COLORS[0]);
 
   const save = () => {
     if (!name.trim()) {
-      Alert.alert('Name needed', 'Give the calendar a name, like “Team B” or “Partner”.');
+      Alert.alert(t('Name needed'), t('Give the calendar a name, like “Team B” or “Partner”.'));
       return;
     }
     haptic.success();
-    onSave(name.trim(), color);
+    // An untouched starting calendar keeps its stored name, so it goes on following the app's language.
+    onSave(calendar && name.trim() === calendarName(calendar) ? calendar.name : name.trim(), color);
     close();
   };
 
   return (
     <View>
       <SheetHeader
-        title={calendar ? 'Edit calendar' : 'New calendar'}
-        subtitle={calendar ? undefined : 'Keep a separate schedule — a team rotation, a partner, a second job.'}
+        title={calendar ? t('Edit calendar') : t('New calendar')}
+        subtitle={calendar ? undefined : t('Keep a separate schedule — a team rotation, a partner, a second job.')}
         colors={colors}
         onClose={close}
       />
-      <SectionLabel colors={colors} style={styles.firstLabel}>Name</SectionLabel>
+      <SectionLabel colors={colors} style={styles.firstLabel}>{t('Name')}</SectionLabel>
       <BottomSheetTextInput
         value={name}
         onChangeText={setName}
-        placeholder="e.g. Team B"
+        placeholder={t('e.g. Team B')}
         placeholderTextColor={colors.textMuted}
         maxLength={30}
         autoFocus={!calendar}
-        accessibilityLabel="Calendar name"
+        accessibilityLabel={t('Calendar name')}
         style={[styles.input, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
       />
-      <SectionLabel colors={colors}>Color</SectionLabel>
+      <SectionLabel colors={colors}>{t('Color')}</SectionLabel>
       <View style={styles.swatches}>
         {AVAILABLE_COLORS.map((c) => {
           const selected = c === color;
@@ -65,7 +67,7 @@ function Content({ calendar, usedColors, onSave, onDelete, close }: Omit<Props, 
                 haptic.selection();
                 setColor(c);
               }}
-              accessibilityLabel={`Color ${c}`}
+              accessibilityLabel={t('Color {hex}', { hex: c })}
               accessibilityState={{ selected }}
               style={[styles.swatchRing, { borderColor: selected ? colors.text : 'transparent' }]}
             >
@@ -76,10 +78,10 @@ function Content({ calendar, usedColors, onSave, onDelete, close }: Omit<Props, 
           );
         })}
       </View>
-      <Button label={calendar ? 'Save' : 'Create calendar'} icon="check" onPress={save} colors={colors} style={styles.saveBtn} />
+      <Button label={calendar ? t('Save') : t('Create calendar')} icon="check" onPress={save} colors={colors} style={styles.saveBtn} />
       {calendar && calendar.id !== 'default' && (
         <Button
-          label="Delete calendar"
+          label={t('Delete calendar')}
           icon="delete-outline"
           variant="danger"
           onPress={() => {

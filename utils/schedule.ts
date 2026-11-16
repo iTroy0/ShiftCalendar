@@ -1,9 +1,8 @@
-import { ShiftType, isWorkingShift } from '../constants/shifts';
+import { ShiftType, isWorkingShift, shiftName } from '../constants/shifts';
 import { LeaveType } from '../constants/leaveTypes';
 import { addDaysToKey, fromDateKey, toDateKey } from './dates';
 import { TimeFormat, formatTime, formatTimeRangeShort } from './time';
-
-const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+import { formatDate, t } from '../i18n';
 
 export interface UpcomingInfo {
   today: { label: string; color: string; detail: string; working: boolean } | null;
@@ -28,13 +27,13 @@ export function getUpcoming(input: UpcomingInput): UpcomingInfo {
   const leave = input.leave[todayKey] ? input.getLeaveType(input.leave[todayKey]) : undefined;
   const shift = input.shifts[todayKey] ? input.getShiftByCode(input.shifts[todayKey]) : undefined;
   if (leave) {
-    today = { label: leave.label, color: leave.color, detail: '', working: false };
+    today = { label: t(leave.label), color: leave.color, detail: '', working: false };
   } else if (shift) {
     const working = isWorkingShift(shift);
     today = {
-      label: shift.label,
+      label: shiftName(shift),
       color: shift.color,
-      detail: working ? formatTimeRangeShort(shift.startTime, shift.endTime, input.timeFormat) : 'Day off',
+      detail: working ? formatTimeRangeShort(shift.startTime, shift.endTime, input.timeFormat) : t('Day off'),
       working,
     };
   }
@@ -45,11 +44,10 @@ export function getUpcoming(input: UpcomingInput): UpcomingInfo {
     if (input.leave[key]) continue;
     const s = input.shifts[key] ? input.getShiftByCode(input.shifts[key]) : undefined;
     if (s && isWorkingShift(s)) {
-      const d = fromDateKey(key);
       next = {
-        label: s.label,
+        label: shiftName(s),
         color: s.color,
-        when: i === 1 ? 'Tomorrow' : `${SHORT_DAYS[d.getDay()]} ${d.getDate()}`,
+        when: i === 1 ? t('Tomorrow') : formatDate(fromDateKey(key), 'EEE d'),
         time: formatTime(s.startTime, input.timeFormat),
       };
       break;

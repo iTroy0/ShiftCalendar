@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ThemeColors } from '../../constants/colors';
 import { withAlpha } from '../../utils/color';
+import { t } from '../../i18n';
 import { Tap } from '../ui/Tap';
 import { Chip } from '../ui/primitives';
 
@@ -20,10 +21,17 @@ interface ToolRowProps {
 export function ToolRow({ colors, onPaint, onRepeat, onTemplate, canRepeat }: ToolRowProps) {
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row} style={styles.scroll}>
-      <Chip label="Paint" icon="brush-variant" onPress={onPaint} colors={colors} compact accessibilityLabel="Paint mode: tap days to assign shifts" />
-      <Chip label="Templates" icon="view-grid-plus-outline" onPress={onTemplate} colors={colors} compact accessibilityLabel="Apply a rotation template" />
+      <Chip label={t('Paint')} icon="brush-variant" onPress={onPaint} colors={colors} compact accessibilityLabel={t('Paint mode: tap days to assign shifts')} />
+      <Chip
+        label={t('Templates')}
+        icon="view-grid-plus-outline"
+        onPress={onTemplate}
+        colors={colors}
+        compact
+        accessibilityLabel={t('Apply a rotation template')}
+      />
       {canRepeat && (
-        <Chip label="Repeat" icon="repeat" onPress={onRepeat} colors={colors} compact accessibilityLabel="Repeat a pattern of days" />
+        <Chip label={t('Repeat')} icon="repeat" onPress={onRepeat} colors={colors} compact accessibilityLabel={t('Repeat a pattern of days')} />
       )}
     </ScrollView>
   );
@@ -51,7 +59,7 @@ export function ModeBar({ colors, icon, text, doneLabel, onDone, onUndo, undoDis
         <Tap
           onPress={onUndo}
           disabled={undoDisabled}
-          accessibilityLabel="Undo last change"
+          accessibilityLabel={t('Undo last change')}
           style={[styles.modeBtn, { backgroundColor: colors.surface, opacity: undoDisabled ? 0.4 : 1 }]}
         >
           <MaterialCommunityIcons name="undo-variant" size={18} color={colors.text} />

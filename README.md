@@ -68,6 +68,7 @@ For anyone whose schedule doesn't follow the week: nurses, paramedics, police, f
 - **Home screen widget**: this week's shifts, in light or dark.
 - **Export and backup**: CSV for spreadsheets, printable PDF month sheets, and a full backup you can restore on a new phone.
 - **Your way**: dark, light or system theme, 12- or 24-hour time, and weeks that start on Saturday, Sunday or Monday.
+- **English, Simplified Chinese (简体中文) and Arabic (العربية)**: the app follows your phone's language, or pick one in Settings. Arabic is laid out right to left.
 - **Private**: everything stays on your phone. No account, no server, no ads, no tracking. Read the [privacy policy](https://itroy0.github.io/ShiftCalendar-privacy/).
 - **Accessible**: screen reader labels on buttons and controls, and shifts are told apart by code and icon, not only by colour.
 
@@ -96,6 +97,7 @@ ShiftCalendar is free and will stay free, with no ads. If it makes your roster e
 - **Star the repo** so other shift workers can find it.
 - **Share it** with the people you work with.
 - **Report bugs and ask for features** in [Issues](https://github.com/iTroy0/ShiftCalendar/issues).
+- **Translate it** into your language, or improve a translation. [TRANSLATING.md](TRANSLATING.md) explains how; no coding needed.
 - **Buy me a coffee** if you'd like to chip in.
 
 <a href="https://buymeacoffee.com/iTroy0"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" height="48" alt="Buy me a coffee" /></a>
@@ -132,6 +134,8 @@ cd android
 
 Release APKs come from the [Android release build](.github/workflows/android-release.yml) workflow, which attaches the APK to a draft release for the version in `app.json`.
 
+App text is written in English and passed through `t()` from [`i18n/`](i18n); the English is the key into each translation (`zh.ts`, `ar.ts`). After changing any text, run `node scripts/check-translations.js` to list what still needs translating. [TRANSLATING.md](TRANSLATING.md) covers fixing a translation and adding a language.
+
 <details>
 <summary>Project structure</summary>
 
@@ -163,6 +167,8 @@ ShiftCalendar/
 │   ├── useBackgroundSync.ts      # Keeps notifications and the widget up to date
 │   └── useDeepLinkHandler.ts     # Opening CSV and backup files
 ├── constants/                    # Shift types, templates, leave types, currencies, colors, theme tokens
+├── i18n/                         # t(), language choice, localized dates; zh.ts (Chinese), ar.ts (Arabic)
+├── scripts/                      # Icon generation and the translation check
 ├── utils/
 │   ├── dates.ts / time.ts        # DST-safe date keys, month grids, time formatting
 │   ├── patterns.ts               # Template and repeat fills

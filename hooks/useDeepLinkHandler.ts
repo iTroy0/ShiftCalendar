@@ -3,8 +3,10 @@ import { Platform, Alert, NativeModules, DeviceEventEmitter } from 'react-native
 import * as Linking from 'expo-linking';
 import { readAsStringAsync, cacheDirectory, copyAsync } from 'expo-file-system/legacy';
 import { haptic } from '../utils/haptics';
+import { t } from '../i18n';
 import { useShifts } from './ShiftContext';
 import { useAppSettings } from './SettingsContext';
+import { calendarName } from './useShiftData';
 import {
   parseCSVContent,
   describeImport,
@@ -36,7 +38,7 @@ export function useDeepLinkHandler() {
         content = await readAsStringAsync(readableUri);
       } catch (e) {
         console.error('Failed to read incoming file:', e);
-        Alert.alert('Could not open file', 'The file could not be read. It may be in an unsupported format.');
+        Alert.alert(t('Could not open file'), t('The file could not be read. It may be in an unsupported format.'));
         return;
       }
 
@@ -44,48 +46,53 @@ export function useDeepLinkHandler() {
       if (trimmed.startsWith('{')) {
         try {
           const summary = inspectBackup(trimmed);
-          Alert.alert('Restore backup?', describeBackup(summary), [
-            { text: 'Cancel', style: 'cancel' },
+          Alert.alert(t('Restore backup?'), describeBackup(summary), [
+            { text: t('Cancel'), style: 'cancel' },
             {
-              text: 'Restore',
+              text: t('Restore'),
               style: 'destructive',
               onPress: async () => {
                 try {
                   await restoreBackup(summary);
                   await Promise.all([reload(), reloadSettings()]);
                   haptic.success();
-                  Alert.alert('Backup restored', 'Your calendars and settings are back.');
+                  Alert.alert(t('Backup restored'), t('Your calendars and settings are back.'));
                 } catch (e: any) {
-                  Alert.alert('Restore failed', e?.message || 'The backup could not be restored.');
+                  Alert.alert(t('Restore failed'), e?.message || t('The backup could not be restored.'));
                 }
               },
             },
           ]);
         } catch (e: any) {
-          Alert.alert('Unrecognized file', e?.message || 'This file is not a ShiftCalendar backup.');
+          Alert.alert(t('Unrecognized file'), e?.message || t('This file is not a ShiftCalendar backup.'));
         }
         return;
       }
 
       const result = parseCSVContent(content, allShifts, leaveTypes);
       if (result && result.days > 0) {
-        Alert.alert('Import CSV?', `${describeImport(result)}\n\nImport into "${activeCalendar.name}"? Matching dates are replaced.`, [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Import',
-            onPress: () => {
-              importDays(result);
-              haptic.success();
-              Alert.alert('Import complete', `Imported ${result.days} days into "${activeCalendar.name}".`);
+        const calendar = calendarName(activeCalendar);
+        Alert.alert(
+          t('Import CSV?'),
+          `${describeImport(result)}\n\n${t('Import into "{calendar}"? Matching dates are replaced.', { calendar })}`,
+          [
+            { text: t('Cancel'), style: 'cancel' },
+            {
+              text: t('Import'),
+              onPress: () => {
+                importDays(result);
+                haptic.success();
+                Alert.alert(t('Import complete'), t('Imported {n} days into "{calendar}".', { n: result.days, calendar }));
+              },
             },
-          },
-        ]);
+          ]
+        );
         return;
       }
 
-      Alert.alert('Unrecognized file', 'This file does not look like a ShiftCalendar CSV export or backup.');
+      Alert.alert(t('Unrecognized file'), t('This file does not look like a ShiftCalendar CSV export or backup.'));
     },
-    [allShifts, leaveTypes, importDays, activeCalendar.name, reload, reloadSettings]
+    [allShifts, leaveTypes, importDays, activeCalendar, reload, reloadSettings]
   );
 
   // Listeners always call the latest handler without re-subscribing (and re-reading the launch URL).

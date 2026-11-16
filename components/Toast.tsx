@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Tap } from './ui/Tap';
 import { haptic } from '../utils/haptics';
+import { t } from '../i18n';
 
 export interface ToastMessage {
   id: number;
@@ -66,7 +67,7 @@ export function Toast({ toast, onHide }: Props) {
       {toast.undo && (
         <Tap
           style={styles.undoBtn}
-          accessibilityLabel="Undo"
+          accessibilityLabel={t('Undo')}
           onPress={() => {
             haptic.light();
             toast.undo?.();
@@ -74,7 +75,7 @@ export function Toast({ toast, onHide }: Props) {
           }}
         >
           <MaterialCommunityIcons name="undo-variant" size={16} color="#FFF" />
-          <Text style={styles.undoText}>Undo</Text>
+          <Text style={styles.undoText}>{t('Undo')}</Text>
         </Tap>
       )}
     </Animated.View>

@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { ThemeColors } from '../../constants/colors';
-import { CalendarInfo } from '../../hooks/useShiftData';
+import { CalendarInfo, calendarName } from '../../hooks/useShiftData';
 import { TimeFormat, formatHourOfDay, formatMinutesAsDuration } from '../../utils/time';
+import { t } from '../../i18n';
 import { Chip, SectionLabel } from '../ui/primitives';
 import { SettingsCard, SettingsRow } from './SettingsRow';
 
@@ -38,12 +39,12 @@ export function NotificationsSection(props: Props) {
   const { colors } = props;
   return (
     <>
-      <SectionLabel colors={colors}>Reminders</SectionLabel>
+      <SectionLabel colors={colors}>{t('Reminders')}</SectionLabel>
       <SettingsCard colors={colors}>
         <SettingsRow
           icon="bell-ring-outline"
-          title="Evening reminder"
-          subtitle="A heads-up the evening before each shift or leave day"
+          title={t('Evening reminder')}
+          subtitle={t('A heads-up the evening before each shift or leave day')}
           colors={colors}
           switchValue={props.remindersEnabled}
           onSwitch={props.onToggleReminders}
@@ -67,8 +68,8 @@ export function NotificationsSection(props: Props) {
         <SettingsRow
           icon="alarm"
           iconColor={colors.danger}
-          title="Pre-shift alarm"
-          subtitle="Loud alarm before your shift starts, even in Do Not Disturb"
+          title={t('Pre-shift alarm')}
+          subtitle={t('Loud alarm before your shift starts, even in Do Not Disturb')}
           colors={colors}
           switchValue={props.alarmEnabled}
           onSwitch={props.onToggleAlarm}
@@ -79,7 +80,7 @@ export function NotificationsSection(props: Props) {
               {ALARM_LEADS.map((m) => (
                 <Chip
                   key={m}
-                  label={`${formatMinutesAsDuration(m).replace(' hours', 'h').replace(' hour', 'h')} before`}
+                  label={t('{duration} before', { duration: formatMinutesAsDuration(m).replace(' hours', 'h').replace(' hour', 'h') })}
                   selected={props.alarmLead === m}
                   onPress={() => props.onAlarmLead(m)}
                   colors={colors}
@@ -92,16 +93,36 @@ export function NotificationsSection(props: Props) {
         )}
         {props.calendars.length > 1 && (props.remindersEnabled || props.alarmEnabled) && (
           <View style={styles.sub}>
-            <SettingsRow icon="calendar-account" title="Remind me about" subtitle="Also used by the home-screen widget" colors={colors} style={styles.subRow} />
+            <SettingsRow
+              icon="calendar-account"
+              title={t('Remind me about')}
+              subtitle={t('Also used by the home-screen widget')}
+              colors={colors}
+              style={styles.subRow}
+            />
             <ChipRow>
               {props.calendars.map((c) => (
-                <Chip key={c.id} label={c.name} color={c.color} selected={props.primaryCalendarId === c.id} onPress={() => props.onPrimaryCalendar(c.id)} colors={colors} compact />
+                <Chip
+                  key={c.id}
+                  label={calendarName(c)}
+                  color={c.color}
+                  selected={props.primaryCalendarId === c.id}
+                  onPress={() => props.onPrimaryCalendar(c.id)}
+                  colors={colors}
+                  compact
+                />
               ))}
             </ChipRow>
           </View>
         )}
         {(props.remindersEnabled || props.alarmEnabled) && (
-          <SettingsRow icon="send-outline" title="Send a test notification" subtitle="Arrives in about 5 seconds" colors={colors} onPress={props.onTest} />
+          <SettingsRow
+            icon="send-outline"
+            title={t('Send a test notification')}
+            subtitle={t('Arrives in about 5 seconds')}
+            colors={colors}
+            onPress={props.onTest}
+          />
         )}
       </SettingsCard>
     </>

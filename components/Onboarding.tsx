@@ -7,17 +7,19 @@ import { useAppSettings } from '../hooks/SettingsContext';
 import { useShifts } from '../hooks/ShiftContext';
 import { SHIFT_TEMPLATES, ShiftTemplate } from '../constants/templates';
 import { ThemeColors } from '../constants/colors';
+import { shiftCode } from '../constants/shifts';
 import { buildTemplateEntries, defaultSlotMapping, durationEndKey } from '../utils/patterns';
 import { readableTextColor, withAlpha } from '../utils/color';
 import { todayKey } from '../utils/dates';
 import { haptic } from '../utils/haptics';
+import { isRTL, t, weekdayName } from '../i18n';
 import { Tap } from './ui/Tap';
 import { Button, Segmented } from './ui/primitives';
 
-const FEATURES: { icon: React.ComponentProps<typeof MaterialCommunityIcons>['name']; title: string; text: string }[] = [
-  { icon: 'brush-variant', title: 'Fill a month in seconds', text: 'Paint days, repeat a pattern, or apply a rotation template.' },
-  { icon: 'bell-ring-outline', title: 'Never miss a shift', text: 'Evening reminders and a loud pre-shift alarm.' },
-  { icon: 'chart-box-outline', title: 'Know your hours & pay', text: 'Overtime, leave balance and monthly estimates.' },
+const features = (): { icon: React.ComponentProps<typeof MaterialCommunityIcons>['name']; title: string; text: string }[] => [
+  { icon: 'brush-variant', title: t('Fill a month in seconds'), text: t('Paint days, repeat a pattern, or apply a rotation template.') },
+  { icon: 'bell-ring-outline', title: t('Never miss a shift'), text: t('Evening reminders and a loud pre-shift alarm.') },
+  { icon: 'chart-box-outline', title: t('Know your hours & pay'), text: t('Overtime, leave balance and monthly estimates.') },
 ];
 
 const DEMO = ['M', 'M', 'A', 'A', 'N', 'N', 'O', 'O', 'M', 'M', 'A', 'A', 'N', 'N', 'O', 'O', 'M', 'M', 'A', 'A', 'N'];
@@ -35,7 +37,7 @@ function DemoCalendar({ colors }: { colors: ThemeColors }) {
               <View key={i} style={[styles.demoCell, { backgroundColor: withAlpha(color, 0.16) }]}>
                 <Text style={[styles.demoDay, { color: colors.textSecondary }]}>{row * 7 + i + 1}</Text>
                 <View style={[styles.demoPill, { backgroundColor: color }]}>
-                  <Text style={[styles.demoPillText, { color: readableTextColor(color) }]}>{code}</Text>
+                  <Text style={[styles.demoPillText, { color: readableTextColor(color) }]}>{shift ? shiftCode(shift) : code}</Text>
                 </View>
               </View>
             );
@@ -83,8 +85,8 @@ export function Onboarding() {
           ))}
         </View>
         {step < 2 && (
-          <Tap onPress={settings.completeOnboarding} accessibilityLabel="Skip setup" style={styles.skip}>
-            <Text style={[styles.skipText, { color: colors.textSecondary }]}>Skip</Text>
+          <Tap onPress={settings.completeOnboarding} accessibilityLabel={t('Skip setup')} style={styles.skip}>
+            <Text style={[styles.skipText, { color: colors.textSecondary }]}>{t('Skip')}</Text>
           </Tap>
         )}
       </View>
@@ -94,12 +96,12 @@ export function Onboarding() {
           {step === 0 && (
             <>
               <DemoCalendar colors={colors} />
-              <Text style={[styles.title, { color: colors.text }]}>Your shifts,{'\n'}at a glance</Text>
+              <Text style={[styles.title, { color: colors.text }]}>{t('Your shifts,\nat a glance')}</Text>
               <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                A private, offline calendar built for shift work.
+                {t('A private, offline calendar built for shift work.')}
               </Text>
               <View style={styles.features}>
-                {FEATURES.map((f) => (
+                {features().map((f) => (
                   <View key={f.title} style={styles.feature}>
                     <View style={[styles.featureIcon, { backgroundColor: withAlpha(colors.primary, 0.14) }]}>
                       <MaterialCommunityIcons name={f.icon} size={22} color={colors.primaryText} />
@@ -119,35 +121,35 @@ export function Onboarding() {
               <View style={[styles.stepIcon, { backgroundColor: withAlpha(colors.primary, 0.14) }]}>
                 <MaterialCommunityIcons name="tune-variant" size={30} color={colors.primaryText} />
               </View>
-              <Text style={[styles.title, { color: colors.text }]}>Make it yours</Text>
-              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>You can change these any time in Settings.</Text>
-              <Text style={[styles.label, { color: colors.text }]}>Week starts on</Text>
+              <Text style={[styles.title, { color: colors.text }]}>{t('Make it yours')}</Text>
+              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t('You can change these any time in Settings.')}</Text>
+              <Text style={[styles.label, { color: colors.text }]}>{t('Week starts on')}</Text>
               <Segmented
                 options={[
-                  { value: 6, label: 'Saturday' },
-                  { value: 0, label: 'Sunday' },
-                  { value: 1, label: 'Monday' },
+                  { value: 6, label: weekdayName(6) },
+                  { value: 0, label: weekdayName(0) },
+                  { value: 1, label: weekdayName(1) },
                 ]}
                 value={settings.weekStart}
                 onChange={(v) => settings.updateSetting('weekStart', v)}
                 colors={colors}
               />
-              <Text style={[styles.label, { color: colors.text }]}>Time format</Text>
+              <Text style={[styles.label, { color: colors.text }]}>{t('Time format')}</Text>
               <Segmented
                 options={[
-                  { value: '24h', label: '24-hour · 15:00' },
-                  { value: '12h', label: '12-hour · 3 PM' },
+                  { value: '24h', label: t('24-hour · 15:00') },
+                  { value: '12h', label: t('12-hour · 3 PM') },
                 ]}
                 value={settings.timeFormat}
                 onChange={(v) => settings.updateSetting('timeFormat', v)}
                 colors={colors}
               />
-              <Text style={[styles.label, { color: colors.text }]}>Theme</Text>
+              <Text style={[styles.label, { color: colors.text }]}>{t('Theme')}</Text>
               <Segmented
                 options={[
-                  { value: 'light', label: 'Light' },
-                  { value: 'dark', label: 'Dark' },
-                  { value: 'system', label: 'Auto' },
+                  { value: 'light', label: t('Light') },
+                  { value: 'dark', label: t('Dark') },
+                  { value: 'system', label: t('Auto') },
                 ]}
                 value={settings.themeMode}
                 onChange={(v) => settings.updateSetting('themeMode', v)}
@@ -161,20 +163,20 @@ export function Onboarding() {
               <View style={[styles.stepIcon, { backgroundColor: withAlpha(colors.primary, 0.14) }]}>
                 <MaterialCommunityIcons name="view-grid-plus-outline" size={30} color={colors.primaryText} />
               </View>
-              <Text style={[styles.title, { color: colors.text }]}>Work a rotation?</Text>
+              <Text style={[styles.title, { color: colors.text }]}>{t('Work a rotation?')}</Text>
               <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                Pick one to fill the next 3 months from today. You can fine-tune any day afterwards.
+                {t('Pick one to fill the next 3 months from today. You can fine-tune any day afterwards.')}
               </Text>
-              {SHIFT_TEMPLATES.slice(0, 6).map((t) => {
-                const selected = template?.id === t.id;
+              {SHIFT_TEMPLATES.slice(0, 6).map((tpl) => {
+                const selected = template?.id === tpl.id;
                 return (
                   <Tap
-                    key={t.id}
+                    key={tpl.id}
                     onPress={() => {
                       haptic.selection();
-                      setTemplate(selected ? null : t);
+                      setTemplate(selected ? null : tpl);
                     }}
-                    accessibilityLabel={`${t.name}: ${t.description}`}
+                    accessibilityLabel={`${t(tpl.name)}: ${t(tpl.description)}`}
                     accessibilityState={{ selected }}
                     style={[
                       styles.template,
@@ -185,8 +187,8 @@ export function Onboarding() {
                     ]}
                   >
                     <View style={styles.flex}>
-                      <Text style={[styles.templateName, { color: colors.text }]}>{t.name}</Text>
-                      <Text style={[styles.templateDesc, { color: colors.textSecondary }]}>{t.description}</Text>
+                      <Text style={[styles.templateName, { color: colors.text }]}>{t(tpl.name)}</Text>
+                      <Text style={[styles.templateDesc, { color: colors.textSecondary }]}>{t(tpl.description)}</Text>
                     </View>
                     <MaterialCommunityIcons
                       name={selected ? 'check-circle' : 'checkbox-blank-circle-outline'}
@@ -203,8 +205,16 @@ export function Onboarding() {
 
       <View style={styles.footer}>
         <Button
-          label={step === 0 ? 'Get started' : step === 1 ? 'Continue' : template ? `Use ${template.name}` : 'I’ll set it up myself'}
-          icon={step === 2 ? 'check' : 'arrow-right'}
+          label={
+            step === 0
+              ? t('Get started')
+              : step === 1
+                ? t('Continue')
+                : template
+                  ? t('Use {name}', { name: t(template.name) })
+                  : t('I’ll set it up myself')
+          }
+          icon={step === 2 ? 'check' : isRTL ? 'arrow-left' : 'arrow-right'}
           iconPosition={step === 2 ? 'left' : 'right'}
           onPress={next}
           colors={colors}

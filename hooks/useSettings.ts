@@ -8,11 +8,13 @@ import { WeekStart } from '../utils/dates';
 import { TimeFormat } from '../utils/time';
 import { setHapticsEnabled } from '../utils/haptics';
 import { runMigrations } from '../utils/migrations';
+import { LanguageSetting, isLanguageSetting, setLanguage, syncLayoutDirection } from '../i18n';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
 export interface Settings {
   themeMode: ThemeMode;
+  language: LanguageSetting;
   weekStart: WeekStart;
   timeFormat: TimeFormat;
   baseRate: number;
@@ -31,6 +33,7 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   themeMode: 'system',
+  language: 'system',
   weekStart: 0,
   timeFormat: '24h',
   baseRate: 0,
@@ -50,6 +53,7 @@ export const DEFAULT_SETTINGS: Settings = {
 /** Storage keys (the older ones are unchanged so existing preferences carry over). */
 export const SETTINGS_KEYS: Record<keyof Settings, string> = {
   themeMode: 'theme_mode',
+  language: 'language',
   weekStart: 'week_start',
   timeFormat: 'time_format',
   baseRate: 'base_rate',
@@ -77,6 +81,8 @@ function parseSettings(raw: Map<string, string | null>): Settings {
 
   const theme = get('themeMode');
   if (theme === 'light' || theme === 'dark' || theme === 'system') s.themeMode = theme;
+  const language = get('language');
+  if (isLanguageSetting(language)) s.language = language;
   const week = get('weekStart');
   if (week === '0' || week === '1' || week === '6') s.weekStart = Number(week) as WeekStart;
   const tf = get('timeFormat');
@@ -117,6 +123,8 @@ export function useSettings() {
       const pairs = await AsyncStorage.multiGet(keys);
       const next = parseSettings(new Map(pairs));
       settingsRef.current = next;
+      setLanguage(next.language);
+      syncLayoutDirection();
       setSettings(next);
       setHapticsEnabled(next.hapticsEnabled);
     } catch (e) {
@@ -134,6 +142,11 @@ export function useSettings() {
     if (settingsRef.current[key] === value) return;
     const next = { ...settingsRef.current, [key]: value };
     settingsRef.current = next;
+    // Before the re-render, so everything draws in the new language.
+    if (key === 'language') {
+      setLanguage(value as LanguageSetting);
+      syncLayoutDirection();
+    }
     setSettings(next);
     if (key === 'hapticsEnabled') setHapticsEnabled(value as boolean);
     AsyncStorage.setItem(SETTINGS_KEYS[key], String(value)).catch(console.error);

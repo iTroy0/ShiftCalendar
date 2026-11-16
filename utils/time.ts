@@ -1,3 +1,5 @@
+import { t } from '../i18n';
+
 export type TimeFormat = '24h' | '12h';
 
 export function parseHHMM(value: string): [number, number] | null {
@@ -15,21 +17,21 @@ export function toHHMM(h: number, m: number): string {
 
 /** '07:00' → '07:00' (24h) or '7:00 AM' (12h). */
 export function formatTime(value: string, format: TimeFormat): string {
-  const t = parseHHMM(value);
-  if (!t) return value;
-  if (format === '24h') return toHHMM(t[0], t[1]);
-  const [h, m] = t;
-  const suffix = h < 12 ? 'AM' : 'PM';
+  const parsed = parseHHMM(value);
+  if (!parsed) return value;
+  if (format === '24h') return toHHMM(parsed[0], parsed[1]);
+  const [h, m] = parsed;
   const h12 = h % 12 === 0 ? 12 : h % 12;
-  return `${h12}:${String(m).padStart(2, '0')} ${suffix}`;
+  const time = `${h12}:${String(m).padStart(2, '0')}`;
+  return h < 12 ? t('{time} AM', { time }) : t('{time} PM', { time });
 }
 
 /** Short form for tight spaces: '07:00' (24h) or '7a' / '7:30p' (12h). */
 export function formatTimeCompact(value: string, format: TimeFormat): string {
-  const t = parseHHMM(value);
-  if (!t) return value;
-  if (format === '24h') return toHHMM(t[0], t[1]);
-  const [h, m] = t;
+  const parsed = parseHHMM(value);
+  if (!parsed) return value;
+  if (format === '24h') return toHHMM(parsed[0], parsed[1]);
+  const [h, m] = parsed;
   const h12 = h % 12 === 0 ? 12 : h % 12;
   return `${h12}${m ? ':' + String(m).padStart(2, '0') : ''}${h < 12 ? 'a' : 'p'}`;
 }
@@ -51,7 +53,7 @@ export function formatTimeRangeShort(start: string, end: string, format: TimeFor
 export function formatHourOfDay(hour: number, format: TimeFormat): string {
   if (format === '24h') return toHHMM(hour, 0);
   const h12 = hour % 12 === 0 ? 12 : hour % 12;
-  return `${h12} ${hour < 12 ? 'AM' : 'PM'}`;
+  return hour < 12 ? t('{hour} AM', { hour: h12 }) : t('{hour} PM', { hour: h12 });
 }
 
 /** 8 → '8h', 7.5 → '7.5h', 7.25 → '7.25h'. */
@@ -61,8 +63,9 @@ export function formatHours(hours: number): string {
 }
 
 export function formatMinutesAsDuration(minutes: number): string {
-  if (minutes < 60) return `${minutes} min`;
+  if (minutes < 60) return t('{n} min', { n: minutes });
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  return m ? `${h}h ${m}m` : `${h} hour${h === 1 ? '' : 's'}`;
+  if (m) return t('{h}h {m}m', { h, m });
+  return h === 1 ? t('1 hour') : t('{n} hours', { n: h });
 }

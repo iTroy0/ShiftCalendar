@@ -1,11 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { ShiftType, isWorkingShift } from '../../constants/shifts';
+import { ShiftType, assignmentCode, assignmentName, isWorkingShift } from '../../constants/shifts';
 import { LeaveType } from '../../constants/leaveTypes';
 import { ThemeColors } from '../../constants/colors';
 import { readableTextColor, withAlpha } from '../../utils/color';
 import { TimeFormat, formatTimeCompact } from '../../utils/time';
+import { t } from '../../i18n';
 
 export type RangeState = 0 | 1 | 2; // none, inside range, range edge
 
@@ -46,6 +47,7 @@ function DayCellBase(props: DayCellProps) {
   const working = !leave && isWorkingShift(shift);
   const ghost = preview !== undefined;
   const pillItem = ghost ? preview : item;
+  const code = pillItem ? assignmentCode(pillItem) : '';
   // Content tiers by available size: label line (tablets) and start-time line (most phones).
   const large = innerH >= 104 && innerW >= 84;
   const xl = innerH >= 130 && innerW >= 90;
@@ -66,9 +68,11 @@ function DayCellBase(props: DayCellProps) {
   const centred = (contentTop + contentBottom - pillH) / 2;
   const pillTop = Math.round(Math.max(contentTop, Math.min(centred, contentBottom - below - pillH)));
   // Rough text metrics: show the icon only when icon + code fit the pill without truncating the code.
+  // Chinese characters are about a full em wide, Latin capitals about 0.72.
   const pillFont = xl ? 15 : bigPill ? 12.5 : 11;
   const iconSize = xl ? 15 : bigPill ? 13 : 11;
-  const pillNeeds = (xl ? 18 : bigPill ? 12 : 10) + iconSize + 3 + (pillItem?.code.length ?? 0) * pillFont * 0.72;
+  const codeEms = [...code].reduce((sum, ch) => sum + (ch.charCodeAt(0) >= 0x2e80 ? 1 : 0.72), 0);
+  const pillNeeds = (xl ? 18 : bigPill ? 12 : 10) + iconSize + 3 + codeEms * pillFont;
   const showIcon = pillNeeds <= innerW - 6;
 
   let background = inMonth ? colors.surface : 'transparent';
@@ -80,14 +84,14 @@ function DayCellBase(props: DayCellProps) {
 
   const label = [
     props.accessibilityPrefix,
-    item ? (leave ? leave.label : `${shift!.label} shift`) : 'no shift',
-    isToday ? 'today' : '',
-    hasNote ? 'has note' : '',
-    overtime > 0 ? `${overtime} hours overtime` : '',
-    hasSwap ? 'swap offered' : '',
+    item ? (leave ? t(leave.label) : t('{name} shift', { name: assignmentName(shift!) })) : t('no shift'),
+    isToday ? t('today') : '',
+    hasNote ? t('has note') : '',
+    overtime > 0 ? t('{n} hours overtime', { n: overtime }) : '',
+    hasSwap ? t('swap offered') : '',
   ]
     .filter(Boolean)
-    .join(', ');
+    .join(t(', '));
 
   return (
     <Pressable
@@ -146,7 +150,7 @@ function DayCellBase(props: DayCellProps) {
                 numberOfLines={1}
                 style={[styles.pillText, bigPill && styles.pillTextBig, xl && styles.pillTextXL, { color: ghost ? colors.text : readableTextColor(pillItem.color) }]}
               >
-                {pillItem.code}
+                {code}
               </Text>
             </View>
           ) : ghost ? (
@@ -157,7 +161,7 @@ function DayCellBase(props: DayCellProps) {
 
           {labelLine ? (
             <Text numberOfLines={1} style={[styles.label, xl && styles.labelXL, { color: colors.textSecondary }]}>
-              {item!.label}
+              {assignmentName(item!)}
             </Text>
           ) : null}
           {timeLine ? (

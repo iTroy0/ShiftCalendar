@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
 import { useAppSettings } from './SettingsContext';
 import { useShifts } from './ShiftContext';
+import { calendarName } from './useShiftData';
 import { syncNotifications } from '../utils/notifications';
 import { refreshWidget } from '../utils/widget';
 import { todayKey } from '../utils/dates';
@@ -24,7 +25,7 @@ export function useBackgroundSync() {
   const leave = data?.leave ?? EMPTY;
   const ready = !loading && settings.loaded;
   const {
-    notificationsEnabled, notificationHour, preShiftAlarm, alarmLeadMinutes, timeFormat, weekStart, themeMode,
+    notificationsEnabled, notificationHour, preShiftAlarm, alarmLeadMinutes, timeFormat, weekStart, themeMode, language,
   } = settings;
 
   // Roll the scheduling window forward when the app returns to the foreground on a new day.
@@ -53,17 +54,17 @@ export function useBackgroundSync() {
     return () => clearTimeout(timer);
   }, [
     ready, shifts, leave, allShifts, leaveTypes, day,
-    notificationsEnabled, notificationHour, preShiftAlarm, alarmLeadMinutes, timeFormat,
+    notificationsEnabled, notificationHour, preShiftAlarm, alarmLeadMinutes, timeFormat, language,
   ]);
 
   useEffect(() => {
     if (!ready || !primary) return;
     const timer = setTimeout(() => {
       refreshWidget(
-        { shifts, leave, allShifts, leaveTypes, weekStart, timeFormat, calendarName: primary.name },
+        { shifts, leave, allShifts, leaveTypes, weekStart, timeFormat, calendarName: calendarName(primary) },
         themeMode
       );
     }, 600);
     return () => clearTimeout(timer);
-  }, [ready, primary, shifts, leave, allShifts, leaveTypes, day, weekStart, timeFormat, themeMode]);
+  }, [ready, primary, shifts, leave, allShifts, leaveTypes, day, weekStart, timeFormat, themeMode, language]);
 }

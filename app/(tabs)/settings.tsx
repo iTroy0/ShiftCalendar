@@ -4,10 +4,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useAppSettings } from '../../hooks/SettingsContext';
 import { useShifts } from '../../hooks/ShiftContext';
-import { CalendarInfo } from '../../hooks/useShiftData';
-import { ShiftType } from '../../constants/shifts';
+import { CalendarInfo, calendarName } from '../../hooks/useShiftData';
+import { ShiftType, shiftName } from '../../constants/shifts';
 import { Type } from '../../constants/theme';
 import { haptic } from '../../utils/haptics';
+import { plural, t } from '../../i18n';
 import { requestNotificationPermissions, sendTestNotification } from '../../utils/notifications';
 import {
   ExportOptions,
@@ -66,11 +67,11 @@ export default function SettingsScreen() {
   const saveShift = (shift: ShiftType) => {
     if (editingShift) data.updateCustomShift(editingShift.code, shift);
     else data.addCustomShift(shift);
-    showToast(editingShift ? `${shift.label} updated` : `${shift.label} added`);
+    showToast(editingShift ? t('{name} updated', { name: shiftName(shift) }) : t('{name} added', { name: shiftName(shift) }));
   };
   const deleteShift = (code: string) => {
-    const label = data.allShifts.find((s) => s.code === code)?.label ?? code;
-    if (data.deleteCustomShift(code)) showToast(`${label} deleted`);
+    const shift = data.allShifts.find((s) => s.code === code);
+    if (data.deleteCustomShift(code)) showToast(t('{name} deleted', { name: shift ? shiftName(shift) : code }));
   };
 
   // --- Calendars ---
@@ -81,25 +82,26 @@ export default function SettingsScreen() {
   const saveCalendar = (name: string, color: string) => {
     if (editingCalendar) {
       data.renameCalendar(editingCalendar.id, name, color);
-      showToast('Calendar updated');
+      showToast(t('Calendar updated'));
     } else {
       const id = `cal_${Date.now()}`;
       data.addCalendar({ id, name, color });
       data.switchCalendar(id);
-      showToast(`${name} created`);
+      showToast(t('{name} created', { name }));
     }
   };
   const deleteCalendar = (calendar: CalendarInfo) => {
-    Alert.alert('Delete calendar?', `“${calendar.name}” and all of its shifts, notes and leave will be permanently deleted.`, [
-      { text: 'Cancel', style: 'cancel' },
+    const name = calendarName(calendar);
+    Alert.alert(t('Delete calendar?'), t('“{name}” and all of its shifts, notes and leave will be permanently deleted.', { name }), [
+      { text: t('Cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('Delete'),
         style: 'destructive',
         onPress: () => {
           haptic.heavy();
           data.deleteCalendar(calendar.id);
           if (settings.primaryCalendarId === calendar.id) updateSetting('primaryCalendarId', 'default');
-          showToast(`${calendar.name} deleted`);
+          showToast(t('{name} deleted', { name }));
         },
       },
     ]);
@@ -109,9 +111,9 @@ export default function SettingsScreen() {
   const ensurePermission = async () => {
     const granted = await requestNotificationPermissions();
     if (!granted) {
-      Alert.alert('Notifications are off', 'Allow notifications for ShiftCalendar in your device settings to get reminders.', [
-        { text: 'Not now', style: 'cancel' },
-        { text: 'Open settings', onPress: () => Linking.openSettings().catch(() => {}) },
+      Alert.alert(t('Notifications are off'), t('Allow notifications for ShiftCalendar in your device settings to get reminders.'), [
+        { text: t('Not now'), style: 'cancel' },
+        { text: t('Open settings'), onPress: () => Linking.openSettings().catch(() => {}) },
       ]);
     }
     return granted;
@@ -128,8 +130,8 @@ export default function SettingsScreen() {
   };
   const sendTest = async () => {
     const ok = await sendTestNotification(settings.preShiftAlarm ? 'alarm' : 'reminder');
-    if (ok) showToast('Test notification on its way', 'info');
-    else Alert.alert('Could not send', 'Notifications are unavailable or not allowed on this device.');
+    if (ok) showToast(t('Test notification on its way'), 'info');
+    else Alert.alert(t('Could not send'), t('Notifications are unavailable or not allowed on this device.'));
   };
 
   // --- Data ---
@@ -139,7 +141,7 @@ export default function SettingsScreen() {
     data: { shifts: data.shiftData, notes: data.notesData, overtime: data.overtimeData, leave: data.leaveData },
     allShifts: data.allShifts,
     leaveTypes: data.leaveTypes,
-    calendarName: data.activeCalendar.name,
+    calendarName: calendarName(data.activeCalendar),
     weekStart: settings.weekStart,
     timeFormat: settings.timeFormat,
     baseRate: settings.baseRate,
@@ -157,7 +159,7 @@ export default function SettingsScreen() {
         showToast(success);
       }
     } catch (e: any) {
-      Alert.alert('Something went wrong', e?.message || 'Please try again.');
+      Alert.alert(t('Something went wrong'), e?.message || t('Please try again.'));
     } finally {
       setBusy(null);
     }
@@ -169,27 +171,32 @@ export default function SettingsScreen() {
     try {
       content = await pickCSVFile();
     } catch (e: any) {
-      Alert.alert('Could not open file', e?.message || 'Please try again.');
+      Alert.alert(t('Could not open file'), e?.message || t('Please try again.'));
     } finally {
       setBusy(null);
     }
     if (!content) return;
     const result = parseCSVContent(content, data.allShifts, data.leaveTypes);
     if (!result || result.days === 0) {
-      Alert.alert('Nothing to import', 'This file has no ShiftCalendar days in it. Export a CSV from the app to see the expected format.');
+      Alert.alert(t('Nothing to import'), t('This file has no ShiftCalendar days in it. Export a CSV from the app to see the expected format.'));
       return;
     }
-    Alert.alert('Import spreadsheet?', `${describeImport(result)}\n\nImporting into “${data.activeCalendar.name}”. Matching dates are replaced.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Import',
-        onPress: () => {
-          data.importDays(result);
-          haptic.success();
-          showToast(`Imported ${result.days} days`);
+    const calendar = calendarName(data.activeCalendar);
+    Alert.alert(
+      t('Import spreadsheet?'),
+      `${describeImport(result)}\n\n${t('Importing into “{calendar}”. Matching dates are replaced.', { calendar })}`,
+      [
+        { text: t('Cancel'), style: 'cancel' },
+        {
+          text: t('Import'),
+          onPress: () => {
+            data.importDays(result);
+            haptic.success();
+            showToast(plural(result.days, 'Imported 1 day', 'Imported {n} days'));
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
 
   const restore = async () => {
@@ -198,7 +205,7 @@ export default function SettingsScreen() {
     try {
       content = await pickBackupFile();
     } catch (e: any) {
-      Alert.alert('Could not open file', e?.message || 'Please try again.');
+      Alert.alert(t('Could not open file'), e?.message || t('Please try again.'));
     } finally {
       setBusy(null);
     }
@@ -207,13 +214,13 @@ export default function SettingsScreen() {
     try {
       summary = inspectBackup(content);
     } catch (e: any) {
-      Alert.alert('Not a backup', e?.message || 'This file can’t be restored.');
+      Alert.alert(t('Not a backup'), e?.message || t('This file can’t be restored.'));
       return;
     }
-    Alert.alert('Restore backup?', describeBackup(summary), [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('Restore backup?'), describeBackup(summary), [
+      { text: t('Cancel'), style: 'cancel' },
       {
-        text: 'Restore',
+        text: t('Restore'),
         style: 'destructive',
         onPress: () =>
           run(
@@ -222,17 +229,17 @@ export default function SettingsScreen() {
               await restoreBackup(summary);
               await Promise.all([data.reload(), reloadSettings()]);
             },
-            'Backup restored'
+            t('Backup restored')
           ),
       },
     ]);
   };
 
   const resetAll = () => {
-    Alert.alert('Erase all data?', 'Every calendar, shift, note and setting will be deleted from this device. Make a backup first if you might want it back.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('Erase all data?'), t('Every calendar, shift, note and setting will be deleted from this device. Make a backup first if you might want it back.'), [
+      { text: t('Cancel'), style: 'cancel' },
       {
-        text: 'Erase everything',
+        text: t('Erase everything'),
         style: 'destructive',
         onPress: async () => {
           haptic.heavy();
@@ -252,7 +259,7 @@ export default function SettingsScreen() {
         keyboardDismissMode="on-drag"
       >
         <Text style={[Type.display, styles.title, { color: colors.text }]} accessibilityRole="header">
-          Settings
+          {t('Settings')}
         </Text>
 
         <ShiftsSection
@@ -314,7 +321,7 @@ export default function SettingsScreen() {
 
         <LeaveBalanceSection
           colors={colors}
-          calendarName={data.activeCalendar.name}
+          calendarName={calendarName(data.activeCalendar)}
           leaveTypes={data.leaveTypes}
           leaveBalances={data.leaveBalances}
           setLeaveBalance={data.setLeaveBalance}
@@ -324,6 +331,8 @@ export default function SettingsScreen() {
           colors={colors}
           themeMode={settings.themeMode}
           setThemeMode={(v) => updateSetting('themeMode', v)}
+          language={settings.language}
+          setLanguage={(v) => updateSetting('language', v)}
           weekStart={settings.weekStart}
           setWeekStart={(v) => updateSetting('weekStart', v)}
           timeFormat={settings.timeFormat}
@@ -336,16 +345,16 @@ export default function SettingsScreen() {
 
         <DataSection
           colors={colors}
-          calendarName={data.activeCalendar.name}
+          calendarName={calendarName(data.activeCalendar)}
           busy={busy}
           year={exportYear}
           setYear={setExportYear}
           month={exportMonth}
           setMonth={setExportMonth}
-          onExportCSV={() => run('csv', () => exportCSV(exportOptions()), 'Spreadsheet exported')}
-          onExportPDF={() => run('pdf', () => exportPDF(exportOptions()), 'PDF exported')}
+          onExportCSV={() => run('csv', () => exportCSV(exportOptions()), t('Spreadsheet exported'))}
+          onExportPDF={() => run('pdf', () => exportPDF(exportOptions()), t('PDF exported'))}
           onImportCSV={importCSV}
-          onBackup={() => run('backup', backupAll, 'Backup saved')}
+          onBackup={() => run('backup', backupAll, t('Backup saved'))}
           onRestore={restore}
           onReset={resetAll}
         />

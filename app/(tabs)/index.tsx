@@ -3,11 +3,11 @@ import { View, StyleSheet, useWindowDimensions, ScrollView, BackHandler, LayoutC
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import BottomSheet, { BottomSheetModal } from '@gorhom/bottom-sheet';
-import { format } from 'date-fns';
 import { useAppSettings } from '../../hooks/SettingsContext';
 import { useShifts } from '../../hooks/ShiftContext';
 import { useToday } from '../../hooks/useToday';
-import { ShiftType } from '../../constants/shifts';
+import { ShiftType, shiftName } from '../../constants/shifts';
+import { formatDate, t } from '../../i18n';
 import { ShiftTemplate } from '../../constants/templates';
 import { AssignmentSnapshot } from '../../hooks/useShiftData';
 import {
@@ -47,13 +47,13 @@ function weekTitle(index: number, weekStart: WeekStart) {
   const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
   const sameMonth = start.getMonth() === end.getMonth();
   return {
-    title: sameMonth ? `${format(start, 'MMM d')} – ${format(end, 'd')}` : `${format(start, 'MMM d')} – ${format(end, 'MMM d')}`,
-    year: format(end, 'yyyy'),
+    title: `${formatDate(start, 'MMM d')} – ${sameMonth ? formatDate(end, 'd') : formatDate(end, 'MMM d')}`,
+    year: formatDate(end, 'yyyy'),
   };
 }
 
 export default function CalendarScreen() {
-  const { colors, isDark, weekStart, timeFormat, showShiftTimes, baseRate, overtimeRate, paidLeaveHours } = useAppSettings();
+  const { colors, isDark, weekStart, timeFormat, showShiftTimes, baseRate, overtimeRate, paidLeaveHours, language } = useAppSettings();
   const {
     shiftData, leaveData, notesData, overtimeData, swapsData, allShifts, leaveTypes, getShiftByCode, getLeaveType,
     lastUsedShift, calendars, activeCalendarId, switchCalendar, setShift, clearShift, setLeave, clearLeave, clearDay,
@@ -210,13 +210,13 @@ export default function CalendarScreen() {
     if (mode !== 'normal') return;
     const shift = lastUsedShift ? getShiftByCode(lastUsedShift) : undefined;
     if (!shift) {
-      showToast('Assign a shift once, then long-press any day to repeat it.', undefined, 'info');
+      showToast(t('Assign a shift once, then long-press any day to repeat it.'), undefined, 'info');
       return;
     }
     const before = snapshotAssignments([key]);
     setShift(key, shift.code);
     haptic.heavy();
-    showToast(`${shift.label} · ${format(fromDateKey(key), 'EEE, MMM d')}`, () => restoreAssignments(before));
+    showToast(`${shiftName(shift)} · ${formatDate(fromDateKey(key), 'EEE, MMM d')}`, () => restoreAssignments(before));
   };
 
   // A swipe between months must never also count as a tap on the day where it started.
@@ -350,7 +350,7 @@ export default function CalendarScreen() {
 
   const viewedMonth = monthFromIndex(monthIdx);
   const header =
-    view === 'month' ? { title: format(viewedMonth, 'MMMM'), year: format(viewedMonth, 'yyyy') } : weekTitle(weekIdx, weekStart);
+    view === 'month' ? { title: formatDate(viewedMonth, 'MMMM'), year: formatDate(viewedMonth, 'yyyy') } : weekTitle(weekIdx, weekStart);
   const showToday = view === 'month' ? monthIdx !== todayMonthIdx : weekIdx !== todayWeekIdx;
 
   // Keep the whole month visible above the paint palette or a collapsed quick-fill sheet.
@@ -419,8 +419,8 @@ export default function CalendarScreen() {
       <ModeBar
         colors={colors}
         icon="brush-variant"
-        text="Tap days to paint. Tap again to remove."
-        doneLabel="Done"
+        text={t('Tap days to paint. Tap again to remove.')}
+        doneLabel={t('Done')}
         onDone={exitMode}
         onUndo={undoPaint}
         undoDisabled={paintHistory.length === 0}
@@ -429,16 +429,26 @@ export default function CalendarScreen() {
       <ModeBar
         colors={colors}
         icon="repeat"
-        text={!patternStart ? 'Tap the first day of the pattern' : !patternEnd ? 'Now tap the last day' : 'Previewing · apply below or tap to restart'}
-        doneLabel="Cancel"
+        text={
+          !patternStart
+            ? t('Tap the first day of the pattern')
+            : !patternEnd
+              ? t('Now tap the last day')
+              : t('Previewing · apply below or tap to restart')
+        }
+        doneLabel={t('Cancel')}
         onDone={exitMode}
       />
     ) : mode === 'template' ? (
       <ModeBar
         colors={colors}
         icon="view-grid-plus-outline"
-        text={activeTemplate ? `Starts ${format(fromDateKey(templateStart), 'MMM d')} · tap a day to move` : 'Pick a rotation below'}
-        doneLabel="Cancel"
+        text={
+          activeTemplate
+            ? t('Starts {date} · tap a day to move', { date: formatDate(fromDateKey(templateStart), 'MMM d') })
+            : t('Pick a rotation below')
+        }
+        doneLabel={t('Cancel')}
         onDone={exitMode}
       />
     ) : null;
@@ -523,7 +533,8 @@ export default function CalendarScreen() {
   );
 
   return (
-    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.flex, { backgroundColor: colors.background }]}>
+    // Keyed by language so every cell and sheet redraws in it (most of them are memoized).
+    <SafeAreaView key={language} edges={['top', 'left', 'right']} style={[styles.flex, { backgroundColor: colors.background }]}>
       {twoPane ? (
         <View style={styles.row}>
           <ScrollView style={{ width: SIDE_PANE_WIDTH, flexGrow: 0 }} contentContainerStyle={styles.sidePane} showsVerticalScrollIndicator={false}>

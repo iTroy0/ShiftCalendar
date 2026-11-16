@@ -5,6 +5,7 @@ import { ThemeColors } from '../constants/colors';
 import { TimeFormat, formatTime, parseHHMM, toHHMM } from '../utils/time';
 import { withAlpha } from '../utils/color';
 import { haptic } from '../utils/haptics';
+import { t } from '../i18n';
 
 interface Props {
   label: string;
@@ -87,37 +88,37 @@ export function TimePicker({ label, value, onChange, accentColor, timeFormat, co
           style={styles.column}
           accessible
           accessibilityRole="adjustable"
-          accessibilityLabel={`${label} hour`}
+          accessibilityLabel={t('{label} hour', { label })}
           accessibilityValue={{ text: spoken }}
           accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
           onAccessibilityAction={(e) => stepHour(e.nativeEvent.actionName === 'increment' ? 1 : -1)}
         >
-          <StepButton icon="chevron-up" onStep={() => stepHour(1)} label="Later hour" colors={colors} />
+          <StepButton icon="chevron-up" onStep={() => stepHour(1)} label={t('Later hour')} colors={colors} />
           <Text style={[styles.digits, { color: colors.text }]}>{hourText}</Text>
-          <StepButton icon="chevron-down" onStep={() => stepHour(-1)} label="Earlier hour" colors={colors} />
+          <StepButton icon="chevron-down" onStep={() => stepHour(-1)} label={t('Earlier hour')} colors={colors} />
         </View>
         <Text style={[styles.colon, { color: accentColor }]}>:</Text>
         <View
           style={styles.column}
           accessible
           accessibilityRole="adjustable"
-          accessibilityLabel={`${label} minutes`}
+          accessibilityLabel={t('{label} minutes', { label })}
           accessibilityValue={{ text: spoken }}
           accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
           onAccessibilityAction={(e) => stepMinute(e.nativeEvent.actionName === 'increment' ? 5 : -5)}
         >
-          <StepButton icon="chevron-up" onStep={() => stepMinute(5)} label="Later minutes" colors={colors} />
+          <StepButton icon="chevron-up" onStep={() => stepMinute(5)} label={t('Later minutes')} colors={colors} />
           <Text style={[styles.digits, { color: colors.text }]}>{String(m).padStart(2, '0')}</Text>
-          <StepButton icon="chevron-down" onStep={() => stepMinute(-5)} label="Earlier minutes" colors={colors} />
+          <StepButton icon="chevron-down" onStep={() => stepMinute(-5)} label={t('Earlier minutes')} colors={colors} />
         </View>
         {twelve && (
           <Pressable
             onPress={() => set(h + 12, m)}
             accessibilityRole="button"
-            accessibilityLabel={`Switch to ${h < 12 ? 'PM' : 'AM'}`}
+            accessibilityLabel={h < 12 ? t('Switch to PM') : t('Switch to AM')}
             style={[styles.ampm, { backgroundColor: withAlpha(accentColor, 0.16) }]}
           >
-            <Text style={[styles.ampmText, { color: colors.text }]}>{h < 12 ? 'AM' : 'PM'}</Text>
+            <Text style={[styles.ampmText, { color: colors.text }]}>{h < 12 ? t('AM') : t('PM')}</Text>
           </Pressable>
         )}
       </View>
@@ -129,6 +130,8 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   label: { fontSize: 11, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 },
   card: {
+    // Hours stay before minutes in right-to-left layouts too.
+    direction: 'ltr',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

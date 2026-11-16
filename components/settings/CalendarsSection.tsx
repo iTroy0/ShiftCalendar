@@ -1,10 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { CalendarInfo } from '../../hooks/useShiftData';
+import { CalendarInfo, calendarName } from '../../hooks/useShiftData';
 import { ThemeColors } from '../../constants/colors';
 import { withAlpha } from '../../utils/color';
 import { haptic } from '../../utils/haptics';
+import { t } from '../../i18n';
 import { Tap } from '../ui/Tap';
 import { SectionLabel } from '../ui/primitives';
 import { SettingsCard, SettingsRow } from './SettingsRow';
@@ -22,11 +23,12 @@ interface Props {
 export function CalendarsSection({ colors, calendars, activeCalendarId, primaryCalendarId, onSwitch, onEdit, onNew }: Props) {
   return (
     <>
-      <SectionLabel colors={colors}>Calendars</SectionLabel>
+      <SectionLabel colors={colors}>{t('Calendars')}</SectionLabel>
       <SettingsCard colors={colors}>
         {calendars.map((cal) => {
           const active = cal.id === activeCalendarId;
           const primary = cal.id === primaryCalendarId && calendars.length > 1;
+          const name = calendarName(cal);
           return (
             <Tap
               key={cal.id}
@@ -36,37 +38,44 @@ export function CalendarsSection({ colors, calendars, activeCalendarId, primaryC
                 onSwitch(cal.id);
               }}
               activeOpacity={0.6}
-              accessibilityLabel={`${cal.name}${active ? ', currently shown' : '. Tap to show this calendar'}`}
+              accessibilityLabel={active ? t('{name}, currently shown', { name }) : t('{name}. Tap to show this calendar', { name })}
               style={styles.row}
             >
               <View style={[styles.dot, { backgroundColor: cal.color }]} />
               <View style={styles.info}>
                 <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
-                  {cal.name}
+                  {name}
                 </Text>
                 {(active || primary) && (
                   <View style={styles.badges}>
                     {active && (
                       <View style={[styles.badge, { backgroundColor: withAlpha(colors.primary, 0.14) }]}>
-                        <Text style={[styles.badgeText, { color: colors.primaryText }]}>Showing</Text>
+                        <Text style={[styles.badgeText, { color: colors.primaryText }]}>{t('Showing')}</Text>
                       </View>
                     )}
                     {primary && (
                       <View style={[styles.badge, { backgroundColor: withAlpha(colors.warning, 0.14) }]}>
                         <MaterialCommunityIcons name="bell-outline" size={11} color={colors.warning} />
-                        <Text style={[styles.badgeText, { color: colors.warning }]}>Reminders & widget</Text>
+                        <Text style={[styles.badgeText, { color: colors.warning }]}>{t('Reminders & widget')}</Text>
                       </View>
                     )}
                   </View>
                 )}
               </View>
-              <Tap onPress={() => onEdit(cal)} accessibilityLabel={`Edit ${cal.name}`} style={[styles.editBtn, { backgroundColor: colors.surfaceVariant }]}>
+              <Tap onPress={() => onEdit(cal)} accessibilityLabel={t('Edit {name}', { name })} style={[styles.editBtn, { backgroundColor: colors.surfaceVariant }]}>
                 <MaterialCommunityIcons name="pencil-outline" size={17} color={colors.textSecondary} />
               </Tap>
             </Tap>
           );
         })}
-        <SettingsRow icon="plus" title="Add calendar" subtitle="Track a team rotation or someone else’s shifts" colors={colors} onPress={onNew} chevron={false} />
+        <SettingsRow
+          icon="plus"
+          title={t('Add calendar')}
+          subtitle={t('Track a team rotation or someone else’s shifts')}
+          colors={colors}
+          onPress={onNew}
+          chevron={false}
+        />
       </SettingsCard>
     </>
   );

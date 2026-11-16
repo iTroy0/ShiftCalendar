@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LeaveType } from '../../constants/leaveTypes';
 import { ThemeColors } from '../../constants/colors';
 import { withAlpha } from '../../utils/color';
+import { plural, t } from '../../i18n';
 
 interface Props {
   leaveTypes: LeaveType[];
@@ -23,14 +24,15 @@ export function LeaveMeters({ leaveTypes, balances, used, colors }: Props) {
         const pct = allocated > 0 ? Math.min(taken / allocated, 1) : taken > 0 ? 1 : 0;
         const fill = over ? colors.danger : lt.color;
         let detail: string;
-        if (allocated === 0) detail = taken ? `${taken} day${taken === 1 ? '' : 's'} taken` : 'No allowance set';
-        else if (over) detail = `${taken - allocated} over allowance`;
-        else detail = `${allocated - taken} of ${allocated} left`;
+        if (allocated === 0) detail = taken ? plural(taken, '1 day taken', '{n} days taken') : t('No allowance set');
+        else if (over) detail = t('{n} over allowance', { n: taken - allocated });
+        else detail = t('{left} of {total} left', { left: allocated - taken, total: allocated });
+        const label = t(lt.label);
         return (
-          <View key={lt.id} style={styles.item} accessibilityLabel={`${lt.label}: ${taken} used. ${detail}`}>
+          <View key={lt.id} style={styles.item} accessibilityLabel={`${label}: ${t('{n} used.', { n: taken })} ${detail}`}>
             <View style={styles.labelRow}>
               <MaterialCommunityIcons name={lt.icon as any} size={16} color={lt.color} />
-              <Text style={[styles.label, { color: colors.text }]}>{lt.label}</Text>
+              <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
               {over && <MaterialCommunityIcons name="alert-circle" size={14} color={colors.danger} />}
               <Text style={[styles.detail, { color: over ? colors.danger : colors.textSecondary }]}>{detail}</Text>
             </View>

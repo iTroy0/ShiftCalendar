@@ -1,7 +1,8 @@
-import { ShiftType, isWorkingShift, getShiftHours } from '../constants/shifts';
+import { ShiftType, isWorkingShift, getShiftHours, shiftName } from '../constants/shifts';
 import { LeaveType } from '../constants/leaveTypes';
 import { TimeFormat, formatTime, formatTimeRange, formatHours, formatMinutesAsDuration, parseHHMM } from './time';
 import { addDaysToKey, fromDateKey, toDateKey } from './dates';
+import { t } from '../i18n';
 
 export const HORIZON_DAYS = 14;
 
@@ -49,14 +50,14 @@ export function planNotifications(input: NotificationPlanInput): PlannedNotifica
         let title: string;
         let body: string;
         if (leave) {
-          title = `Tomorrow: ${leave.label}`;
-          body = 'Enjoy your time off.';
+          title = t('Tomorrow: {shift}', { shift: t(leave.label) });
+          body = t('Enjoy your time off.');
         } else if (shift && isWorkingShift(shift)) {
-          title = `Tomorrow: ${shift.label}`;
+          title = t('Tomorrow: {shift}', { shift: shiftName(shift) });
           body = `${formatTimeRange(shift.startTime, shift.endTime, input.timeFormat)} · ${formatHours(getShiftHours(shift))}`;
         } else {
-          title = `Tomorrow: ${shift!.label}`;
-          body = 'Day off — enjoy it!';
+          title = t('Tomorrow: {shift}', { shift: shiftName(shift!) });
+          body = t('Day off — enjoy it!');
         }
         plan.push({ id: `sc-reminder-${dayKey}`, kind: 'reminder', trigger, dayKey, title, body });
       }
@@ -72,8 +73,11 @@ export function planNotifications(input: NotificationPlanInput): PlannedNotifica
           kind: 'alarm',
           trigger,
           dayKey,
-          title: `⏰ ${shift.label} in ${formatMinutesAsDuration(input.alarmLeadMinutes)}`,
-          body: `Your ${shift.label} shift starts at ${formatTime(shift.startTime, input.timeFormat)} — time to get ready!`,
+          title: t('⏰ {shift} in {duration}', { shift: shiftName(shift), duration: formatMinutesAsDuration(input.alarmLeadMinutes) }),
+          body: t('Your {shift} shift starts at {time} — time to get ready!', {
+            shift: shiftName(shift),
+            time: formatTime(shift.startTime, input.timeFormat),
+          }),
         });
       }
     }

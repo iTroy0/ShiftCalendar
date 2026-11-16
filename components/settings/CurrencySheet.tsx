@@ -7,6 +7,7 @@ import { useAppSettings } from '../../hooks/SettingsContext';
 import { CURRENCIES, Currency } from '../../constants/currencies';
 import { withAlpha } from '../../utils/color';
 import { haptic } from '../../utils/haptics';
+import { t } from '../../i18n';
 import { Tap } from '../ui/Tap';
 import { SheetHeader, useSheetBackdrop, useSheetChrome } from '../ui/sheet';
 
@@ -29,7 +30,9 @@ export const CurrencySheet = forwardRef<BottomSheetModal, Props>(function Curren
 
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return q ? CURRENCIES.filter((c) => c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q)) : CURRENCIES;
+    return q
+      ? CURRENCIES.filter((c) => [c.code, c.name, t(c.name)].some((s) => s.toLowerCase().includes(q)))
+      : CURRENCIES;
   }, [query]);
 
   return (
@@ -44,16 +47,16 @@ export const CurrencySheet = forwardRef<BottomSheetModal, Props>(function Curren
       {...chrome}
     >
       <View style={styles.top}>
-        <SheetHeader title="Currency" colors={colors} onClose={close} />
+        <SheetHeader title={t('Currency')} colors={colors} onClose={close} />
         <View style={[styles.search, { backgroundColor: colors.surfaceVariant, borderColor: colors.border }]}>
           <MaterialCommunityIcons name="magnify" size={20} color={colors.textSecondary} />
           <BottomSheetTextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Search currencies"
+            placeholder={t('Search currencies')}
             placeholderTextColor={colors.textMuted}
             autoCorrect={false}
-            accessibilityLabel="Search currencies"
+            accessibilityLabel={t('Search currencies')}
             style={[styles.searchInput, { color: colors.text }]}
           />
         </View>
@@ -72,7 +75,7 @@ export const CurrencySheet = forwardRef<BottomSheetModal, Props>(function Curren
                 onSelect(item.code);
                 close();
               }}
-              accessibilityLabel={`${item.name}, ${item.code}`}
+              accessibilityLabel={`${t(item.name)}, ${item.code}`}
               accessibilityState={{ selected }}
               style={[styles.row, selected && { backgroundColor: withAlpha(colors.primary, 0.1) }]}
             >
@@ -82,7 +85,7 @@ export const CurrencySheet = forwardRef<BottomSheetModal, Props>(function Curren
                 </Text>
               </View>
               <View style={styles.flex}>
-                <Text style={[styles.name, { color: colors.text }]}>{item.name}</Text>
+                <Text style={[styles.name, { color: colors.text }]}>{t(item.name)}</Text>
                 <Text style={[styles.code, { color: colors.textSecondary }]}>{item.code}</Text>
               </View>
               {selected && <MaterialCommunityIcons name="check-circle" size={22} color={colors.primaryText} />}

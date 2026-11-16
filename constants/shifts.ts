@@ -1,4 +1,6 @@
 import { parseHHMM } from '../utils/time';
+import { builtInCode, t } from '../i18n';
+import { LeaveType, leaveCode } from './leaveTypes';
 
 export interface ShiftType {
   code: string;
@@ -49,6 +51,28 @@ export const DEFAULT_SHIFTS: ShiftType[] = [
     isDefault: true,
   },
 ];
+
+/** A built-in shift the user hasn't renamed follows the app's language; anything the user typed shows as typed. */
+function isBuiltIn(shift: ShiftType) {
+  return DEFAULT_SHIFTS.some((d) => d.code === shift.code && d.label === shift.label);
+}
+
+export function shiftName(shift: ShiftType): string {
+  return isBuiltIn(shift) ? t(shift.label) : shift.label;
+}
+
+export function shiftCode(shift: ShiftType): string {
+  return (isBuiltIn(shift) && builtInCode(shift.code)) || shift.code;
+}
+
+/** Name of what's on a day, a shift or a leave type, in the app's language. */
+export function assignmentName(item: ShiftType | LeaveType): string {
+  return 'id' in item ? t(item.label) : shiftName(item);
+}
+
+export function assignmentCode(item: ShiftType | LeaveType): string {
+  return 'id' in item ? leaveCode(item) : shiftCode(item);
+}
 
 /** A shift counts as work when it has both a start and an end time. */
 export function isWorkingShift(shift: ShiftType | undefined): boolean {

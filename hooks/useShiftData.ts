@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ShiftType, DEFAULT_SHIFTS } from '../constants/shifts';
 import { LeaveType, DEFAULT_LEAVE_TYPES, defaultLeaveBalances } from '../constants/leaveTypes';
 import { CURRENT_SCHEMA, SCHEMA_VERSION_KEY, runMigrations } from '../utils/migrations';
+import { t } from '../i18n';
 
 const CUSTOM_SHIFTS_KEY = 'custom_shifts';
 const ALL_SHIFTS_KEY = 'all_shifts_v2';
@@ -71,6 +72,11 @@ export interface ImportPayload {
 }
 
 export const DEFAULT_CALENDAR: CalendarInfo = { id: 'default', name: 'My Shifts', color: '#6366F1' };
+
+/** The starting calendar's name follows the app's language until the user renames it. */
+export function calendarName(cal: { id: string; name: string }): string {
+  return cal.id === DEFAULT_CALENDAR.id && cal.name === DEFAULT_CALENDAR.name ? t(cal.name) : cal.name;
+}
 
 export function emptyCalendarData(): CalendarData {
   return { shifts: {}, notes: {}, overtime: {}, swaps: {}, leave: {}, leaveBalances: defaultLeaveBalances() };
@@ -216,7 +222,7 @@ export function useShiftData() {
     setWriteError(true);
     if (!writeAlertShown.current) {
       writeAlertShown.current = true;
-      Alert.alert('Could not save', 'Your latest change could not be saved. Your device storage may be full.');
+      Alert.alert(t('Could not save'), t('Your latest change could not be saved. Your device storage may be full.'));
     }
   }, []);
 

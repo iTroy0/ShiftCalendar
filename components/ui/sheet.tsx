@@ -4,6 +4,7 @@ import { BottomSheetBackdrop, BottomSheetBackdropProps } from '@gorhom/bottom-sh
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ThemeColors } from '../../constants/colors';
 import { Radius, Type } from '../../constants/theme';
+import { isRTL, t } from '../../i18n';
 import { Tap } from './Tap';
 
 export function useSheetChrome(colors: ThemeColors) {
@@ -54,8 +55,8 @@ export function SheetHeader({
   return (
     <View style={styles.header}>
       {onBack && (
-        <Tap onPress={onBack} accessibilityLabel="Back" style={[styles.headerBtn, { backgroundColor: colors.surfaceVariant }]}>
-          <MaterialCommunityIcons name="arrow-left" size={20} color={colors.text} />
+        <Tap onPress={onBack} accessibilityLabel={t('Back')} style={[styles.headerBtn, { backgroundColor: colors.surfaceVariant }]}>
+          <MaterialCommunityIcons name={isRTL ? 'arrow-right' : 'arrow-left'} size={20} color={colors.text} />
         </Tap>
       )}
       <View style={styles.headerText}>
@@ -70,7 +71,7 @@ export function SheetHeader({
       </View>
       {right}
       {onClose && (
-        <Tap onPress={onClose} accessibilityLabel="Close" style={[styles.headerBtn, { backgroundColor: colors.surfaceVariant }]}>
+        <Tap onPress={onClose} accessibilityLabel={t('Close')} style={[styles.headerBtn, { backgroundColor: colors.surfaceVariant }]}>
           <MaterialCommunityIcons name="close" size={20} color={colors.text} />
         </Tap>
       )}
@@ -100,7 +101,7 @@ export function SheetActionBar({
         {summary}
       </Text>
       {onOptions && (
-        <Tap onPress={onOptions} accessibilityLabel="Show options" style={[styles.optionsBtn, { backgroundColor: colors.surfaceVariant }]}>
+        <Tap onPress={onOptions} accessibilityLabel={t('Show options')} style={[styles.optionsBtn, { backgroundColor: colors.surfaceVariant }]}>
           <MaterialCommunityIcons name="tune-variant" size={18} color={colors.text} />
         </Tap>
       )}

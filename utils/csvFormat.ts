@@ -2,6 +2,7 @@ import { ShiftType, getShiftHours, isWorkingShift } from '../constants/shifts';
 import { LeaveType } from '../constants/leaveTypes';
 import { encodeRow, parseCSV, unsanitizeCell } from './csv';
 import { eachDayKey, fromDateKey, isDateKey } from './dates';
+import { plural, t } from '../i18n';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const BOM = String.fromCharCode(0xfeff);
@@ -154,16 +155,20 @@ export function parseCSVContent(content: string, allShifts: ShiftType[], leaveTy
 
 export function describeImport(result: ImportResult): string {
   const parts: string[] = [];
-  const n = (count: number, one: string, many = one + 's') => `${count} ${count === 1 ? one : many}`;
   const shiftCount = Object.keys(result.shifts).length;
   const leaveCount = Object.keys(result.leave).length;
   const noteCount = Object.keys(result.notes).length;
   const otCount = Object.keys(result.overtime).length;
-  if (shiftCount) parts.push(n(shiftCount, 'shift'));
-  if (leaveCount) parts.push(n(leaveCount, 'leave day'));
-  if (noteCount) parts.push(n(noteCount, 'note'));
-  if (otCount) parts.push(n(otCount, 'overtime entry', 'overtime entries'));
-  let text = `Found ${n(result.days, 'day')} with data${parts.length ? ` (${parts.join(', ')})` : ''}.`;
-  if (result.unknownCodes.length) text += `\n\nSkipped unknown shift codes: ${result.unknownCodes.join(', ')}.`;
+  if (shiftCount) parts.push(plural(shiftCount, '1 shift', '{n} shifts'));
+  if (leaveCount) parts.push(plural(leaveCount, '1 leave day', '{n} leave days'));
+  if (noteCount) parts.push(plural(noteCount, '1 note', '{n} notes'));
+  if (otCount) parts.push(plural(otCount, '1 overtime entry', '{n} overtime entries'));
+  const days = plural(result.days, '1 day', '{n} days');
+  let text = parts.length
+    ? t('Found {days} with data ({details}).', { days, details: parts.join(t(', ')) })
+    : t('Found {days} with data.', { days });
+  if (result.unknownCodes.length) {
+    text += `\n\n${t('Skipped unknown shift codes: {codes}.', { codes: result.unknownCodes.join(', ') })}`;
+  }
   return text;
 }

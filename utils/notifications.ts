@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { toDateKey } from './dates';
+import { t } from '../i18n';
 import { NotificationPlanInput, PlannedNotification, planNotifications } from './notificationPlan';
 
 export type { NotificationPlanInput, PlannedNotification } from './notificationPlan';
@@ -49,16 +50,16 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 async function ensureChannels(N: NotificationsModule, alarms: boolean) {
   if (Platform.OS !== 'android') return;
   await N.setNotificationChannelAsync(REMINDER_CHANNEL_ID, {
-    name: 'Shift reminders',
-    description: 'Evening reminder about tomorrow’s shift',
+    name: t('Shift reminders'),
+    description: t('Evening reminder about tomorrow’s shift'),
     importance: N.AndroidImportance.DEFAULT,
   });
   if (!alarms) return;
   // Android won't update the sound of an existing channel, so the old one is removed.
   await N.deleteNotificationChannelAsync(OLD_ALARM_CHANNEL_ID).catch(() => {});
   await N.setNotificationChannelAsync(ALARM_CHANNEL_ID, {
-    name: 'Pre-shift alarm',
-    description: 'Alarm before your shift starts',
+    name: t('Pre-shift alarm'),
+    description: t('Alarm before your shift starts'),
     importance: N.AndroidImportance.MAX,
     vibrationPattern: [0, 500, 200, 500, 200, 500],
     enableVibrate: true,
@@ -131,8 +132,8 @@ export async function sendTestNotification(kind: 'reminder' | 'alarm'): Promise<
     kind,
     trigger: new Date(Date.now() + 5000),
     dayKey: toDateKey(new Date()),
-    title: kind === 'alarm' ? '⏰ Test alarm' : 'Test reminder',
-    body: kind === 'alarm' ? 'This is how your pre-shift alarm will sound.' : 'Shift reminders are working.',
+    title: kind === 'alarm' ? t('⏰ Test alarm') : t('Test reminder'),
+    body: kind === 'alarm' ? t('This is how your pre-shift alarm will sound.') : t('Shift reminders are working.'),
   });
   return true;
 }

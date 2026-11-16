@@ -1,9 +1,10 @@
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
-import { CalendarInfo } from '../hooks/useShiftData';
+import { CalendarInfo, calendarName } from '../hooks/useShiftData';
 import { ThemeColors } from '../constants/colors';
 import { haptic } from '../utils/haptics';
 import { readableTextColor, withAlpha } from '../utils/color';
+import { t } from '../i18n';
 import { Tap } from './ui/Tap';
 
 interface Props {
@@ -21,6 +22,7 @@ export const CalendarSwitcher = React.memo(function CalendarSwitcher({ calendars
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scroll} contentContainerStyle={styles.container}>
       {calendars.map((cal) => {
         const active = cal.id === activeCalendarId;
+        const name = calendarName(cal);
         return (
           <Tap
             key={cal.id}
@@ -29,7 +31,7 @@ export const CalendarSwitcher = React.memo(function CalendarSwitcher({ calendars
               haptic.selection();
               onSwitch(cal.id);
             }}
-            accessibilityLabel={`${cal.name} calendar`}
+            accessibilityLabel={t('{name} calendar', { name })}
             accessibilityState={{ selected: active }}
             style={[
               styles.chip,
@@ -41,7 +43,7 @@ export const CalendarSwitcher = React.memo(function CalendarSwitcher({ calendars
           >
             <View style={[styles.dot, { backgroundColor: active ? readableTextColor(cal.color) : cal.color }]} />
             <Text style={[styles.text, { color: active ? readableTextColor(cal.color) : colors.text }]} numberOfLines={1}>
-              {cal.name}
+              {name}
             </Text>
           </Tap>
         );

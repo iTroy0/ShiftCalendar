@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
 import { ThemeColors } from '../../constants/colors';
 import { getCurrency } from '../../constants/currencies';
+import { t } from '../../i18n';
 import { SectionLabel } from '../ui/primitives';
 import { SettingsCard, SettingsRow } from './SettingsRow';
 
@@ -45,8 +46,8 @@ function NumberField({
       {prefix ? <Text style={[styles.affix, { color: colors.textSecondary }]}>{prefix}</Text> : null}
       <TextInput
         value={text}
-        onChangeText={(t) => {
-          const cleaned = t.replace(',', '.').replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+        onChangeText={(input) => {
+          const cleaned = input.replace(',', '.').replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
           setText(cleaned);
           const n = parseFloat(cleaned);
           onCommit(Number.isFinite(n) ? Math.min(n, max) : 0);
@@ -68,31 +69,38 @@ export function PayEarningsSection(props: Props) {
   const currency = getCurrency(props.currencyCode);
   return (
     <>
-      <SectionLabel colors={colors}>Pay</SectionLabel>
+      <SectionLabel colors={colors}>{t('Pay')}</SectionLabel>
       <SettingsCard colors={colors}>
-        <SettingsRow icon="cash-multiple" iconColor={colors.success} title="Currency" value={`${currency.symbol} · ${currency.code}`} colors={colors} onPress={props.onCurrencyPress} />
+        <SettingsRow
+          icon="cash-multiple"
+          iconColor={colors.success}
+          title={t('Currency')}
+          value={`${currency.symbol} · ${currency.code}`}
+          colors={colors}
+          onPress={props.onCurrencyPress}
+        />
         <SettingsRow
           icon="briefcase-clock-outline"
-          title="Hourly rate"
-          subtitle="Used for pay estimates in Stats"
+          title={t('Hourly rate')}
+          subtitle={t('Used for pay estimates in Stats')}
           colors={colors}
-          right={<NumberField value={props.baseRate} onCommit={props.setBaseRate} colors={colors} prefix={currency.symbol} suffix="/h" max={1e6} label="Hourly rate" />}
+          right={<NumberField value={props.baseRate} onCommit={props.setBaseRate} colors={colors} prefix={currency.symbol} suffix="/h" max={1e6} label={t('Hourly rate')} />}
         />
         <SettingsRow
           icon="clock-plus-outline"
           iconColor={colors.overtimeAccent}
-          title="Overtime rate"
-          subtitle="Per extra hour you log"
+          title={t('Overtime rate')}
+          subtitle={t('Per extra hour you log')}
           colors={colors}
-          right={<NumberField value={props.overtimeRate} onCommit={props.setOvertimeRate} colors={colors} prefix={currency.symbol} suffix="/h" max={1e6} label="Overtime rate" />}
+          right={<NumberField value={props.overtimeRate} onCommit={props.setOvertimeRate} colors={colors} prefix={currency.symbol} suffix="/h" max={1e6} label={t('Overtime rate')} />}
         />
         <SettingsRow
           icon="umbrella-beach"
           iconColor={colors.success}
-          title="Paid leave day"
-          subtitle="Hours credited for each paid leave day"
+          title={t('Paid leave day')}
+          subtitle={t('Hours credited for each paid leave day')}
           colors={colors}
-          right={<NumberField value={props.paidLeaveHours} onCommit={props.setPaidLeaveHours} colors={colors} suffix="h" max={24} label="Hours per paid leave day" />}
+          right={<NumberField value={props.paidLeaveHours} onCommit={props.setPaidLeaveHours} colors={colors} suffix="h" max={24} label={t('Hours per paid leave day')} />}
         />
       </SettingsCard>
     </>

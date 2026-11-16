@@ -2,10 +2,10 @@ import React, { forwardRef, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { format } from 'date-fns';
 import { useShifts } from '../hooks/ShiftContext';
 import { useAppSettings } from '../hooks/SettingsContext';
-import { ShiftType } from '../constants/shifts';
+import { ShiftType, shiftCode, shiftName } from '../constants/shifts';
+import { formatDate, plural, t } from '../i18n';
 import { SHIFT_TEMPLATES, SLOT_LABELS, ShiftTemplate, TemplateSlot } from '../constants/templates';
 import {
   DURATION_OPTIONS,
@@ -50,7 +50,7 @@ function PatternStrip({ template, mapping, size = 30 }: { template: ShiftTemplat
             ]}
           >
             <Text style={[styles.stripText, { color: shift ? readableTextColor(shift.color) : colors.textMuted, fontSize: size > 24 ? 11 : 9 }]}>
-              {shift ? shift.code : '–'}
+              {shift ? shiftCode(shift) : '–'}
             </Text>
           </View>
         );
@@ -86,11 +86,11 @@ export const TemplateSheet = forwardRef<BottomSheet, Props>(function TemplateShe
   };
 
   // After picking a rotation, collapse so its preview is visible on the calendar.
-  const choose = (t: ShiftTemplate | null) => {
+  const choose = (picked: ShiftTemplate | null) => {
     haptic.light();
-    setTemplate(t);
-    onTemplateChange(t);
-    snapTo(t ? 0 : 2);
+    setTemplate(picked);
+    onTemplateChange(picked);
+    snapTo(picked ? 0 : 2);
   };
 
   const plan = useMemo(() => {
@@ -121,7 +121,14 @@ export const TemplateSheet = forwardRef<BottomSheet, Props>(function TemplateShe
 
   const apply = () => {
     if (!plan || !template) return;
-    onApply(plan.entries, `${template.name} applied · ${format(fromDateKey(startKey), 'MMM d')} – ${format(fromDateKey(plan.endKey), 'MMM d, yyyy')}`);
+    onApply(
+      plan.entries,
+      t('{name} applied · {from} – {to}', {
+        name: t(template.name),
+        from: formatDate(fromDateKey(startKey), 'MMM d'),
+        to: formatDate(fromDateKey(plan.endKey), 'MMM d, yyyy'),
+      })
+    );
   };
 
   return (
@@ -137,83 +144,92 @@ export const TemplateSheet = forwardRef<BottomSheet, Props>(function TemplateShe
       <BottomSheetScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {!template ? (
           <>
-            <SheetHeader title="Rotation templates" subtitle="Pick a rotation — you’ll see a preview on the calendar before anything changes." colors={colors} onClose={onClose} />
-            {SHIFT_TEMPLATES.map((t) => (
+            <SheetHeader
+              title={t('Rotation templates')}
+              subtitle={t('Pick a rotation — you’ll see a preview on the calendar before anything changes.')}
+              colors={colors}
+              onClose={onClose}
+            />
+            {SHIFT_TEMPLATES.map((tpl) => (
               <Tap
-                key={t.id}
-                onPress={() => choose(t)}
+                key={tpl.id}
+                onPress={() => choose(tpl)}
                 activeOpacity={0.7}
-                accessibilityLabel={`${t.name}: ${t.description}`}
+                accessibilityLabel={`${t(tpl.name)}: ${t(tpl.description)}`}
                 style={[styles.templateCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
               >
                 <View style={styles.templateTop}>
                   <View style={styles.flex}>
-                    <Text style={[styles.templateName, { color: colors.text }]}>{t.name}</Text>
-                    <Text style={[styles.templateDesc, { color: colors.textSecondary }]}>{t.description}</Text>
+                    <Text style={[styles.templateName, { color: colors.text }]}>{t(tpl.name)}</Text>
+                    <Text style={[styles.templateDesc, { color: colors.textSecondary }]}>{t(tpl.description)}</Text>
                   </View>
                   <View style={[styles.cycle, { backgroundColor: withAlpha(colors.primary, 0.12) }]}>
-                    <Text style={[styles.cycleText, { color: colors.primaryText }]}>{t.pattern.length} days</Text>
+                    <Text style={[styles.cycleText, { color: colors.primaryText }]}>{plural(tpl.pattern.length, '1 day', '{n} days')}</Text>
                   </View>
                 </View>
-                <PatternStrip template={t} mapping={mapping} size={18} />
+                <PatternStrip template={tpl} mapping={mapping} size={18} />
               </Tap>
             ))}
           </>
         ) : (
           <>
-            <SheetHeader title={template.name} colors={colors} onBack={() => choose(null)} onClose={onClose} />
+            <SheetHeader title={t(template.name)} colors={colors} onBack={() => choose(null)} onClose={onClose} />
             <SheetActionBar
               summary={
                 plan
-                  ? `${format(fromDateKey(startKey), 'MMM d')} – ${format(fromDateKey(plan.endKey), 'MMM d')}\n${changed} change${changed === 1 ? '' : 's'}${plan.keptLeave ? ` · ${plan.keptLeave} leave kept` : ''}`
+                  ? `${formatDate(fromDateKey(startKey), 'MMM d')} – ${formatDate(fromDateKey(plan.endKey), 'MMM d')}\n${plural(changed, '1 change', '{n} changes')}${
+                      plan.keptLeave ? ` · ${t('{n} leave kept', { n: plan.keptLeave })}` : ''
+                    }`
                   : ''
               }
-              actionLabel="Apply"
+              actionLabel={t('Apply')}
               onAction={apply}
               onOptions={() => snapTo(1)}
               disabled={!plan || changed === 0}
               colors={colors}
             />
             <PatternStrip template={template} mapping={mapping} />
-            <Text style={[styles.summary, { color: colors.textSecondary }]}>{template.description}</Text>
+            <Text style={[styles.summary, { color: colors.textSecondary }]}>{t(template.description)}</Text>
 
-            <SectionLabel colors={colors}>Starts on</SectionLabel>
+            <SectionLabel colors={colors}>{t('Starts on')}</SectionLabel>
             <View style={[styles.startRow, { backgroundColor: colors.surfaceVariant }]}>
               <MaterialCommunityIcons name="calendar-start" size={20} color={colors.primaryText} />
               <View style={styles.flex}>
-                <Text style={[styles.startDate, { color: colors.text }]}>{format(fromDateKey(startKey), 'EEEE, MMM d, yyyy')}</Text>
-                <Text style={[styles.startHint, { color: colors.textSecondary }]}>Tap a day on the calendar to change</Text>
+                <Text style={[styles.startDate, { color: colors.text }]}>{formatDate(fromDateKey(startKey), 'EEEE, MMM d, yyyy')}</Text>
+                <Text style={[styles.startHint, { color: colors.textSecondary }]}>{t('Tap a day on the calendar to change')}</Text>
               </View>
-              {startKey !== todayKey() && <Chip label="Today" compact onPress={() => onStartChange(todayKey())} colors={colors} />}
+              {startKey !== todayKey() && <Chip label={t('Today')} compact onPress={() => onStartChange(todayKey())} colors={colors} />}
             </View>
 
-            <SectionLabel colors={colors}>Fill for</SectionLabel>
+            <SectionLabel colors={colors}>{t('Fill for')}</SectionLabel>
             <View style={styles.chips}>
               {DURATION_OPTIONS.map((opt) => (
                 <Chip key={opt} label={durationLabel(opt, startKey)} selected={duration === opt} onPress={() => setDuration(opt)} colors={colors} />
               ))}
             </View>
 
-            <SectionLabel colors={colors}>Shift mapping</SectionLabel>
+            <SectionLabel colors={colors}>{t('Shift mapping')}</SectionLabel>
             <Text style={[styles.mappingHint, { color: colors.textSecondary }]}>
-              Choose which of your shifts fills each part of the rotation.
+              {t('Choose which of your shifts fills each part of the rotation.')}
             </Text>
             {unmapped.length > 0 && (
               <View style={[styles.warn, { backgroundColor: withAlpha(colors.warning, 0.12) }]}>
                 <MaterialCommunityIcons name="alert-circle-outline" size={18} color={colors.warning} />
                 <Text style={[styles.warnText, { color: colors.warning }]}>
-                  {unmapped.map((s) => SLOT_LABELS[s]).join(', ')} {unmapped.length === 1 ? 'is' : 'are'} skipped — pick a shift below.
+                  {unmapped.length === 1
+                    ? t('{slots} is skipped — pick a shift below.', { slots: t(SLOT_LABELS[unmapped[0]]) })
+                    : t('{slots} are skipped — pick a shift below.', { slots: unmapped.map((s) => t(SLOT_LABELS[s])).join(t(', ')) })}
                 </Text>
               </View>
             )}
             {usedSlots.map((slot) => (
               <View key={slot} style={styles.mappingRow}>
-                <Text style={[styles.slotLabel, { color: colors.text }]}>{SLOT_LABELS[slot]}</Text>
+                <Text style={[styles.slotLabel, { color: colors.text }]}>{t(SLOT_LABELS[slot])}</Text>
                 <View style={styles.mappingChips}>
                   {allShifts.map((s) => (
                     <Chip
                       key={s.code}
-                      label={`${s.code} · ${s.label}`}
+                      label={`${shiftCode(s)} · ${shiftName(s)}`}
                       color={s.color}
                       selected={mapping[slot] === s.code}
                       onPress={() => setMapping((m) => ({ ...m, [slot]: s.code }))}
@@ -221,7 +237,7 @@ export const TemplateSheet = forwardRef<BottomSheet, Props>(function TemplateShe
                       compact
                     />
                   ))}
-                  <Chip label="Skip" selected={!mapping[slot]} onPress={() => setMapping((m) => ({ ...m, [slot]: null }))} colors={colors} compact />
+                  <Chip label={t('Skip')} selected={!mapping[slot]} onPress={() => setMapping((m) => ({ ...m, [slot]: null }))} colors={colors} compact />
                 </View>
               </View>
             ))}

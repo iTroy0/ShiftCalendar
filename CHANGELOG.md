@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.7.0
+
+### What's new
+- **Simplified Chinese (简体中文) and Arabic (العربية)** — The whole app in either language, including reminders, the widget and PDF exports. It follows your phone's language, or choose one from the list in Settings → Appearance → Language
+- **Right-to-left layout** — In Arabic the app is laid out right to left: arrows point the other way and months swipe from the left
+- **Help translate** — [TRANSLATING.md](https://github.com/iTroy0/ShiftCalendar/blob/main/TRANSLATING.md) explains how to fix a translation or add a language
+
+### Good to know
+- The built-in shifts, leave types and the first calendar show their names in the chosen language until you rename them; names you typed yourself stay as you wrote them
+- Switching between Arabic and a left-to-right language takes effect after you close and reopen the app
+- Phones set to another right-to-left language, such as Hebrew, now show the English app left to right instead of mirrored
+- CSV exports keep their English column headers so they import the same in any language
+- The Huawei Watch GT app is still in English
+
 ## 2.6.0
 
 ### What's new

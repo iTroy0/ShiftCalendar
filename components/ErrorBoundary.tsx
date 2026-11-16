@@ -2,6 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Appearance, ScrollView } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Colors } from '../constants/colors';
+import { t } from '../i18n';
 
 interface Props {
   children: ReactNode;
@@ -36,16 +37,16 @@ export class ErrorBoundary extends Component<Props, State> {
         <View style={[styles.icon, { backgroundColor: c.danger + '22' }]}>
           <MaterialCommunityIcons name="alert-circle-outline" size={40} color={c.danger} />
         </View>
-        <Text style={[styles.title, { color: c.text }]}>Something went wrong</Text>
+        <Text style={[styles.title, { color: c.text }]}>{t('Something went wrong')}</Text>
         <Text style={[styles.message, { color: c.textSecondary }]}>
-          The screen hit an unexpected error. Your shifts and notes are safe on this device.
+          {t('The screen hit an unexpected error. Your shifts and notes are safe on this device.')}
         </Text>
         <TouchableOpacity style={[styles.button, { backgroundColor: c.primary }]} onPress={this.handleReset} accessibilityRole="button">
           <MaterialCommunityIcons name="refresh" size={20} color="#FFF" />
-          <Text style={styles.buttonText}>Try again</Text>
+          <Text style={styles.buttonText}>{t('Try again')}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => this.setState({ showDetails: !showDetails })} accessibilityRole="button" style={styles.detailsToggle}>
-          <Text style={[styles.detailsToggleText, { color: c.textMuted }]}>{showDetails ? 'Hide details' : 'Show details'}</Text>
+          <Text style={[styles.detailsToggleText, { color: c.textMuted }]}>{showDetails ? t('Hide details') : t('Show details')}</Text>
         </TouchableOpacity>
         {showDetails && (
           <ScrollView style={[styles.details, { backgroundColor: c.surfaceVariant }]}>

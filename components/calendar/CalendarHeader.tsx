@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ThemeColors } from '../../constants/colors';
 import { UpcomingInfo } from '../../utils/schedule';
 import { withAlpha } from '../../utils/color';
+import { isRTL, t } from '../../i18n';
 import { Tap } from '../ui/Tap';
 import { IconButton } from '../ui/primitives';
 
@@ -27,15 +28,15 @@ interface Props {
 function StatusLine({ upcoming, isEmpty, besideToday, colors }: { upcoming: UpcomingInfo; isEmpty: boolean; besideToday: boolean; colors: ThemeColors }) {
   const { today, next } = upcoming;
   let dot = colors.textMuted;
-  let text = isEmpty ? 'Tap any day to add your first shift' : 'Nothing scheduled in the next month';
+  let text = isEmpty ? t('Tap any day to add your first shift') : t('Nothing scheduled in the next month');
   if (today) {
     dot = today.color;
     // Next to the "Today" button the prefix would just repeat it.
-    text = `${besideToday ? '' : 'Today · '}${today.label}${today.working ? ` · ${today.detail}` : ''}`;
-    if (!today.working && next) text += `  ·  Next: ${next.label}, ${next.when}`;
+    text = `${besideToday ? today.label : t('Today · {shift}', { shift: today.label })}${today.working ? ` · ${today.detail}` : ''}`;
+    if (!today.working && next) text += `  ·  ${t('Next: {shift}, {when}', { shift: next.label, when: next.when })}`;
   } else if (next) {
     dot = next.color;
-    text = `Next: ${next.label} · ${next.when}, ${next.time}`;
+    text = t('Next: {shift} · {when}, {time}', { shift: next.label, when: next.when, time: next.time });
   }
   return (
     <View style={styles.status} accessibilityRole="text">
@@ -54,7 +55,7 @@ export function CalendarHeader(props: Props) {
       <View style={styles.topRow}>
         <Tap
           onPress={props.onTitlePress}
-          accessibilityLabel={`${props.title} ${props.year}. Choose month`}
+          accessibilityLabel={`${props.title} ${props.year}. ${t('Choose month')}`}
           style={styles.titleBtn}
           activeOpacity={0.7}
         >
@@ -65,10 +66,10 @@ export function CalendarHeader(props: Props) {
           <MaterialCommunityIcons name="chevron-down" size={20} color={colors.textMuted} />
         </Tap>
         <View style={styles.actions}>
-          <IconButton icon="magnify" label="Search notes" onPress={props.onSearch} colors={colors} size={38} />
+          <IconButton icon="magnify" label={t('Search notes')} onPress={props.onSearch} colors={colors} size={38} />
           <IconButton
             icon={props.view === 'month' ? 'view-agenda-outline' : 'calendar-month-outline'}
-            label={props.view === 'month' ? 'Switch to week view' : 'Switch to month view'}
+            label={props.view === 'month' ? t('Switch to week view') : t('Switch to month view')}
             onPress={props.onToggleView}
             colors={colors}
             size={38}
@@ -79,20 +80,20 @@ export function CalendarHeader(props: Props) {
         {props.showToday && (
           <Tap
             onPress={props.onToday}
-            accessibilityLabel="Go to today"
+            accessibilityLabel={t('Go to today')}
             style={[styles.todayPill, { backgroundColor: withAlpha(colors.primary, 0.14) }]}
           >
             <MaterialCommunityIcons name="calendar-today" size={14} color={colors.primaryText} />
-            <Text style={[styles.todayText, { color: colors.primaryText }]}>Today</Text>
+            <Text style={[styles.todayText, { color: colors.primaryText }]}>{t('Today')}</Text>
           </Tap>
         )}
         <StatusLine upcoming={props.upcoming} isEmpty={props.isEmpty} besideToday={props.showToday} colors={colors} />
         <View style={styles.arrows}>
-          <Tap onPress={props.onPrev} accessibilityLabel={props.view === 'month' ? 'Previous month' : 'Previous week'} style={styles.arrow}>
-            <MaterialCommunityIcons name="chevron-left" size={22} color={colors.textSecondary} />
+          <Tap onPress={props.onPrev} accessibilityLabel={props.view === 'month' ? t('Previous month') : t('Previous week')} style={styles.arrow}>
+            <MaterialCommunityIcons name={isRTL ? 'chevron-right' : 'chevron-left'} size={22} color={colors.textSecondary} />
           </Tap>
-          <Tap onPress={props.onNext} accessibilityLabel={props.view === 'month' ? 'Next month' : 'Next week'} style={styles.arrow}>
-            <MaterialCommunityIcons name="chevron-right" size={22} color={colors.textSecondary} />
+          <Tap onPress={props.onNext} accessibilityLabel={props.view === 'month' ? t('Next month') : t('Next week')} style={styles.arrow}>
+            <MaterialCommunityIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={22} color={colors.textSecondary} />
           </Tap>
         </View>
       </View>

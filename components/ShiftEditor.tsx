@@ -4,10 +4,11 @@ import { BottomSheetModal, BottomSheetScrollView, BottomSheetTextInput } from '@
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppSettings } from '../hooks/SettingsContext';
-import { ShiftType, AVAILABLE_COLORS, AVAILABLE_ICONS, getShiftMinutes } from '../constants/shifts';
+import { ShiftType, AVAILABLE_COLORS, AVAILABLE_ICONS, getShiftMinutes, shiftCode, shiftName } from '../constants/shifts';
 import { formatHours, formatTimeRange, parseHHMM } from '../utils/time';
 import { readableTextColor, withAlpha } from '../utils/color';
 import { haptic } from '../utils/haptics';
+import { t } from '../i18n';
 import { TimePicker } from './TimePicker';
 import { Tap } from './ui/Tap';
 import { Button, Segmented, SectionLabel } from './ui/primitives';
@@ -27,8 +28,8 @@ function EditorContent({ editingShift, existingCodes, canDelete, onSave, onDelet
   const isEditing = editingShift !== null;
   const wasWorking = !editingShift || (!!parseHHMM(editingShift.startTime) && !!parseHHMM(editingShift.endTime));
 
-  const [label, setLabel] = useState(editingShift?.label ?? '');
-  const [code, setCode] = useState(editingShift?.code ?? '');
+  const [label, setLabel] = useState(editingShift ? shiftName(editingShift) : '');
+  const [code, setCode] = useState(editingShift ? shiftCode(editingShift) : '');
   const [codeTouched, setCodeTouched] = useState(isEditing);
   const [kind, setKind] = useState<'work' | 'off'>(wasWorking ? 'work' : 'off');
   const [startTime, setStartTime] = useState(editingShift?.startTime || '09:00');
@@ -39,7 +40,7 @@ function EditorContent({ editingShift, existingCodes, canDelete, onSave, onDelet
   const working = kind === 'work';
   const preview: ShiftType = {
     code: code.trim().toUpperCase() || '?',
-    label: label.trim() || 'New shift',
+    label: label.trim() || t('New shift'),
     color,
     icon,
     startTime: working ? startTime : '',
@@ -62,29 +63,35 @@ function EditorContent({ editingShift, existingCodes, canDelete, onSave, onDelet
   const save = () => {
     const trimmedCode = code.trim().toUpperCase();
     if (!label.trim()) {
-      Alert.alert('Name needed', 'Give this shift a name, like “Evening” or “Long day”.');
+      Alert.alert(t('Name needed'), t('Give this shift a name, like “Evening” or “Long day”.'));
       return;
     }
     if (!trimmedCode) {
-      Alert.alert('Code needed', 'Add a short code (1–3 characters) — it’s what you see on the calendar.');
+      Alert.alert(t('Code needed'), t('Add a short code (1–3 characters) — it’s what you see on the calendar.'));
       return;
     }
     const taken = existingCodes.some((c) => c.toUpperCase() === trimmedCode && c !== editingShift?.code);
     if (taken) {
-      Alert.alert('Code already used', `Another shift already uses “${trimmedCode}”. Pick a different code.`);
+      Alert.alert(t('Code already used'), t('Another shift already uses “{code}”. Pick a different code.', { code: trimmedCode }));
       return;
     }
     haptic.success();
-    onSave({ ...preview, code: trimmedCode, label: label.trim() });
+    // A built-in shift saved with its name and code as shown keeps them stored as they were, so they go on following the app's language.
+    const asShown = editingShift && label.trim() === shiftName(editingShift) && trimmedCode === shiftCode(editingShift).toUpperCase();
+    onSave({
+      ...preview,
+      code: asShown ? editingShift.code : trimmedCode,
+      label: asShown ? editingShift.label : label.trim(),
+    });
     close();
   };
 
   const confirmDelete = () => {
     if (!editingShift) return;
-    Alert.alert('Delete shift?', `“${editingShift.label}” will be removed from every calendar it’s used in.`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('Delete shift?'), t('“{name}” will be removed from every calendar it’s used in.', { name: shiftName(editingShift) }), [
+      { text: t('Cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('Delete'),
         style: 'destructive',
         onPress: () => {
           haptic.heavy();
@@ -97,7 +104,7 @@ function EditorContent({ editingShift, existingCodes, canDelete, onSave, onDelet
 
   return (
     <View>
-      <SheetHeader title={isEditing ? 'Edit shift' : 'New shift'} colors={colors} onClose={close} />
+      <SheetHeader title={isEditing ? t('Edit shift') : t('New shift')} colors={colors} onClose={close} />
 
       <View style={[styles.preview, { backgroundColor: withAlpha(color, 0.12), borderColor: withAlpha(color, 0.35) }]}>
         <View style={[styles.previewBadge, { backgroundColor: color }]}>
@@ -108,7 +115,9 @@ function EditorContent({ editingShift, existingCodes, canDelete, onSave, onDelet
             {preview.label}
           </Text>
           <Text style={[styles.previewTime, { color: colors.textSecondary }]}>
-            {working ? `${formatTimeRange(startTime, endTime, timeFormat)} · ${formatHours(minutes / 60)}${overnight ? ' · overnight' : ''}` : 'Day off · no hours'}
+            {working
+              ? `${formatTimeRange(startTime, endTime, timeFormat)} · ${formatHours(minutes / 60)}${overnight ? ` · ${t('overnight')}` : ''}`
+              : t('Day off · no hours')}
           </Text>
         </View>
         <View style={[styles.previewPill, { backgroundColor: color }]}>
@@ -118,40 +127,40 @@ function EditorContent({ editingShift, existingCodes, canDelete, onSave, onDelet
 
       <View style={styles.fieldsRow}>
         <View style={styles.nameField}>
-          <SectionLabel colors={colors} style={styles.fieldLabel}>Name</SectionLabel>
+          <SectionLabel colors={colors} style={styles.fieldLabel}>{t('Name')}</SectionLabel>
           <BottomSheetTextInput
             value={label}
             onChangeText={onLabelChange}
-            placeholder="e.g. Evening"
+            placeholder={t('e.g. Evening')}
             placeholderTextColor={colors.textMuted}
             maxLength={24}
-            accessibilityLabel="Shift name"
+            accessibilityLabel={t('Shift name')}
             style={[styles.input, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
           />
         </View>
         <View style={styles.codeField}>
-          <SectionLabel colors={colors} style={styles.fieldLabel}>Code</SectionLabel>
+          <SectionLabel colors={colors} style={styles.fieldLabel}>{t('Code')}</SectionLabel>
           <BottomSheetTextInput
             value={code}
-            onChangeText={(t) => {
+            onChangeText={(input) => {
               setCodeTouched(true);
-              setCode(t.replace(/\s/g, '').toUpperCase().slice(0, 3));
+              setCode(input.replace(/\s/g, '').toUpperCase().slice(0, 3));
             }}
-            placeholder="EV"
+            placeholder={t('EV')}
             placeholderTextColor={colors.textMuted}
             autoCapitalize="characters"
             maxLength={3}
-            accessibilityLabel="Shift code, up to 3 characters"
+            accessibilityLabel={t('Shift code, up to 3 characters')}
             style={[styles.input, styles.codeInput, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
           />
         </View>
       </View>
 
-      <SectionLabel colors={colors}>Type</SectionLabel>
+      <SectionLabel colors={colors}>{t('Type')}</SectionLabel>
       <Segmented
         options={[
-          { value: 'work', label: 'Working shift', icon: 'briefcase-outline' },
-          { value: 'off', label: 'Day off', icon: 'home-outline' },
+          { value: 'work', label: t('Working shift'), icon: 'briefcase-outline' },
+          { value: 'off', label: t('Day off'), icon: 'home-outline' },
         ]}
         value={kind}
         onChange={(v) => {
@@ -163,12 +172,12 @@ function EditorContent({ editingShift, existingCodes, canDelete, onSave, onDelet
 
       {working && (
         <View style={styles.timeRow}>
-          <TimePicker label="Starts" value={startTime} onChange={setStartTime} accentColor={color} timeFormat={timeFormat} colors={colors} />
-          <TimePicker label="Ends" value={endTime} onChange={setEndTime} accentColor={color} timeFormat={timeFormat} colors={colors} />
+          <TimePicker label={t('Starts')} value={startTime} onChange={setStartTime} accentColor={color} timeFormat={timeFormat} colors={colors} />
+          <TimePicker label={t('Ends')} value={endTime} onChange={setEndTime} accentColor={color} timeFormat={timeFormat} colors={colors} />
         </View>
       )}
 
-      <SectionLabel colors={colors}>Color</SectionLabel>
+      <SectionLabel colors={colors}>{t('Color')}</SectionLabel>
       <View style={styles.swatches}>
         {AVAILABLE_COLORS.map((c) => {
           const selected = c === color;
@@ -179,7 +188,7 @@ function EditorContent({ editingShift, existingCodes, canDelete, onSave, onDelet
                 haptic.selection();
                 setColor(c);
               }}
-              accessibilityLabel={`Color ${c}`}
+              accessibilityLabel={t('Color {hex}', { hex: c })}
               accessibilityState={{ selected }}
               style={[styles.swatchRing, { borderColor: selected ? colors.text : 'transparent' }]}
             >
@@ -191,7 +200,7 @@ function EditorContent({ editingShift, existingCodes, canDelete, onSave, onDelet
         })}
       </View>
 
-      <SectionLabel colors={colors}>Icon</SectionLabel>
+      <SectionLabel colors={colors}>{t('Icon')}</SectionLabel>
       <View style={styles.icons}>
         {AVAILABLE_ICONS.map((ic) => {
           const selected = ic === icon;
@@ -202,7 +211,7 @@ function EditorContent({ editingShift, existingCodes, canDelete, onSave, onDelet
                 haptic.selection();
                 setIcon(ic);
               }}
-              accessibilityLabel={`Icon ${ic.replace(/-/g, ' ')}`}
+              accessibilityLabel={t('Icon {name}', { name: ic.replace(/-/g, ' ') })}
               accessibilityState={{ selected }}
               style={[
                 styles.iconCell,
@@ -215,9 +224,9 @@ function EditorContent({ editingShift, existingCodes, canDelete, onSave, onDelet
         })}
       </View>
 
-      <Button label={isEditing ? 'Save changes' : 'Create shift'} icon="check" onPress={save} colors={colors} style={styles.saveBtn} />
+      <Button label={isEditing ? t('Save changes') : t('Create shift')} icon="check" onPress={save} colors={colors} style={styles.saveBtn} />
       {isEditing && canDelete && (
-        <Button label="Delete shift" icon="delete-outline" variant="danger" onPress={confirmDelete} colors={colors} style={styles.deleteBtn} />
+        <Button label={t('Delete shift')} icon="delete-outline" variant="danger" onPress={confirmDelete} colors={colors} style={styles.deleteBtn} />
       )}
     </View>
   );

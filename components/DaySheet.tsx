@@ -3,11 +3,11 @@ import { View, Text, StyleSheet, Share, useWindowDimensions } from 'react-native
 import { BottomSheetModal, BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { format } from 'date-fns';
 import { useShifts } from '../hooks/ShiftContext';
 import { useAppSettings } from '../hooks/SettingsContext';
 import { SwapRequest, AssignmentSnapshot } from '../hooks/useShiftData';
-import { ShiftType, getShiftHours, isWorkingShift } from '../constants/shifts';
+import { ShiftType, getShiftHours, isWorkingShift, shiftCode, shiftName } from '../constants/shifts';
+import { formatDate, t } from '../i18n';
 import { ThemeColors } from '../constants/colors';
 import { Radius } from '../constants/theme';
 import { fromDateKey, todayKey } from '../utils/dates';
@@ -40,11 +40,13 @@ function ShiftOption({
   timeFormat: '12h' | '24h';
 }) {
   const fg = selected ? readableTextColor(shift.color) : colors.text;
+  const name = shiftName(shift);
+  const time = isWorkingShift(shift) ? formatTimeRange(shift.startTime, shift.endTime, timeFormat) : '';
   return (
     <Tap
       onPress={onPress}
       scale
-      accessibilityLabel={`${shift.label}${isWorkingShift(shift) ? ', ' + formatTimeRange(shift.startTime, shift.endTime, timeFormat) : ', day off'}`}
+      accessibilityLabel={[name, time || t('day off')].join(t(', '))}
       accessibilityState={{ selected }}
       style={[
         styles.shiftOption,
@@ -55,14 +57,14 @@ function ShiftOption({
       ]}
     >
       <View style={[styles.shiftCode, { backgroundColor: selected ? withAlpha(readableTextColor(shift.color), 0.18) : shift.color }]}>
-        <Text style={[styles.shiftCodeText, { color: selected ? fg : readableTextColor(shift.color) }]}>{shift.code}</Text>
+        <Text style={[styles.shiftCodeText, { color: selected ? fg : readableTextColor(shift.color) }]}>{shiftCode(shift)}</Text>
       </View>
       <View style={styles.flex}>
         <Text style={[styles.shiftLabel, { color: fg }]} numberOfLines={1}>
-          {shift.label}
+          {name}
         </Text>
         <Text style={[styles.shiftTime, { color: selected ? withAlpha(fg, 0.8) : colors.textSecondary }]} numberOfLines={1}>
-          {isWorkingShift(shift) ? formatTimeRange(shift.startTime, shift.endTime, timeFormat) : 'Day off'}
+          {time || t('Day off')}
         </Text>
       </View>
       {selected && <MaterialCommunityIcons name="check-circle" size={18} color={fg} />}
@@ -103,8 +105,8 @@ function DayContent({ dateKey, onToast, onClose }: { dateKey: string; onToast: P
 
   useEffect(() => {
     if (!noteRef.current.dirty) return;
-    const t = setTimeout(flushNote, 700);
-    return () => clearTimeout(t);
+    const timer = setTimeout(flushNote, 700);
+    return () => clearTimeout(timer);
   }, [noteText, flushNote]);
 
   useEffect(() => flushNote, [flushNote]);
@@ -159,7 +161,7 @@ function DayContent({ dateKey, onToast, onClose }: { dateKey: string; onToast: P
   };
 
   const handleClearDay = () => {
-    const message = leave ? `${leave.label} removed` : 'Shift cleared';
+    const message = leave ? t('{name} removed', { name: t(leave.label) }) : t('Shift cleared');
     const snap: AssignmentSnapshot = clearDay(dateKey);
     haptic.light();
     // Close first: the sheet would otherwise sit on top of the undo toast.
@@ -169,16 +171,27 @@ function DayContent({ dateKey, onToast, onClose }: { dateKey: string; onToast: P
 
   const shareSwap = async (request: { wantCode: string; note: string }) => {
     if (!shift) return;
-    const want = request.wantCode === 'any' ? null : getShiftByCode(request.wantCode)?.label ?? request.wantCode;
-    let msg = `Shift swap request\n\nI'm looking to swap my ${shift.label} shift (${formatTimeRange(shift.startTime, shift.endTime, timeFormat)}) on ${format(date, 'EEEE, d MMMM')}.`;
-    if (want) msg += `\nLooking for: ${want}`;
-    if (request.note) msg += `\nNote: ${request.note}`;
-    msg += '\n\nSent from ShiftCalendar';
+    const wanted = getShiftByCode(request.wantCode);
+    const want = request.wantCode === 'any' ? null : wanted ? shiftName(wanted) : request.wantCode;
+    let msg = `${t('Shift swap request')}\n\n${t("I'm looking to swap my {shift} shift ({time}) on {date}.", {
+      shift: shiftName(shift),
+      time: formatTimeRange(shift.startTime, shift.endTime, timeFormat),
+      date: formatDate(date, 'EEEE, d MMMM'),
+    })}`;
+    if (want) msg += `\n${t('Looking for: {shift}', { shift: want })}`;
+    if (request.note) msg += `\n${t('Note: {note}', { note: request.note })}`;
+    msg += `\n\n${t('Sent from ShiftCalendar')}`;
     try {
       await Share.share({ message: msg });
     } catch {
       // Share sheet dismissed.
     }
+  };
+
+  const swapWantName = (code: string) => {
+    if (code === 'any') return t('any shift');
+    const wanted = getShiftByCode(code);
+    return wanted ? shiftName(wanted) : code;
   };
 
   const submitSwap = () => {
@@ -198,13 +211,13 @@ function DayContent({ dateKey, onToast, onClose }: { dateKey: string; onToast: P
   };
 
   const status = leave
-    ? { color: leave.color, icon: leave.icon, title: leave.label, detail: leave.paid ? 'Paid leave' : 'Unpaid leave' }
+    ? { color: leave.color, icon: leave.icon, title: t(leave.label), detail: leave.paid ? t('Paid leave') : t('Unpaid leave') }
     : shift
       ? {
           color: shift.color,
           icon: shift.icon,
-          title: shift.label,
-          detail: working ? `${formatTimeRange(shift.startTime, shift.endTime, timeFormat)} · ${formatHours(getShiftHours(shift))}` : 'Day off',
+          title: shiftName(shift),
+          detail: working ? `${formatTimeRange(shift.startTime, shift.endTime, timeFormat)} · ${formatHours(getShiftHours(shift))}` : t('Day off'),
         }
       : null;
 
@@ -213,16 +226,16 @@ function DayContent({ dateKey, onToast, onClose }: { dateKey: string; onToast: P
       <View style={styles.header}>
         <View style={styles.flex}>
           <View style={styles.headerTop}>
-            <Text style={[styles.weekday, { color: colors.textMuted }]}>{format(date, 'EEEE')}</Text>
+            <Text style={[styles.weekday, { color: colors.textMuted }]}>{formatDate(date, 'EEEE')}</Text>
             {isToday && (
               <View style={[styles.todayBadge, { backgroundColor: withAlpha(colors.primary, 0.15) }]}>
-                <Text style={[styles.todayBadgeText, { color: colors.primaryText }]}>Today</Text>
+                <Text style={[styles.todayBadgeText, { color: colors.primaryText }]}>{t('Today')}</Text>
               </View>
             )}
           </View>
-          <Text style={[styles.dateTitle, { color: colors.text }]}>{format(date, 'd MMMM yyyy')}</Text>
+          <Text style={[styles.dateTitle, { color: colors.text }]}>{formatDate(date, 'd MMMM yyyy')}</Text>
         </View>
-        <Tap onPress={onClose} accessibilityLabel="Close" style={[styles.closeBtn, { backgroundColor: colors.surfaceVariant }]}>
+        <Tap onPress={onClose} accessibilityLabel={t('Close')} style={[styles.closeBtn, { backgroundColor: colors.surfaceVariant }]}>
           <MaterialCommunityIcons name="close" size={20} color={colors.text} />
         </Tap>
       </View>
@@ -243,15 +256,15 @@ function DayContent({ dateKey, onToast, onClose }: { dateKey: string; onToast: P
           />
         </View>
         <View style={styles.flex}>
-          <Text style={[styles.statusTitle, { color: colors.text }]}>{status ? status.title : 'Nothing assigned'}</Text>
+          <Text style={[styles.statusTitle, { color: colors.text }]}>{status ? status.title : t('Nothing assigned')}</Text>
           <Text style={[styles.statusDetail, { color: colors.textSecondary }]}>
-            {status ? status.detail : 'Pick a shift or leave type below'}
-            {overtime > 0 ? `  ·  +${formatHours(overtime)} overtime` : ''}
+            {status ? status.detail : t('Pick a shift or leave type below')}
+            {overtime > 0 ? `  ·  ${t('+{hours} overtime', { hours: formatHours(overtime) })}` : ''}
           </Text>
         </View>
       </View>
 
-      <SectionLabel colors={colors} style={styles.firstSection}>Shift</SectionLabel>
+      <SectionLabel colors={colors} style={styles.firstSection}>{t('Shift')}</SectionLabel>
       <View style={styles.grid}>
         {allShifts.map((s) => (
           <View key={s.code} style={{ width: `${100 / columns}%`, padding: 4 }}>
@@ -266,29 +279,29 @@ function DayContent({ dateKey, onToast, onClose }: { dateKey: string; onToast: P
         ))}
       </View>
 
-      <SectionLabel colors={colors}>Leave</SectionLabel>
+      <SectionLabel colors={colors}>{t('Leave')}</SectionLabel>
       <View style={styles.chipWrap}>
-        {leaveTypes.map((t) => (
+        {leaveTypes.map((lt) => (
           <Chip
-            key={t.id}
-            label={t.label}
-            icon={t.icon as any}
-            color={t.color}
-            selected={leave?.id === t.id}
-            onPress={() => pickLeave(t.id)}
+            key={lt.id}
+            label={t(lt.label)}
+            icon={lt.icon as any}
+            color={lt.color}
+            selected={leave?.id === lt.id}
+            onPress={() => pickLeave(lt.id)}
             colors={colors}
           />
         ))}
       </View>
 
-      <SectionLabel colors={colors}>Overtime</SectionLabel>
+      <SectionLabel colors={colors}>{t('Overtime')}</SectionLabel>
       <View style={[styles.otRow, { backgroundColor: colors.surfaceVariant }]}>
         <MaterialCommunityIcons name="clock-plus-outline" size={20} color={overtime > 0 ? colors.overtimeAccent : colors.textSecondary} />
-        <Text style={[styles.otLabel, { color: colors.text }]}>Extra hours</Text>
+        <Text style={[styles.otLabel, { color: colors.text }]}>{t('Extra hours')}</Text>
         <Tap
           onPress={() => stepOvertime(-OT_STEP)}
           disabled={overtime <= 0}
-          accessibilityLabel="Decrease overtime"
+          accessibilityLabel={t('Decrease overtime')}
           style={[styles.stepBtn, { backgroundColor: colors.surface, opacity: overtime <= 0 ? 0.4 : 1 }]}
         >
           <MaterialCommunityIcons name="minus" size={18} color={colors.text} />
@@ -300,12 +313,12 @@ function DayContent({ dateKey, onToast, onClose }: { dateKey: string; onToast: P
           placeholderTextColor={colors.textMuted}
           keyboardType="decimal-pad"
           maxLength={5}
-          accessibilityLabel="Overtime hours"
+          accessibilityLabel={t('Overtime hours')}
           style={[styles.otInput, { color: overtime > 0 ? colors.overtimeAccent : colors.text }]}
         />
         <Tap
           onPress={() => stepOvertime(OT_STEP)}
-          accessibilityLabel="Increase overtime"
+          accessibilityLabel={t('Increase overtime')}
           style={[styles.stepBtn, { backgroundColor: colors.surface }]}
         >
           <MaterialCommunityIcons name="plus" size={18} color={colors.text} />
@@ -316,24 +329,24 @@ function DayContent({ dateKey, onToast, onClose }: { dateKey: string; onToast: P
         colors={colors}
         right={
           !noteOpen ? null : savedNote !== noteText.trim() ? (
-            <Text style={[styles.saving, { color: colors.textMuted }]}>Saving…</Text>
+            <Text style={[styles.saving, { color: colors.textMuted }]}>{t('Saving…')}</Text>
           ) : savedNote ? (
-            <Text style={[styles.saving, { color: colors.success }]}>Saved</Text>
+            <Text style={[styles.saving, { color: colors.success }]}>{t('Saved')}</Text>
           ) : null
         }
       >
-        Note
+        {t('Note')}
       </SectionLabel>
       {noteOpen ? (
         <BottomSheetTextInput
           value={noteText}
           onChangeText={onNoteChange}
           onBlur={flushNote}
-          placeholder="Add a note for this day…"
+          placeholder={t('Add a note for this day…')}
           placeholderTextColor={colors.textMuted}
           multiline
           textAlignVertical="top"
-          accessibilityLabel="Note"
+          accessibilityLabel={t('Note')}
           autoFocus={!savedNote}
           style={[styles.noteInput, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: withAlpha(colors.noteAccent, 0.4) }]}
         />
@@ -343,34 +356,34 @@ function DayContent({ dateKey, onToast, onClose }: { dateKey: string; onToast: P
             haptic.light();
             setNoteOpen(true);
           }}
-          accessibilityLabel="Add a note"
+          accessibilityLabel={t('Add a note')}
           style={[styles.addRow, { borderColor: withAlpha(colors.noteAccent, 0.4), backgroundColor: withAlpha(colors.noteAccent, 0.08) }]}
         >
           <MaterialCommunityIcons name="note-plus-outline" size={20} color={colors.noteAccent} />
-          <Text style={[styles.addRowText, { color: colors.noteAccent }]}>Add a note</Text>
+          <Text style={[styles.addRowText, { color: colors.noteAccent }]}>{t('Add a note')}</Text>
         </Tap>
       )}
 
       {working && shift && (
         <>
-          <SectionLabel colors={colors}>Swap</SectionLabel>
+          <SectionLabel colors={colors}>{t('Swap')}</SectionLabel>
           {swap ? (
             <View style={[styles.swapCard, { borderColor: withAlpha(colors.swapAccent, 0.35), backgroundColor: withAlpha(colors.swapAccent, 0.08) }]}>
               <View style={styles.swapHeader}>
                 <MaterialCommunityIcons name="swap-horizontal" size={20} color={colors.swapAccent} />
-                <Text style={[styles.swapTitle, { color: colors.text }]}>Swap offered</Text>
+                <Text style={[styles.swapTitle, { color: colors.text }]}>{t('Swap offered')}</Text>
                 <View style={[styles.swapBadge, { backgroundColor: withAlpha(colors.swapAccent, 0.18) }]}>
-                  <Text style={[styles.swapBadgeText, { color: colors.swapAccent }]}>{swap.status === 'accepted' ? 'Accepted' : 'Open'}</Text>
+                  <Text style={[styles.swapBadgeText, { color: colors.swapAccent }]}>{swap.status === 'accepted' ? t('Accepted') : t('Open')}</Text>
                 </View>
               </View>
               <Text style={[styles.swapDetail, { color: colors.textSecondary }]}>
-                Wants: {swap.wantCode === 'any' ? 'any shift' : getShiftByCode(swap.wantCode)?.label ?? swap.wantCode}
+                {t('Wants: {shift}', { shift: swapWantName(swap.wantCode) })}
                 {swap.note ? `\n“${swap.note}”` : ''}
               </Text>
               <View style={styles.swapActions}>
-                <Button label="Share" icon="share-variant-outline" onPress={() => shareSwap(swap)} colors={colors} color={colors.swapAccent} style={styles.flex} />
+                <Button label={t('Share')} icon="share-variant-outline" onPress={() => shareSwap(swap)} colors={colors} color={colors.swapAccent} style={styles.flex} />
                 <Button
-                  label="Withdraw"
+                  label={t('Withdraw')}
                   variant="secondary"
                   onPress={() => {
                     cancelSwap(dateKey);
@@ -383,25 +396,33 @@ function DayContent({ dateKey, onToast, onClose }: { dateKey: string; onToast: P
             </View>
           ) : swapFormOpen ? (
             <View style={[styles.swapCard, { borderColor: withAlpha(colors.swapAccent, 0.35), backgroundColor: withAlpha(colors.swapAccent, 0.08) }]}>
-              <Text style={[styles.swapPrompt, { color: colors.textSecondary }]}>What would you like instead?</Text>
+              <Text style={[styles.swapPrompt, { color: colors.textSecondary }]}>{t('What would you like instead?')}</Text>
               <View style={styles.chipWrap}>
-                <Chip label="Any shift" selected={swapWant === 'any'} onPress={() => setSwapWant('any')} colors={colors} color={colors.swapAccent} compact />
+                <Chip label={t('Any shift')} selected={swapWant === 'any'} onPress={() => setSwapWant('any')} colors={colors} color={colors.swapAccent} compact />
                 {allShifts
                   .filter((s) => s.code !== shift.code)
                   .map((s) => (
-                    <Chip key={s.code} label={s.label} selected={swapWant === s.code} onPress={() => setSwapWant(s.code)} colors={colors} color={colors.swapAccent} compact />
+                    <Chip
+                      key={s.code}
+                      label={shiftName(s)}
+                      selected={swapWant === s.code}
+                      onPress={() => setSwapWant(s.code)}
+                      colors={colors}
+                      color={colors.swapAccent}
+                      compact
+                    />
                   ))}
               </View>
               <BottomSheetTextInput
                 value={swapNote}
                 onChangeText={setSwapNote}
-                placeholder="Message (optional)"
+                placeholder={t('Message (optional)')}
                 placeholderTextColor={colors.textMuted}
                 style={[styles.swapInput, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
               />
               <View style={styles.swapActions}>
-                <Button label="Offer & share" icon="send-outline" onPress={submitSwap} colors={colors} color={colors.swapAccent} style={styles.flex} />
-                <Button label="Cancel" variant="secondary" onPress={() => setSwapFormOpen(false)} colors={colors} />
+                <Button label={t('Offer & share')} icon="send-outline" onPress={submitSwap} colors={colors} color={colors.swapAccent} style={styles.flex} />
+                <Button label={t('Cancel')} variant="secondary" onPress={() => setSwapFormOpen(false)} colors={colors} />
               </View>
             </View>
           ) : (
@@ -410,11 +431,11 @@ function DayContent({ dateKey, onToast, onClose }: { dateKey: string; onToast: P
                 haptic.light();
                 setSwapFormOpen(true);
               }}
-              accessibilityLabel="Offer this shift for a swap"
+              accessibilityLabel={t('Offer this shift for a swap')}
               style={[styles.addRow, { borderColor: withAlpha(colors.swapAccent, 0.4), backgroundColor: withAlpha(colors.swapAccent, 0.08) }]}
             >
               <MaterialCommunityIcons name="swap-horizontal" size={20} color={colors.swapAccent} />
-              <Text style={[styles.addRowText, { color: colors.swapAccent }]}>Offer a swap</Text>
+              <Text style={[styles.addRowText, { color: colors.swapAccent }]}>{t('Offer a swap')}</Text>
             </Tap>
           )}
         </>
@@ -422,7 +443,7 @@ function DayContent({ dateKey, onToast, onClose }: { dateKey: string; onToast: P
 
       {(shift || leave) && (
         <Button
-          label={leave ? 'Remove leave' : 'Clear shift'}
+          label={leave ? t('Remove leave') : t('Clear shift')}
           icon="close-circle-outline"
           variant="danger"
           onPress={handleClearDay}

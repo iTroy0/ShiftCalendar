@@ -4,11 +4,12 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ThemeColors } from '../../constants/colors';
 import { withAlpha } from '../../utils/color';
 import { haptic } from '../../utils/haptics';
+import { isRTL, monthName, t } from '../../i18n';
 import { Tap } from '../ui/Tap';
 import { Button, Chip, SectionLabel } from '../ui/primitives';
 import { SettingsCard, SettingsRow } from './SettingsRow';
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTHS = Array.from({ length: 12 }, (_, i) => i);
 
 interface Props {
   colors: ThemeColors;
@@ -31,26 +32,37 @@ export function DataSection(props: Props) {
   const disabled = busy !== null;
   return (
     <>
-      <SectionLabel colors={colors}>{`Export · ${props.calendarName}`}</SectionLabel>
+      <SectionLabel colors={colors}>{t('Export · {calendar}', { calendar: props.calendarName })}</SectionLabel>
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.yearRow}>
-          <Tap onPress={() => props.setYear(props.year - 1)} accessibilityLabel="Previous year" style={[styles.yearBtn, { backgroundColor: colors.surfaceVariant }]}>
-            <MaterialCommunityIcons name="chevron-left" size={20} color={colors.text} />
+          <Tap onPress={() => props.setYear(props.year - 1)} accessibilityLabel={t('Previous year')} style={[styles.yearBtn, { backgroundColor: colors.surfaceVariant }]}>
+            <MaterialCommunityIcons name={isRTL ? 'chevron-right' : 'chevron-left'} size={20} color={colors.text} />
           </Tap>
           <Text style={[styles.year, { color: colors.text }]}>{props.year}</Text>
-          <Tap onPress={() => props.setYear(props.year + 1)} accessibilityLabel="Next year" style={[styles.yearBtn, { backgroundColor: colors.surfaceVariant }]}>
-            <MaterialCommunityIcons name="chevron-right" size={20} color={colors.text} />
+          <Tap onPress={() => props.setYear(props.year + 1)} accessibilityLabel={t('Next year')} style={[styles.yearBtn, { backgroundColor: colors.surfaceVariant }]}>
+            <MaterialCommunityIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={20} color={colors.text} />
           </Tap>
         </View>
         <View style={styles.months}>
-          <Chip label="Whole year" icon="calendar-range" selected={props.month === null} onPress={() => props.setMonth(null)} colors={colors} compact style={styles.wholeYear} />
-          {MONTHS.map((m, i) => (
-            <Chip key={m} label={m} selected={props.month === i} onPress={() => { haptic.selection(); props.setMonth(i); }} colors={colors} compact style={styles.monthChip} />
+          <Chip label={t('Whole year')} icon="calendar-range" selected={props.month === null} onPress={() => props.setMonth(null)} colors={colors} compact style={styles.wholeYear} />
+          {MONTHS.map((i) => (
+            <Chip
+              key={i}
+              label={monthName(i, 'abbreviated')}
+              selected={props.month === i}
+              onPress={() => {
+                haptic.selection();
+                props.setMonth(i);
+              }}
+              colors={colors}
+              compact
+              style={styles.monthChip}
+            />
           ))}
         </View>
         <View style={styles.exportRow}>
           <Button
-            label="Spreadsheet"
+            label={t('Spreadsheet')}
             icon="file-delimited-outline"
             onPress={props.onExportCSV}
             colors={colors}
@@ -73,47 +85,47 @@ export function DataSection(props: Props) {
       </View>
 
       <SectionLabel colors={colors} right={busy && busy !== 'csv' && busy !== 'pdf' ? <ActivityIndicator size="small" color={colors.primary} /> : undefined}>
-        Backup & import
+        {t('Backup & import')}
       </SectionLabel>
       <SettingsCard colors={colors}>
         <SettingsRow
           icon="database-export-outline"
-          title="Back up everything"
-          subtitle="All calendars, shifts, notes and settings in one file"
+          title={t('Back up everything')}
+          subtitle={t('All calendars, shifts, notes and settings in one file')}
           colors={colors}
           onPress={disabled ? undefined : props.onBackup}
         />
         <SettingsRow
           icon="backup-restore"
           iconColor={colors.warning}
-          title="Restore from backup"
-          subtitle="Replaces current data with a backup file"
+          title={t('Restore from backup')}
+          subtitle={t('Replaces current data with a backup file')}
           colors={colors}
           onPress={disabled ? undefined : props.onRestore}
         />
         <SettingsRow
           icon="file-import-outline"
           iconColor={colors.info}
-          title="Import spreadsheet (CSV)"
-          subtitle={`Adds days into “${props.calendarName}”`}
+          title={t('Import spreadsheet (CSV)')}
+          subtitle={t('Adds days into “{calendar}”', { calendar: props.calendarName })}
           colors={colors}
           onPress={disabled ? undefined : props.onImportCSV}
         />
       </SettingsCard>
       <Text style={[styles.footnote, { color: colors.textMuted }]}>
-        Tip: you can also open CSV exports and backup files straight from your file manager.
+        {t('Tip: you can also open CSV exports and backup files straight from your file manager.')}
       </Text>
 
-      <SectionLabel colors={colors}>Danger zone</SectionLabel>
+      <SectionLabel colors={colors}>{t('Danger zone')}</SectionLabel>
       <Tap
         onPress={props.onReset}
-        accessibilityLabel="Erase all data"
+        accessibilityLabel={t('Erase all data')}
         style={[styles.danger, { backgroundColor: withAlpha(colors.danger, 0.08), borderColor: withAlpha(colors.danger, 0.3) }]}
       >
         <MaterialCommunityIcons name="delete-sweep-outline" size={22} color={colors.danger} />
         <View style={styles.flex}>
-          <Text style={[styles.dangerTitle, { color: colors.danger }]}>Erase all data</Text>
-          <Text style={[styles.dangerText, { color: colors.textSecondary }]}>Deletes every calendar, shift, note and setting on this device.</Text>
+          <Text style={[styles.dangerTitle, { color: colors.danger }]}>{t('Erase all data')}</Text>
+          <Text style={[styles.dangerText, { color: colors.textSecondary }]}>{t('Deletes every calendar, shift, note and setting on this device.')}</Text>
         </View>
       </Tap>
     </>

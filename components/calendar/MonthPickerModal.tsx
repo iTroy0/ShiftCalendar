@@ -4,9 +4,10 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ThemeColors } from '../../constants/colors';
 import { elevation } from '../../constants/theme';
 import { withAlpha } from '../../utils/color';
+import { formatDate, isRTL, monthName, t } from '../../i18n';
 import { Tap } from '../ui/Tap';
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTHS = Array.from({ length: 12 }, (_, i) => i);
 
 interface Props {
   visible: boolean;
@@ -26,27 +27,28 @@ export function MonthPickerModal({ visible, monthIndex, todayIndex, colors, onSe
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-      <Pressable style={[styles.backdrop, { backgroundColor: colors.overlay }]} onPress={onClose} accessibilityLabel="Close month picker">
+      <Pressable style={[styles.backdrop, { backgroundColor: colors.overlay }]} onPress={onClose} accessibilityLabel={t('Close month picker')}>
         <Pressable style={[styles.card, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }, elevation(3, colors.shadow)]}>
           <View style={styles.yearRow}>
-            <Tap onPress={() => setYear((y) => y - 1)} accessibilityLabel="Previous year" style={[styles.yearBtn, { backgroundColor: colors.surfaceVariant }]}>
-              <MaterialCommunityIcons name="chevron-left" size={22} color={colors.text} />
+            <Tap onPress={() => setYear((y) => y - 1)} accessibilityLabel={t('Previous year')} style={[styles.yearBtn, { backgroundColor: colors.surfaceVariant }]}>
+              <MaterialCommunityIcons name={isRTL ? 'chevron-right' : 'chevron-left'} size={22} color={colors.text} />
             </Tap>
             <Text style={[styles.year, { color: colors.text }]}>{year}</Text>
-            <Tap onPress={() => setYear((y) => y + 1)} accessibilityLabel="Next year" style={[styles.yearBtn, { backgroundColor: colors.surfaceVariant }]}>
-              <MaterialCommunityIcons name="chevron-right" size={22} color={colors.text} />
+            <Tap onPress={() => setYear((y) => y + 1)} accessibilityLabel={t('Next year')} style={[styles.yearBtn, { backgroundColor: colors.surfaceVariant }]}>
+              <MaterialCommunityIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={22} color={colors.text} />
             </Tap>
           </View>
           <View style={styles.grid}>
-            {MONTHS.map((m, i) => {
+            {MONTHS.map((i) => {
               const idx = year * 12 + i;
               const selected = idx === monthIndex;
               const isNow = idx === todayIndex;
+              const m = monthName(i, 'abbreviated');
               return (
                 <Tap
-                  key={m}
+                  key={i}
                   onPress={() => onSelect(idx)}
-                  accessibilityLabel={`${m} ${year}`}
+                  accessibilityLabel={formatDate(new Date(year, i), 'MMMM yyyy')}
                   accessibilityState={{ selected }}
                   style={[
                     styles.month,
@@ -62,11 +64,11 @@ export function MonthPickerModal({ visible, monthIndex, todayIndex, colors, onSe
           </View>
           <Tap
             onPress={() => onSelect(todayIndex)}
-            accessibilityLabel="Jump to this month"
+            accessibilityLabel={t('Jump to this month')}
             style={[styles.todayBtn, { borderColor: colors.border }]}
           >
             <MaterialCommunityIcons name="calendar-today" size={18} color={colors.primaryText} />
-            <Text style={[styles.todayText, { color: colors.primaryText }]}>This month</Text>
+            <Text style={[styles.todayText, { color: colors.primaryText }]}>{t('This month')}</Text>
           </Tap>
         </Pressable>
       </Pressable>

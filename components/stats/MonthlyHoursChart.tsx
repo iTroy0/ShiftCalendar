@@ -2,10 +2,9 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { ThemeColors } from '../../constants/colors';
 import { formatHours } from '../../utils/time';
+import { monthName, t } from '../../i18n';
 import { Tap } from '../ui/Tap';
 
-const MONTHS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
-const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const PLOT_HEIGHT = 120;
 
 interface Props {
@@ -31,10 +30,10 @@ export function MonthlyHoursChart({ hours, colors, highlightMonth, onMonthPress 
         {shown >= 0 && hours[shown] > 0 ? (
           <Text style={[styles.readoutText, { color: colors.textSecondary }]}>
             <Text style={{ color: colors.text, fontWeight: '800' }}>{formatHours(hours[shown])}</Text>
-            {`  in ${MONTH_NAMES[shown]}${shown === peak && selected === null ? ' · busiest month' : ''}`}
+            {`  ${t('in {month}', { month: monthName(shown) })}${shown === peak && selected === null ? ` · ${t('busiest month')}` : ''}`}
           </Text>
         ) : (
-          <Text style={[styles.readoutText, { color: colors.textMuted }]}>No hours logged this year yet</Text>
+          <Text style={[styles.readoutText, { color: colors.textMuted }]}>{t('No hours logged this year yet')}</Text>
         )}
       </View>
       <View style={[styles.plot, { height: PLOT_HEIGHT }]}>
@@ -46,8 +45,8 @@ export function MonthlyHoursChart({ hours, colors, highlightMonth, onMonthPress 
               key={i}
               onPress={() => setSelected(i)}
               onLongPress={() => onMonthPress(i)}
-              accessibilityLabel={`${MONTH_NAMES[i]}: ${formatHours(h)}`}
-              accessibilityHint="Long-press to open this month"
+              accessibilityLabel={`${monthName(i)}: ${formatHours(h)}`}
+              accessibilityHint={t('Long-press to open this month')}
               activeOpacity={0.8}
               style={styles.slot}
             >
@@ -67,9 +66,9 @@ export function MonthlyHoursChart({ hours, colors, highlightMonth, onMonthPress 
       </View>
       <View style={[styles.baseline, { backgroundColor: colors.border }]} />
       <View style={styles.axis}>
-        {MONTHS.map((m, i) => (
+        {hours.map((_, i) => (
           <Text key={i} style={[styles.axisLabel, { color: i === shown ? colors.text : colors.textMuted }]}>
-            {m}
+            {monthName(i, 'narrow')}
           </Text>
         ))}
       </View>

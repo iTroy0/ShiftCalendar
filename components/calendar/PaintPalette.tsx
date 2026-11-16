@@ -1,11 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { ShiftType } from '../../constants/shifts';
-import { LeaveType } from '../../constants/leaveTypes';
+import { ShiftType, shiftCode, shiftName } from '../../constants/shifts';
+import { LeaveType, leaveCode } from '../../constants/leaveTypes';
 import { ThemeColors } from '../../constants/colors';
 import { elevation } from '../../constants/theme';
 import { readableTextColor, withAlpha } from '../../utils/color';
+import { t } from '../../i18n';
 import { Tap } from '../ui/Tap';
 
 export type Brush = { kind: 'shift'; code: string } | { kind: 'leave'; id: string } | { kind: 'erase' };
@@ -44,7 +45,7 @@ function BrushChip({
   return (
     <Tap
       onPress={onPress}
-      accessibilityLabel={`Brush: ${label}`}
+      accessibilityLabel={t('Brush: {name}', { name: label })}
       accessibilityState={{ selected }}
       style={[
         styles.chip,
@@ -77,8 +78,8 @@ export function PaintPalette({ shifts, leaveTypes, brush, onSelect, colors }: Pr
         {shifts.map((s) => (
           <BrushChip
             key={s.code}
-            label={s.label}
-            code={s.code}
+            label={shiftName(s)}
+            code={shiftCode(s)}
             color={s.color}
             selected={key === `s:${s.code}`}
             onPress={() => onSelect({ kind: 'shift', code: s.code })}
@@ -86,20 +87,20 @@ export function PaintPalette({ shifts, leaveTypes, brush, onSelect, colors }: Pr
           />
         ))}
         <View style={[styles.sep, { backgroundColor: colors.border }]} />
-        {leaveTypes.map((t) => (
+        {leaveTypes.map((lt) => (
           <BrushChip
-            key={t.id}
-            label={t.label.replace(' Leave', '')}
-            code={t.code}
-            color={t.color}
-            selected={key === `l:${t.id}`}
-            onPress={() => onSelect({ kind: 'leave', id: t.id })}
+            key={lt.id}
+            label={t(lt.label).replace(' Leave', '')}
+            code={leaveCode(lt)}
+            color={lt.color}
+            selected={key === `l:${lt.id}`}
+            onPress={() => onSelect({ kind: 'leave', id: lt.id })}
             colors={colors}
           />
         ))}
         <View style={[styles.sep, { backgroundColor: colors.border }]} />
         <BrushChip
-          label="Erase"
+          label={t('Erase')}
           icon="eraser"
           color={colors.textSecondary}
           selected={key === 'erase'}

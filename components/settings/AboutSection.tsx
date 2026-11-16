@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { ThemeColors } from '../../constants/colors';
+import { t } from '../../i18n';
 import { Tap } from '../ui/Tap';
 import { SectionLabel } from '../ui/primitives';
 import { SettingsCard, SettingsRow } from './SettingsRow';
@@ -14,21 +15,21 @@ interface Props {
   setShowPrivacy: (v: boolean) => void;
 }
 
-const PRIVACY: { title: string; body: string }[] = [
-  { title: 'Data storage', body: 'Everything you enter — shifts, notes, overtime, calendars and settings — is stored only on this device. Nothing is sent to a server.' },
-  { title: 'No account required', body: 'ShiftCalendar never asks you to sign up, sign in, or share personal information.' },
-  { title: 'No tracking', body: 'There are no analytics, ads, or third-party tracking services in the app.' },
-  { title: 'Notifications', body: 'Reminders and alarms are scheduled locally on your device. No notification data leaves it.' },
-  { title: 'Export & backup', body: 'Exports and backups are files you create and choose where to save or share. They are never uploaded by the app.' },
-  { title: 'Children', body: 'ShiftCalendar does not knowingly collect information from anyone, including children under 13.' },
-  { title: 'Changes', body: 'If this policy changes, the updated version will appear here in the app.' },
+const privacy = (): { title: string; body: string }[] => [
+  { title: t('Data storage'), body: t('Everything you enter — shifts, notes, overtime, calendars and settings — is stored only on this device. Nothing is sent to a server.') },
+  { title: t('No account required'), body: t('ShiftCalendar never asks you to sign up, sign in, or share personal information.') },
+  { title: t('No tracking'), body: t('There are no analytics, ads, or third-party tracking services in the app.') },
+  { title: t('Notifications'), body: t('Reminders and alarms are scheduled locally on your device. No notification data leaves it.') },
+  { title: t('Export & backup'), body: t('Exports and backups are files you create and choose where to save or share. They are never uploaded by the app.') },
+  { title: t('Children'), body: t('ShiftCalendar does not knowingly collect information from anyone, including children under 13.') },
+  { title: t('Changes'), body: t('If this policy changes, the updated version will appear here in the app.') },
 ];
 
 export function AboutSection({ colors, showPrivacy, setShowPrivacy }: Props) {
   const version = Constants.expoConfig?.version ?? '';
   return (
     <>
-      <SectionLabel colors={colors}>About</SectionLabel>
+      <SectionLabel colors={colors}>{t('About')}</SectionLabel>
       <SettingsCard colors={colors}>
         <View style={styles.appRow}>
           <View style={[styles.appIcon, { backgroundColor: colors.primary }]}>
@@ -36,38 +37,41 @@ export function AboutSection({ colors, showPrivacy, setShowPrivacy }: Props) {
           </View>
           <View style={styles.flex}>
             <Text style={[styles.appName, { color: colors.text }]}>ShiftCalendar</Text>
-            <Text style={[styles.appMeta, { color: colors.textSecondary }]}>{version ? `Version ${version} · ` : ''}Offline & private</Text>
+            <Text style={[styles.appMeta, { color: colors.textSecondary }]}>
+              {version ? `${t('Version {version}', { version })} · ` : ''}
+              {t('Offline & private')}
+            </Text>
           </View>
         </View>
-        <SettingsRow icon="shield-account" title="Privacy policy" colors={colors} onPress={() => setShowPrivacy(true)} />
+        <SettingsRow icon="shield-account" title={t('Privacy policy')} colors={colors} onPress={() => setShowPrivacy(true)} />
         <SettingsRow
           icon="coffee"
           iconColor={colors.warning}
-          title="Buy me a coffee"
-          subtitle="Enjoying ShiftCalendar? Support its development"
+          title={t('Buy me a coffee')}
+          subtitle={t('Enjoying ShiftCalendar? Support its development')}
           colors={colors}
           onPress={() => Linking.openURL('https://buymeacoffee.com/itroy0').catch(() => {})}
         />
       </SettingsCard>
       <View style={styles.madeBy}>
         <MaterialCommunityIcons name="heart" size={14} color={colors.danger} />
-        <Text style={[styles.madeByText, { color: colors.textMuted }]}>Made by Troy</Text>
+        <Text style={[styles.madeByText, { color: colors.textMuted }]}>{t('Made by Troy')}</Text>
       </View>
 
       <Modal visible={showPrivacy} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowPrivacy(false)}>
         <SafeAreaView style={[styles.flex, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Privacy policy</Text>
-            <Tap onPress={() => setShowPrivacy(false)} accessibilityLabel="Close" style={[styles.closeBtn, { backgroundColor: colors.surfaceVariant }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>{t('Privacy policy')}</Text>
+            <Tap onPress={() => setShowPrivacy(false)} accessibilityLabel={t('Close')} style={[styles.closeBtn, { backgroundColor: colors.surfaceVariant }]}>
               <MaterialCommunityIcons name="close" size={20} color={colors.text} />
             </Tap>
           </View>
           <ScrollView contentContainerStyle={styles.modalContent}>
-            <Text style={[styles.updated, { color: colors.textMuted }]}>Last updated October 2026</Text>
+            <Text style={[styles.updated, { color: colors.textMuted }]}>{t('Last updated October 2026')}</Text>
             <Text style={[styles.body, { color: colors.text }]}>
-              ShiftCalendar is built to keep your schedule private. Here is how the app handles your information.
+              {t('ShiftCalendar is built to keep your schedule private. Here is how the app handles your information.')}
             </Text>
-            {PRIVACY.map((p) => (
+            {privacy().map((p) => (
               <View key={p.title}>
                 <Text style={[styles.policyTitle, { color: colors.text }]}>{p.title}</Text>
                 <Text style={[styles.body, { color: colors.textSecondary }]}>{p.body}</Text>

@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ThemeColors } from '../../constants/colors';
 import { withAlpha } from '../../utils/color';
 import { Tap } from '../ui/Tap';
+import { isRTL } from '../../i18n';
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -67,13 +68,13 @@ export function SettingsRow({
           accessibilityLabel={title}
         />
       )}
-      {(chevron ?? (!!onPress && !onSwitch)) && <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} />}
+      {(chevron ?? (!!onPress && !onSwitch)) && <MaterialCommunityIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={20} color={colors.textMuted} />}
     </>
   );
 
   if (onPress) {
     return (
-      <Tap onPress={onPress} activeOpacity={0.6} accessibilityLabel={subtitle ? `${title}. ${subtitle}` : title} style={[styles.row, style]}>
+      <Tap onPress={onPress} activeOpacity={0.6} accessibilityLabel={[title, value, subtitle].filter(Boolean).join('. ')} style={[styles.row, style]}>
         {content}
       </Tap>
     );

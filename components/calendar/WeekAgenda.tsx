@@ -2,16 +2,14 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { ShiftType, getShiftHours, isWorkingShift } from '../../constants/shifts';
+import { ShiftType, assignmentCode, assignmentName, getShiftHours, isWorkingShift } from '../../constants/shifts';
 import { LeaveType } from '../../constants/leaveTypes';
 import { ThemeColors } from '../../constants/colors';
 import { WeekStart, fromDateKey, weekDays } from '../../utils/dates';
 import { TimeFormat, formatHours, formatTimeRange } from '../../utils/time';
 import { readableTextColor, withAlpha } from '../../utils/color';
+import { formatDate, plural, t, weekdayName } from '../../i18n';
 import { Tap } from '../ui/Tap';
-
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export interface WeekAgendaProps {
   weekIndex: number;
@@ -60,8 +58,17 @@ function WeekAgendaBase(props: WeekAgendaProps) {
 
     const meta: { icon: any; text: string; color: string }[] = [];
     if (working) meta.push({ icon: 'clock-outline', text: formatHours(hours), color: colors.textSecondary });
-    if (ot > 0) meta.push({ icon: 'clock-plus-outline', text: `+${formatHours(ot)} OT`, color: colors.overtimeAccent });
-    if (swap) meta.push({ icon: 'swap-horizontal', text: 'Swap offered', color: colors.swapAccent });
+    if (ot > 0) meta.push({ icon: 'clock-plus-outline', text: t('+{hours} OT', { hours: formatHours(ot) }), color: colors.overtimeAccent });
+    if (swap) meta.push({ icon: 'swap-horizontal', text: t('Swap offered'), color: colors.swapAccent });
+    const dow = weekdayName(date.getDay(), 'abbreviated');
+    const label = [
+      formatDate(date, 'EEE d MMM'),
+      item ? assignmentName(item) : t('no shift'),
+      isToday ? t('today') : '',
+      note ? t('note: {note}', { note }) : '',
+    ]
+      .filter(Boolean)
+      .join(t(', '));
 
     return (
       <Tap
@@ -70,11 +77,11 @@ function WeekAgendaBase(props: WeekAgendaProps) {
         onLongPress={() => props.onDayLongPress(key)}
         delayLongPress={350}
         activeOpacity={0.7}
-        accessibilityLabel={`${DAYS[date.getDay()]} ${date.getDate()} ${MONTHS[date.getMonth()]}, ${item ? item.label : 'no shift'}${isToday ? ', today' : ''}${note ? ', note: ' + note : ''}`}
+        accessibilityLabel={label}
         style={styles.row}
       >
         <View style={styles.dateCol}>
-          <Text style={[styles.dow, { color: isToday ? colors.primaryText : colors.textMuted }]}>{DAYS[date.getDay()]}</Text>
+          <Text style={[styles.dow, { color: isToday ? colors.primaryText : colors.textMuted }]}>{dow}</Text>
           <View style={[styles.dayCircle, isToday && { backgroundColor: colors.primary }]}>
             <Text style={[styles.dayNum, { color: isToday ? colors.onPrimary : colors.text }]}>{date.getDate()}</Text>
           </View>
@@ -95,11 +102,11 @@ function WeekAgendaBase(props: WeekAgendaProps) {
             <View style={styles.titleRow}>
               {item && (
                 <View style={[styles.code, { backgroundColor: item.color }]}>
-                  <Text style={[styles.codeText, { color: readableTextColor(item.color) }]}>{item.code}</Text>
+                  <Text style={[styles.codeText, { color: readableTextColor(item.color) }]}>{assignmentCode(item)}</Text>
                 </View>
               )}
               <Text style={[styles.title, { color: item ? colors.text : colors.textMuted }]} numberOfLines={1}>
-                {item ? item.label : preview === null ? 'Will be cleared' : 'No shift'}
+                {item ? assignmentName(item) : preview === null ? t('Will be cleared') : t('No shift')}
               </Text>
               {working && shift ? (
                 <Text style={[styles.time, { color: colors.textSecondary }]} numberOfLines={1}>
@@ -139,7 +146,10 @@ function WeekAgendaBase(props: WeekAgendaProps) {
     >
       <View style={styles.summary}>
         <Text style={[styles.summaryText, { color: colors.textSecondary }]}>
-          {worked} shift{worked === 1 ? '' : 's'} · {formatHours(Math.round(weekHours * 10) / 10)} this week
+          {t('{shifts} · {hours} this week', {
+            shifts: plural(worked, '1 shift', '{n} shifts'),
+            hours: formatHours(Math.round(weekHours * 10) / 10),
+          })}
         </Text>
       </View>
       {rows}

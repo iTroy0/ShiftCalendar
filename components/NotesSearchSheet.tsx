@@ -3,11 +3,12 @@ import { View, Text, StyleSheet } from 'react-native';
 import { BottomSheetModal, BottomSheetFlatList, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { format } from 'date-fns';
 import { useShifts } from '../hooks/ShiftContext';
 import { useAppSettings } from '../hooks/SettingsContext';
+import { assignmentCode } from '../constants/shifts';
 import { daysBetweenKeys, fromDateKey, todayKey } from '../utils/dates';
 import { readableTextColor, withAlpha } from '../utils/color';
+import { formatDate, monthName, plural, t, weekdayName } from '../i18n';
 import { Tap } from './ui/Tap';
 import { EmptyState } from './ui/primitives';
 import { SheetHeader, useSheetBackdrop, useSheetChrome } from './ui/sheet';
@@ -19,12 +20,12 @@ interface Props {
 
 function relativeLabel(date: string, today: string) {
   const diff = daysBetweenKeys(today, date);
-  if (diff === 0) return 'Today';
-  if (diff === 1) return 'Tomorrow';
-  if (diff === -1) return 'Yesterday';
-  if (diff > 1 && diff < 60) return `In ${diff} days`;
-  if (diff < -1 && diff > -60) return `${-diff} days ago`;
-  return format(fromDateKey(date), 'yyyy');
+  if (diff === 0) return t('Today');
+  if (diff === 1) return t('Tomorrow');
+  if (diff === -1) return t('Yesterday');
+  if (diff > 1 && diff < 60) return t('In {n} days', { n: diff });
+  if (diff < -1 && diff > -60) return t('{n} days ago', { n: -diff });
+  return formatDate(fromDateKey(date), 'yyyy');
 }
 
 function highlight(text: string, query: string) {
@@ -94,8 +95,8 @@ export const NotesSearchSheet = forwardRef<BottomSheetModal, Props>(function Not
     >
       <View style={styles.top}>
         <SheetHeader
-          title="Notes"
-          subtitle={`${results.length} ${results.length === 1 ? 'note' : 'notes'}${query ? ' found' : ''}`}
+          title={t('Notes')}
+          subtitle={query ? plural(results.length, '1 note found', '{n} notes found') : plural(results.length, '1 note', '{n} notes')}
           colors={colors}
           onClose={close}
         />
@@ -105,15 +106,15 @@ export const NotesSearchSheet = forwardRef<BottomSheetModal, Props>(function Not
             style={[styles.searchInput, { color: colors.text }]}
             value={query}
             onChangeText={setQuery}
-            placeholder="Search notes"
+            placeholder={t('Search notes')}
             placeholderTextColor={colors.textMuted}
             autoCapitalize="none"
             autoCorrect={false}
             returnKeyType="search"
-            accessibilityLabel="Search notes"
+            accessibilityLabel={t('Search notes')}
           />
           {query.length > 0 && (
-            <Tap onPress={() => setQuery('')} accessibilityLabel="Clear search">
+            <Tap onPress={() => setQuery('')} accessibilityLabel={t('Clear search')}>
               <MaterialCommunityIcons name="close-circle" size={18} color={colors.textSecondary} />
             </Tap>
           )}
@@ -127,8 +128,8 @@ export const NotesSearchSheet = forwardRef<BottomSheetModal, Props>(function Not
         ListEmptyComponent={
           <EmptyState
             icon={query ? 'file-search-outline' : 'note-text-outline'}
-            title={query ? 'No matching notes' : 'No notes yet'}
-            message={query ? 'Try a different word.' : 'Open any day and add a note — it will show up here.'}
+            title={query ? t('No matching notes') : t('No notes yet')}
+            message={query ? t('Try a different word.') : t('Open any day and add a note — it will show up here.')}
             colors={colors}
           />
         }
@@ -140,26 +141,26 @@ export const NotesSearchSheet = forwardRef<BottomSheetModal, Props>(function Not
           const isPastStart = date < today && (index === 0 || results[index - 1][0] >= today);
           return (
             <View>
-              {isPastStart && <Text style={[styles.groupLabel, { color: colors.textMuted }]}>Earlier</Text>}
-              {index === 0 && date >= today && <Text style={[styles.groupLabel, { color: colors.textMuted }]}>Upcoming</Text>}
+              {isPastStart && <Text style={[styles.groupLabel, { color: colors.textMuted }]}>{t('Earlier')}</Text>}
+              {index === 0 && date >= today && <Text style={[styles.groupLabel, { color: colors.textMuted }]}>{t('Upcoming')}</Text>}
               <Tap
                 onPress={() => select(date)}
                 activeOpacity={0.7}
-                accessibilityLabel={`${format(d, 'EEEE d MMMM yyyy')}: ${note}`}
+                accessibilityLabel={`${formatDate(d, 'EEEE d MMMM yyyy')}: ${note}`}
                 style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
               >
                 <View style={[styles.dateBox, { backgroundColor: withAlpha(colors.primary, 0.12) }]}>
-                  <Text style={[styles.dateMonth, { color: colors.primaryText }]}>{format(d, 'MMM')}</Text>
+                  <Text style={[styles.dateMonth, { color: colors.primaryText }]}>{monthName(d.getMonth(), 'abbreviated')}</Text>
                   <Text style={[styles.dateDay, { color: colors.text }]}>{d.getDate()}</Text>
                 </View>
                 <View style={styles.cardBody}>
                   <View style={styles.cardTop}>
                     <Text style={[styles.cardDate, { color: colors.textSecondary }]}>
-                      {format(d, 'EEEE')} · {relativeLabel(date, today)}
+                      {weekdayName(d.getDay())} · {relativeLabel(date, today)}
                     </Text>
                     {tag && (
                       <View style={[styles.tag, { backgroundColor: tag.color }]}>
-                        <Text style={[styles.tagText, { color: readableTextColor(tag.color) }]}>{tag.code}</Text>
+                        <Text style={[styles.tagText, { color: readableTextColor(tag.color) }]}>{assignmentCode(tag)}</Text>
                       </View>
                     )}
                   </View>

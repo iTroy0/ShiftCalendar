@@ -3,6 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DEFAULT_SHIFTS, ShiftType } from '../constants/shifts';
 import { DEFAULT_LEAVE_TYPES } from '../constants/leaveTypes';
 import { WeekStart } from '../utils/dates';
+import { isLanguageSetting, setLanguage } from '../i18n';
+import { calendarName } from '../hooks/useShiftData';
 import { buildWidgetModel } from './widgetModel';
 import { renderShiftWidget } from './ShiftWeekWidget';
 
@@ -19,8 +21,10 @@ function parse<T>(raw: string | null | undefined, fallback: T): T {
 /** Reads what the widget needs straight from storage (runs headless, without the app UI). */
 async function loadWidget() {
   const pairs = new Map(
-    await AsyncStorage.multiGet(['week_start', 'time_format', 'theme_mode', 'primary_calendar', 'all_shifts_v2', 'calendars_list'])
+    await AsyncStorage.multiGet(['week_start', 'time_format', 'theme_mode', 'language', 'primary_calendar', 'all_shifts_v2', 'calendars_list'])
   );
+  const language = pairs.get('language');
+  setLanguage(isLanguageSetting(language) ? language : 'system');
   const calendars = parse<{ id: string; name: string }[]>(pairs.get('calendars_list'), []);
   const wanted = pairs.get('primary_calendar') || 'default';
   const calendar = calendars.find((c) => c.id === wanted) ?? calendars.find((c) => c.id === 'default');
@@ -35,7 +39,7 @@ async function loadWidget() {
     leaveTypes: DEFAULT_LEAVE_TYPES,
     weekStart: (week === '1' || week === '6' ? Number(week) : 0) as WeekStart,
     timeFormat: pairs.get('time_format') === '12h' ? '12h' : '24h',
-    calendarName: calendar?.name ?? 'My Shifts',
+    calendarName: calendarName(calendar ?? { id: 'default', name: 'My Shifts' }),
   });
   return renderShiftWidget(model, pairs.get('theme_mode') || 'system');
 }

@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LeaveType } from '../../constants/leaveTypes';
 import { ThemeColors } from '../../constants/colors';
 import { haptic } from '../../utils/haptics';
+import { t } from '../../i18n';
 import { Tap } from '../ui/Tap';
 import { SectionLabel } from '../ui/primitives';
 import { SettingsCard, SettingsRow } from './SettingsRow';
@@ -25,22 +26,27 @@ function DaysStepper({ value, onChange, colors, label }: { value: number; onChan
   };
   return (
     <View style={[styles.stepper, { backgroundColor: colors.surfaceVariant }]}>
-      <Tap onPress={() => step(-1)} disabled={value <= 0} accessibilityLabel={`Fewer ${label} days`} style={[styles.stepBtn, { opacity: value <= 0 ? 0.35 : 1 }]}>
+      <Tap
+        onPress={() => step(-1)}
+        disabled={value <= 0}
+        accessibilityLabel={t('Fewer {name} days', { name: label })}
+        style={[styles.stepBtn, { opacity: value <= 0 ? 0.35 : 1 }]}
+      >
         <MaterialCommunityIcons name="minus" size={16} color={colors.text} />
       </Tap>
       <TextInput
         value={text}
-        onChangeText={(t) => {
-          const digits = t.replace(/[^0-9]/g, '').slice(0, 3);
+        onChangeText={(input) => {
+          const digits = input.replace(/[^0-9]/g, '').slice(0, 3);
           setText(digits);
           if (digits) onChange(Math.min(parseInt(digits, 10), 365));
         }}
         onBlur={() => setText(String(value))}
         keyboardType="number-pad"
-        accessibilityLabel={`${label} days per year`}
+        accessibilityLabel={t('{name} days per year', { name: label })}
         style={[styles.stepValue, { color: colors.text }]}
       />
-      <Tap onPress={() => step(1)} accessibilityLabel={`More ${label} days`} style={styles.stepBtn}>
+      <Tap onPress={() => step(1)} accessibilityLabel={t('More {name} days', { name: label })} style={styles.stepBtn}>
         <MaterialCommunityIcons name="plus" size={16} color={colors.text} />
       </Tap>
     </View>
@@ -50,21 +56,28 @@ function DaysStepper({ value, onChange, colors, label }: { value: number; onChan
 export function LeaveBalanceSection({ colors, calendarName, leaveTypes, leaveBalances, setLeaveBalance }: Props) {
   return (
     <>
-      <SectionLabel colors={colors}>{`Leave allowance · ${calendarName}`}</SectionLabel>
+      <SectionLabel colors={colors}>{t('Leave allowance · {calendar}', { calendar: calendarName })}</SectionLabel>
       <SettingsCard colors={colors}>
         {leaveTypes.map((lt) => (
           <SettingsRow
             key={lt.id}
             icon={lt.icon as any}
             iconColor={lt.color}
-            title={lt.label}
-            subtitle={lt.paid ? 'Paid · days per year' : 'Unpaid · days per year'}
+            title={t(lt.label)}
+            subtitle={lt.paid ? t('Paid · days per year') : t('Unpaid · days per year')}
             colors={colors}
-            right={<DaysStepper value={leaveBalances[lt.id] ?? lt.defaultDays} onChange={(v) => setLeaveBalance(lt.id, v)} colors={colors} label={lt.label} />}
+            right={
+              <DaysStepper
+                value={leaveBalances[lt.id] ?? lt.defaultDays}
+                onChange={(v) => setLeaveBalance(lt.id, v)}
+                colors={colors}
+                label={t(lt.label)}
+              />
+            }
           />
         ))}
       </SettingsCard>
-      <Text style={[styles.footnote, { color: colors.textMuted }]}>Remaining days for the current year are shown in Stats.</Text>
+      <Text style={[styles.footnote, { color: colors.textMuted }]}>{t('Remaining days for the current year are shown in Stats.')}</Text>
     </>
   );
 }

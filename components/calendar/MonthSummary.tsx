@@ -1,11 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { ShiftType } from '../../constants/shifts';
-import { LeaveType } from '../../constants/leaveTypes';
+import { ShiftType, shiftCode, shiftName } from '../../constants/shifts';
+import { LeaveType, leaveCode } from '../../constants/leaveTypes';
 import { ThemeColors } from '../../constants/colors';
 import { PeriodStats } from '../../utils/statsCalculation';
 import { formatHours } from '../../utils/time';
 import { readableTextColor } from '../../utils/color';
+import { t } from '../../i18n';
 
 interface Props {
   stats: PeriodStats;
@@ -17,25 +18,29 @@ interface Props {
 /** Compact per-month totals shown beside the calendar in landscape. */
 export function MonthSummary({ stats, allShifts, leaveTypes, colors }: Props) {
   const items = [
-    ...allShifts.filter((s) => stats.counts[s.code] > 0).map((s) => ({ key: s.code, code: s.code, label: s.label, color: s.color, count: stats.counts[s.code] })),
-    ...leaveTypes.filter((t) => stats.leaveCounts[t.id] > 0).map((t) => ({ key: t.id, code: t.code, label: t.label, color: t.color, count: stats.leaveCounts[t.id] })),
+    ...allShifts
+      .filter((s) => stats.counts[s.code] > 0)
+      .map((s) => ({ key: s.code, code: shiftCode(s), label: shiftName(s), color: s.color, count: stats.counts[s.code] })),
+    ...leaveTypes
+      .filter((lt) => stats.leaveCounts[lt.id] > 0)
+      .map((lt) => ({ key: lt.id, code: leaveCode(lt), label: t(lt.label), color: lt.color, count: stats.leaveCounts[lt.id] })),
   ];
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={styles.totals}>
         <View style={styles.total}>
           <Text style={[styles.totalValue, { color: colors.text }]}>{stats.workingDays}</Text>
-          <Text style={[styles.totalLabel, { color: colors.textMuted }]}>Shifts</Text>
+          <Text style={[styles.totalLabel, { color: colors.textMuted }]}>{t('Shifts')}</Text>
         </View>
         <View style={styles.total}>
           <Text style={[styles.totalValue, { color: colors.text }]}>{formatHours(stats.totalHours)}</Text>
-          <Text style={[styles.totalLabel, { color: colors.textMuted }]}>Hours</Text>
+          <Text style={[styles.totalLabel, { color: colors.textMuted }]}>{t('Hours')}</Text>
         </View>
         <View style={styles.total}>
           <Text style={[styles.totalValue, { color: stats.overtimeHours > 0 ? colors.overtimeAccent : colors.text }]}>
             {formatHours(stats.overtimeHours)}
           </Text>
-          <Text style={[styles.totalLabel, { color: colors.textMuted }]}>Overtime</Text>
+          <Text style={[styles.totalLabel, { color: colors.textMuted }]}>{t('Overtime')}</Text>
         </View>
       </View>
       {items.length > 0 && (
